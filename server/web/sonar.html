@@ -3,56 +3,138 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Roomie Sonar</title>
+<title>Roomie Finder Test</title>
 <style>
-:root{--bg:#121214;--fg:#fff;--sec:rgba(255,255,255,.6);--ter:rgba(255,255,255,.35);--hit:#7CF2C4;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--serif:ui-serif,"New York",Georgia,serif}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--fg);font:17px/1.4 var(--sans);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+/* Roomie's finding screen, in the app's own language: iOS system type, SF Rounded numbers, New York for
+   the spoken direction, the app's lilac/sky/iris palette. Each phone has a colour (A lilac, B sky); when you
+   face the other phone the screen fills with ITS colour. Signature: the soft wedge behind the arrow is as
+   wide as the arrow's real uncertainty, so a sure arrow is a needle and a guess is a fan. */
+:root{
+  --ground:#121212; --fg:#fff; --sec:rgba(235,235,245,.6); --ter:rgba(235,235,245,.32); --fill:rgba(118,118,128,.24);
+  --iris:#6E6BF2; --lilac:#B9A7FF; --sky:#8FD3FF; --green:#30D158; --orange:#FF9F0A;
+  --me:var(--lilac); --them:var(--sky);
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Helvetica Neue",sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:var(--ground);color:var(--fg);font:17px/1.3 var(--sans);letter-spacing:-.02em;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 body{transition:background .35s}
-body.aligned{background:var(--hit)} body.aligned *{color:#000!important}
-button{font:inherit;border:0;cursor:pointer}
-main{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:calc(16px + env(safe-area-inset-top)) 28px calc(20px + env(safe-area-inset-bottom))}
-.top{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--sec)}
-.dot{width:8px;height:8px;border-radius:50%;background:#555} .dot.on{background:#34c759}
-.mid{flex:1;display:grid;place-items:center}
-#arrow{font-size:190px;line-height:1;font-weight:700;transition:transform .2s ease-out,opacity .3s;opacity:.18}
-#arrow.live{opacity:1}
-#dist{font:600 72px/1 var(--sans);font-variant-numeric:tabular-nums}
-#dir{font-size:22px;color:var(--sec);margin-top:6px}
-#status{font-size:15px;color:var(--ter);margin-top:12px;min-height:2.8em}
-.btn{display:block;width:100%;padding:17px;border-radius:999px;background:#fff;color:#000;font-weight:600;margin-top:18px}
-.row{display:flex;gap:8px;margin-top:10px} .row .btn{margin-top:0;background:rgba(255,255,255,.14);color:#fff;font-size:15px;padding:12px}
-#dbg{font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--ter);white-space:pre;margin-top:10px;display:none}
-.perms{display:flex;gap:6px;margin-top:12px}
-.perm{flex:1;padding:8px 6px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(255,255,255,.1);color:var(--sec)}
-.perm.ok{background:rgba(52,199,89,.18);color:#5be37e} .perm.ok::before{content:"✓ "}
-.perm.no{background:rgba(255,159,10,.2);color:#ffb340} .perm.no::after{content:" · tap"}
-#meter{height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin-top:12px;overflow:hidden}
-#meter i{display:block;height:100%;width:0;background:var(--hit);transition:width .2s}
+body.aligned{background:var(--them)} body.aligned main{color:#000} body.aligned .quiet,body.aligned #status{color:rgba(0,0,0,.55)}
+button,input{font:inherit;color:inherit;letter-spacing:inherit;border:0;background:none}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--iris);outline-offset:3px;border-radius:10px}
+main{max-width:440px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top)) 24px calc(16px + env(safe-area-inset-bottom))}
+.quiet{color:var(--sec)}
+
+/* top: who you are, whether the other phone is there */
+.top{display:flex;align-items:center;gap:10px;font-size:15px}
+.me{width:30px;height:30px;border-radius:50%;background:var(--me);color:#000;display:grid;place-items:center;font:700 14px/1 var(--round)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ter);flex:none} .dot.on{background:var(--green)}
+#roleTxt{margin-left:auto;font:12px var(--mono);color:var(--ter)}
+
+/* permissions only show while something is missing */
+.perms{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.perm{white-space:nowrap;padding:7px 12px;border-radius:999px;font-size:13px;font-weight:600;background:var(--fill);color:var(--sec)}
+.perm.ok{display:none}
+.perm.no{background:rgba(255,159,10,.18);color:var(--orange)} .perm.no::after{content:" · Allow"}
+
+/* the dial */
+.mid{flex:1;display:grid;place-items:center;min-height:300px}
+.dial{position:relative;width:min(78vw,300px);aspect-ratio:1}
+/* The dial's rim tells you what the page is doing, so waiting never looks like being stuck:
+   a ripple leaves it on every measuring beep, it fills up while a sweep is being worked out, it turns
+   slowly dashed while nothing is known yet, and it flashes once when a direction locks on. */
+.rim{position:absolute;inset:0;width:100%;height:100%;overflow:visible;transform:rotate(-90deg)}
+.rim circle{fill:none;stroke-width:3}
+#rimTrack{stroke:var(--fill);stroke-width:1.5}
+#rimProg{stroke:var(--them);stroke-linecap:round;stroke-dasharray:0 1000;transition:stroke-dasharray .3s}
+.dial.searching #rimTrack{stroke-dasharray:3 9;animation:spin 12s linear infinite;transform-origin:0 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ping{position:absolute;inset:0;border-radius:50%;border:2px solid var(--them);opacity:0;pointer-events:none}
+.ping.go{animation:ping 1s ease-out}
+@keyframes ping{from{opacity:.6;transform:scale(.92)}to{opacity:0;transform:scale(1.12)}}
+.dial.locked .ping{animation:lock .6s ease-out}
+@keyframes lock{0%{opacity:.9;transform:scale(1);border-width:6px}100%{opacity:0;transform:scale(1.04);border-width:2px}}
+body.aligned #rimTrack{stroke:rgba(0,0,0,.15)} body.aligned #rimProg,body.aligned .ping{stroke:#000;border-color:#000}
+/* what's happening right now, in one line */
+.activity{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px;color:var(--sec);min-height:1.3em}
+.activity i{width:7px;height:7px;border-radius:50%;background:var(--them);flex:none;opacity:.35}
+.activity.busy i{animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:1}}
+body.aligned .activity{color:rgba(0,0,0,.6)} body.aligned .activity i{background:#000}
+/* the number: brightens when a fresh measurement lands, dims while it's only an estimate */
+#dist{transition:opacity .4s}
+#dist.stale{opacity:.5}
+#dist.fresh{animation:fresh .5s ease-out}
+@keyframes fresh{from{text-shadow:0 0 18px var(--them)}to{text-shadow:none}}
+#arrow{position:absolute;inset:0;transition:opacity .3s;opacity:.18}   /* rotation is animated in JS (a spring) */
+#arrow svg{width:100%;height:100%;overflow:visible}
+#wedge{fill:var(--them);opacity:.22;transition:d .25s}
+body.aligned #wedge{fill:#000;opacity:.1}
+#needle{fill:none;stroke:currentColor;stroke-width:22;stroke-linecap:round;stroke-linejoin:round}
+
+/* reading */
+#dist{font:600 76px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+#dir{font:400 28px/1.15 var(--serif);letter-spacing:-.01em;margin-top:6px;min-height:1.15em}
+.src{display:flex;gap:6px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:13px;font-weight:600;background:var(--fill);color:var(--ter)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+.chip.on{background:var(--fg);color:var(--ground)} .chip.on::before{opacity:1}
+body.aligned .chip{background:rgba(0,0,0,.08);color:rgba(0,0,0,.4)} body.aligned .chip.on{background:#000;color:var(--them)}
+#meter{height:3px;border-radius:2px;background:var(--fill);margin-top:14px;overflow:hidden;display:none}
+#meter i{display:block;height:100%;width:0;background:var(--them);transition:width .2s}
+#status{font-size:15px;color:var(--sec);margin-top:12px;min-height:2.6em}
+
+.primary{display:block;width:100%;padding:17px;border-radius:999px;background:var(--fg);color:var(--ground);font-weight:600;margin-top:14px;transition:transform .15s}
+.primary:active{transform:scale(.97)}
+/* the laptop only shows the distance: no dial, no motion or location asks */
+body.anchor .mid{flex:1;min-height:0} body.anchor .dial,body.anchor #pMotion,body.anchor #pLoc,body.anchor #srcGps{display:none}
+.secondary{display:block;width:100%;padding:15px;border-radius:999px;background:var(--fill);font-weight:600;margin-top:10px}
+
+/* testing tools, kept out of the way */
+details{margin-top:14px;font-size:15px}
+summary{list-style:none;color:var(--ter);font-size:13px;padding:6px 0;cursor:pointer} summary::-webkit-details-marker{display:none}
+summary::after{content:" ›"} details[open] summary::after{content:" ⌄"}
+.tools{display:flex;flex-direction:column;gap:8px;padding-top:6px}
+.field{display:flex;align-items:center;gap:10px;color:var(--sec);font-size:14px}
+.field input{flex:1;min-width:0;padding:9px 12px;border-radius:12px;background:var(--fill)}
+.row{display:flex;gap:8px} .row button{flex:1;padding:11px 8px;border-radius:999px;background:var(--fill);font-size:14px;font-weight:600}
+#dbg{font:11px/1.5 var(--mono);color:var(--ter);white-space:pre-wrap;display:none}
+@media (prefers-reduced-motion:reduce){body,#arrow,#wedge,#rimProg,#dist{transition:none}.ping.go,.dial.locked .ping,.activity.busy i,.dial.searching #rimTrack,#dist.fresh{animation:none}}
 </style>
 </head>
 <body>
 <main>
-  <div class="top"><span class="dot" id="peerDot"></span><span id="peerTxt">Connecting…</span><span style="flex:1"></span><span id="roleTxt"></span></div>
+  <div class="top"><span class="me" id="meBadge">?</span><span class="dot" id="peerDot"></span><span id="peerTxt">Connecting…</span><span id="roleTxt"></span></div>
   <div class="perms" id="perms">
     <button class="perm" id="pMic">Microphone</button><button class="perm" id="pMotion">Motion</button><button class="perm" id="pLoc">Location</button>
   </div>
-  <div class="mid"><div id="arrow">↑</div></div>
+  <div class="mid">
+    <div class="dial" id="dial">
+      <svg class="rim" viewBox="-150 -150 300 300" aria-hidden="true"><circle id="rimTrack" r="149"/><circle id="rimProg" r="149"/></svg>
+      <div class="ping" id="ping"></div>
+      <div id="arrow"><svg viewBox="-150 -150 300 300" aria-hidden="true"><path id="wedge" d=""/><path id="needle" d="M0 70V-80M-48 -32 0 -80l48 48"/></svg></div>
+    </div>
+  </div>
   <div id="dist">–</div>
   <div id="dir">Tap Start on both phones</div>
+  <div class="src"><span class="chip" id="srcSound">Sound</span><span class="chip" id="srcGps">GPS</span></div>
+  <div class="activity" id="activity" aria-live="polite"><i></i><span id="actTxt"></span></div>
   <div id="meter"><i id="meterBar"></i></div>
   <div id="status"></div>
-  <button class="btn" id="start">Start</button>
-  <button class="btn" id="motionBtn" style="display:none">Allow motion access</button>
-  <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:14px;color:var(--sec)">Real distance (for testing)
-    <input id="truth" inputmode="decimal" placeholder="m" style="flex:1;min-width:0;padding:8px 12px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:#fff;font:inherit"></label>
-  <div class="row">
-    <button class="btn" id="rangeBtn">Measure distance</button>
-    <button class="btn" id="bandBtn">Quiet: on</button>
-    <button class="btn" id="dbgBtn">Details</button>
-  </div>
-  <div id="dbg"></div>
+  <button class="primary" id="start">Start</button>
+  <button class="secondary" id="laptopBtn">Set laptop</button>
+  <button class="primary" id="motionBtn" style="display:none">Allow motion access</button>
+  <details><summary>Testing tools</summary>
+    <div class="tools">
+      <label class="field">Real distance <input id="truth" inputmode="decimal" placeholder="metres"></label>
+      <button class="primary" id="facingBtn" style="margin-top:2px">I'm facing them now</button>
+      <div class="row"><button id="rangeBtn">Measure now</button><button id="bandBtn">Quiet: on</button><button id="dbgBtn">Numbers</button></div>
+      <div id="dbg"></div>
+    </div>
+  </details>
 </main>
 
 <script>
@@ -141,8 +223,11 @@ const DSP = {
     if (hi - lo < 3) return null;
     let m = lo;
     for (let k = lo; k < hi; k++) if (env[k] > env[m]) m = k;
-    const step = Math.max(1, Math.floor(env.length / 4096)), sample = [];
-    for (let k = 0; k < env.length; k += step) sample.push(env[k]);
+    // background level from the window we search, not the whole recording: with readings back to back the
+    // recording holds several of my own loud beeps, which lifted the level and hid the partner's beep
+    // (simulated: 1 pair, 7 of 24 rounds lost)
+    const step = Math.max(1, Math.floor((hi - lo) / 4096)), sample = [];
+    for (let k = lo; k < hi; k += step) sample.push(env[k]);
     sample.sort((a, b) => a - b);
     const noise = sample[Math.floor(sample.length / 2)] || 1e-9;
     // A blocked direct path can be several times weaker than a reflection: accept an earlier peak down to
@@ -160,10 +245,15 @@ const DSP = {
   /**
    * Where to look for the other phone's beep: after mine if I started the round, before mine if I answered,
    * and never inside my own beep's span (my loud beep leaks into the other template for about its length).
+   * expectK: where the partner's beep must be, from the acoustic clock sync (±0.12 s). Without it, a wide
+   * window (up to 1.6 s): the network between phones sometimes takes 0.6 s+ (probes), and the 1.0-1.2 s
+   * windows of mix25-28 then missed the partner's beep in 9 of 10 rounds.
    */
-  findOther(env, ownK, as, fs, dur) {
+  findOther(env, ownK, as, fs, dur, expectK) {
     const gap = (dur + 0.03) * fs;
-    return as === "I" ? this.firstPath(env, fs, ownK + gap, ownK + 1.5 * fs) : this.firstPath(env, fs, ownK - 1.5 * fs, ownK - gap);
+    let lo = as === "I" ? ownK + gap : ownK - 1.6 * fs, hi = as === "I" ? ownK + 1.6 * fs : ownK - gap;
+    if (expectK != null) { lo = Math.max(lo, expectK - 0.12 * fs); hi = Math.min(hi, expectK + 0.12 * fs); }
+    return this.firstPath(env, fs, lo, hi);
   },
 
   /** Distance (m) and initial bearing (radians from true north, clockwise) between two GPS fixes. */
@@ -213,7 +303,7 @@ const DSP = {
    * rows() turns the newest `fresh` ms into least-squares sums (one set per candidate time lag). The sums are
    * in the world frame, so a left-right sweep and a later forward-back sweep add up into one full answer.
    */
-  LAGS: [-4, -3, -2, -1, 0, 1, 2, 3, 4],
+  LAGS: [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6],
   rows(sHist, aHist, tEnd, fresh = 250, ctxMs = 1200, dt = 20) {
     const N = Math.floor(ctxMs / dt), t0 = tEnd - ctxMs;
     const s = [], ax = [], ay = [];
@@ -250,7 +340,7 @@ const DSP = {
       const ux = (o.vx * o.myy - o.vy * o.mxy) / det, uy = (o.vy * o.mxx - o.vx * o.mxy) / det;
       const res = Math.max(0, o.yy - 2 * (ux * o.vx + uy * o.vy) + ux * ux * o.mxx + 2 * ux * uy * o.mxy + uy * uy * o.myy);
       const tot = o.yy - o.ys * o.ys / o.n, r2 = tot > 0 ? 1 - res / tot : 0;
-      const score = r2 - 0.01 * Math.abs(o.L);   // ties (circular motion) go to the smallest lag
+      const score = r2 - 0.005 * Math.abs(o.L);  // ties (circular motion) go to the smallest lag
       if (!best || score > best.score) {
         // angular uncertainty: residual variance × inverse normal matrix, projected across the bearing
         const s2 = res / Math.max(1, o.n - 2), mag = Math.hypot(ux, uy) || 1e-9, px = -uy / mag, py = ux / mag;
@@ -259,6 +349,40 @@ const DSP = {
       }
     }
     return best;
+  },
+  /** Where is the other phone, from walking? pts: [{x, y, D}] = my position relative to the other phone's own
+   *  walked track (my track minus theirs, metres, any common frame) and the sound distance at that moment.
+   *  Unknown c = their position in that frame: D_k = |c - p_k|. Gauss-Newton from a few starts.
+   *  Returns the best c, its residual, how spread-out the walk was, and the mirror solution when the walk was
+   *  a straight line (then distances can't tell left from right). */
+  solveWalk(pts) {
+    const n = pts.length; if (n < 4) return null;
+    let mx = 0, my = 0; for (const p of pts) { mx += p.x; my += p.y; } mx /= n; my /= n;
+    let sxx = 0, sxy = 0, syy = 0; for (const p of pts) { const dx = p.x - mx, dy = p.y - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
+    sxx /= n; sxy /= n; syy /= n;
+    const tr = sxx + syy, det = sxx * syy - sxy * sxy, l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det)), l2 = tr / 2 - Math.sqrt(Math.max(0, tr * tr / 4 - det));
+    const spread = 2 * Math.sqrt(l1), width = 2 * Math.sqrt(Math.max(0, l2));
+    const ex = l1 - syy, ey = sxy, el = Math.hypot(ex, ey) || 1, ax = Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 1 : 0) : ex / el, ay = Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 0 : 1) : ey / el;
+    const fit = (cx, cy) => {
+      for (let it = 0; it < 30; it++) {
+        let a = 0, b = 0, d = 0, gx = 0, gy = 0;
+        for (const p of pts) { const dx = cx - p.x, dy = cy - p.y, r = Math.hypot(dx, dy) || 1e-6, jx = dx / r, jy = dy / r, e = r - p.D;
+          a += jx * jx; b += jx * jy; d += jy * jy; gx += jx * e; gy += jy * e; }
+        const dt = a * d - b * b; if (Math.abs(dt) < 1e-12) break;
+        const sx = (d * gx - b * gy) / dt, sy = (a * gy - b * gx) / dt; cx -= sx; cy -= sy;
+        if (Math.hypot(sx, sy) < 1e-4) break;
+      }
+      let res = 0; for (const p of pts) res += (Math.hypot(cx - p.x, cy - p.y) - p.D) ** 2;
+      return { cx, cy, res: Math.sqrt(res / n) };
+    };
+    const Dm = pts.reduce((s, p) => s + p.D, 0) / n, sols = [];
+    for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4; const s = fit(mx + Dm * Math.sin(t), my + Dm * Math.cos(t)); if (isFinite(s.cx)) sols.push(s); }
+    sols.sort((p, q) => p.res - q.res);
+    const best = sols[0];
+    // the mirror of the best solution across the walk's main line: equally good when the walk is straight
+    const px = best.cx - mx, py = best.cy - my, along = px * ax + py * ay;
+    const mirror = fit(mx + 2 * along * ax - px, my + 2 * along * ay - py);
+    return { ...best, spread, width, mirror, n };
   },
   /** One-shot convenience over a whole window (used by tests). */
   direction(sHist, aHist, tEnd, win = 2400) {
@@ -276,44 +400,102 @@ const room = new URLSearchParams(location.search).get("room") || "test";
 const BANDS = {
   // Probes showed these phones barely pass anything above 20 kHz: tones sit just under it, beeps lower
   // with a clear gap so a loud beep can't disturb the tone's phase.
-  quiet:  { tone: { a: 18800, b: 18400 }, lo: 15800, hi: 17300, dur: 0.30 },
+  // Tones 800 Hz apart: a phone's own note is ~40 dB louder at its own mic than the other phone's.
+  quiet:  { tone: { a: 19000, b: 18200 }, lo: 15800, hi: 17200, dur: 0.30 },   // overwritten by the room's code
   normal: { tone: { a: 18600, b: 19400 }, lo: 14000, hi: 17500, dur: 0.12 },
 };
-const VERSION = "v11";
+const VERSION = "mix29";
+/* Many pairs in one hall: the server gives each room a code. Beeps: two bands, so two pairs can beep at the
+   same time; pairs sharing a band take turns (want → turn → done). Notes: three pairs of pitches, each pair
+   800 Hz apart (a phone's own note is ~40 dB louder at its mic), every pitch 400 Hz from any other pair's. */
+const CODE_BEEPS = [{ lo: 15800, hi: 17200 }, { lo: 14000, hi: 15400 }];
+const CODE_NOTES = [{ a: 19000, b: 18200 }, { a: 19400, b: 18600 }, { a: 19800, b: 17800 }];
+let code = 0;
+function applyCode(k) {
+  code = k | 0;
+  Object.assign(BANDS.quiet, CODE_BEEPS[code % 2]); BANDS.quiet.tone = { ...CODE_NOTES[code % 3] };
+}
 let band = new URLSearchParams(location.search).get("band") === "normal" ? "normal" : "quiet";
 let role = null, peer = false, ws, ctx, fs, chirpBuf, tplMine, tplOther, osc, oscGain, lastFail = "";
-let myToneF = null, peerToneF = null, lowReports = 0, toneOn = false, toneOnSince = 0, lastPeerMoving = 0;
-const TONE_LEVEL = 0.33;   // tones adapt: if the other phone can't hear mine, I go lower
+let myToneF = null, peerToneF = null, lowReports = 0, toneOn = false, toneOnSince = 0, lastPeerMoving = 0, lastPeerNeeds = 0;
+// Volume adapts to what the other phone reports: just loud enough to be heard clearly, no louder.
+// (Probes: beeps arrived with SNR 30-1700 where ~10 is enough, so full volume was far too loud.)
+const TONE_MAX = 0.33, BEEP_MAX = 0.9;
+let toneLevel = 0.12, beepGain = 0.3;
 let micStream, micSrc, proc, procMute;      // held globally: Safari stops an unreferenced ScriptProcessor
 let audioCalls = 0, lastAudio = 0;
 let running = false, dbgOn = false;
+// "Set laptop": this device stays put as a fixed reference. It beeps, answers beeps and plays its note like a
+// phone, but has no motion sensors and needs no GPS; it just shows the distance the phone measures to it.
+let anchor = false, peerAnchor = false;
 
 /* ---------- recording: ring buffer for ranging, phase tracker for direction */
 const RING = 1 << 17;
 let ring, wr = 0;
 const sHist = [], aHist = [];
-const DM = { f: 0, ph: 0, dph: 0, nph: 0, ndph: 0, I: 0, Q: 0, nI: 0, nQ: 0, cnt: 0, B: 240, last: null, acc: 0, amp: 0, noise: 1e-9 };
+const DM = { f: 0, ph: 0, dph: 0, nph: 0, ndph: 0, cnt: 0, B: 120, last: null, acc: 0, amp: 0, noise: 1e-9, heard: false,
+             k: 0, s: new Float64Array(32) };   // 8-stage low-pass on I, Q, noise I, noise Q
+// Where to measure background noise: 300 Hz from the note we listen to, on the side away from our own note.
+const noiseF = f => f + (myToneF != null && myToneF > f ? -300 : 300);
 
+/* Recording delay: a sound reaches this page's audio callback some time after it happened (mic, buffers;
+   on iPhones often 100-300 ms). Motion events arrive almost at once, so without a correction the tone's
+   timeline lags the motion. The direction fit only searched ±80 ms of offset; past that it locked onto the
+   motion half a sweep later, which points the arrow the opposite way (simulated: 250 ms → 168° wrong; real
+   probes: the fit sat on the +80 ms edge 181 times). Measured on every beep: we know when we played it and
+   when it shows up in our own recording. */
+let audioLag = 0;
+const lagSamples = [];
+function noteOwnBeep(id, own) {
+  const d = deltas[id]; if (!d || d.playPerf == null || !own || own.snr < 30) return;
+  const heardAt = lastAudio - (RING - own.k) / fs * 1000;           // same labelling as the tone timeline
+  const lag = heardAt - d.playPerf;
+  if (!(lag > -50 && lag < 800)) return;
+  lagSamples.push(lag); if (lagSamples.length > 7) lagSamples.shift();
+  audioLag = Math.max(0, median(lagSamples));
+  // one odd measurement can't drag it: keep only samples near the running answer
+  if (lagSamples.length >= 5) { const m = audioLag; for (let i = lagSamples.length - 1; i >= 0; i--) if (Math.abs(lagSamples[i] - m) > 60) lagSamples.splice(i, 1); }
+}
 function onAudio(e) {
   const x = e.inputBuffer.getChannelData(0), n = x.length, tNow = performance.now();
   audioCalls++; lastAudio = tNow;
+  let peak = 0; for (let i = 0; i < n; i += 8) { const a = Math.abs(x[i]); if (a > peak) peak = a; }
+  micPeak = 0.8 * micPeak + 0.2 * peak; if (peak > 0) lastSound = tNow;
+  // Mix down to the other phone's note, then an 8-stage low-pass. The old 5 ms average let our own note
+  // (right next to the mic, ~40 dB louder) leak through and drown the other phone's (probes: SNR 0.1).
+  // Simulated end to end: sweeps up to 2.5 m/s give direction within 2°, and no false "heard" on our own note.
+  // Wide enough for a vigorous sweep: up to ~2.5 m/s is a ~130 Hz Doppler shift. (80 Hz / 5 ms blocks lost
+  // track above ~2 m/s: probes showed |u| 0.36 and an arrow locked on a wrong direction; simulated the same.)
+  // 2.5 ms blocks keep the phase step under half a turn up to 3.6 m/s. Own note still cut by >100 dB.
+  if (!DM.k) DM.k = 1 - Math.exp(-2 * Math.PI * 160 / fs);
+  const k = DM.k, st = DM.s;
   for (let i = 0; i < n; i++) {
     const v = x[i];
     ring[wr] = v; wr = (wr + 1) & (RING - 1);
-    DM.I += v * Math.cos(DM.ph); DM.Q -= v * Math.sin(DM.ph);
-    DM.nI += v * Math.cos(DM.nph); DM.nQ -= v * Math.sin(DM.nph);
+    let u = v * Math.cos(DM.ph), w = -v * Math.sin(DM.ph), nu = v * Math.cos(DM.nph), nw = -v * Math.sin(DM.nph);
+    for (let j = 0; j < 8; j++) {
+      st[j] += k * (u - st[j]); u = st[j];
+      st[8 + j] += k * (w - st[8 + j]); w = st[8 + j];
+      st[16 + j] += k * (nu - st[16 + j]); nu = st[16 + j];
+      st[24 + j] += k * (nw - st[24 + j]); nw = st[24 + j];
+    }
     DM.ph += DM.dph; if (DM.ph > 6.283185307179586) DM.ph -= 6.283185307179586;
     DM.nph += DM.ndph; if (DM.nph > 6.283185307179586) DM.nph -= 6.283185307179586;
     if (++DM.cnt === DM.B) {
-      const I = DM.I / DM.B, Q = DM.Q / DM.B, phase = Math.atan2(Q, I);
-      if (DM.last !== null) { let d = phase - DM.last; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; DM.acc += d; }
-      DM.last = phase;
-      DM.amp = 0.9 * DM.amp + 0.1 * Math.hypot(I, Q);
-      DM.noise = 0.9 * DM.noise + 0.1 * Math.hypot(DM.nI / DM.B, DM.nQ / DM.B);
-      const t = tNow - (n - 1 - i) / fs * 1000;
+      const phase = Math.atan2(w, u);
+      DM.amp = 0.9 * DM.amp + 0.1 * Math.hypot(u, w);
+      DM.noise = 0.9 * DM.noise + 0.1 * Math.hypot(nu, nw);
+      // The other phone's note is off most of the time; without it the phase is noise, so only
+      // count phase changes while the note is clearly there.
+      // heard: on above 3x the background, off only below 1.5x, so a brief dip mid-sweep doesn't drop the count
+      const heard = DM.heard = DM.heard ? DM.amp > 1.5 * DM.noise : DM.amp > 3 * DM.noise;
+      if (heard && DM.last !== null) { let d = phase - DM.last; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; DM.acc += d; }
+      DM.last = heard ? phase : null;
+      // when the sound really arrived: callback time minus the recording delay measured from our own beeps
+      const t = tNow - (n - 1 - i) / fs * 1000 - audioLag;
       sHist.push({ t, s: DSP.C * DM.acc / (2 * Math.PI * DM.f) });   // closing distance (m)
       if (sHist.length > 1500) sHist.splice(0, 300);
-      DM.I = DM.Q = DM.nI = DM.nQ = 0; DM.cnt = 0;
+      DM.cnt = 0;
     }
   }
 }
@@ -332,11 +514,12 @@ addEventListener("devicemotion", e => {
   const k = gSign < 0 ? -1 : 1;
   const a = DSP.apply(R, [k * e.acceleration.x, k * e.acceleration.y, k * e.acceleration.z]);
   aHist.push({ t: performance.now(), x: a[0], y: a[1], z: a[2] });
+  stepDetect(a[2], performance.now());
   if (aHist.length > 1000) aHist.splice(0, 200);
 });
 
 /* ---------- direction: every 250 ms add the newest data to running sums, solve, keep a world-locked bearing */
-let bearing = null, sigma = null, lastFit = null, stats = null, lastMotion = 0;
+let bearing = null, bearingAt = 0, sigma = null, lastFit = null, stats = null, lastMotion = 0;
 setInterval(() => {
   if (!running || !peer) return;
   const snr = DM.amp / (DM.noise || 1e-9);
@@ -344,56 +527,183 @@ setInterval(() => {
   const r = DSP.rows(sHist, aHist, performance.now() - 120);
   if (!r) return;
   lastMotion = r.motion;
-  if (r.motion > 0.5) {                         // sweeping: tell the other phone so nobody beeps meanwhile
-    if (performance.now() - lastSweepMine > 500 && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "sweep" }));
+  if (r.motion > 0.35) {                        // sweeping: tell the other phone (it plays its note for me)
+    // every 400 ms for as long as the sweep lasts. (Bug: lastSweepMine was refreshed every 250 ms, so the
+    // "> 500 ms since the last one" test never passed mid-sweep: one message per sweep, the note stopped
+    // after 1.2 s. Probes: the laptop's note was off 80% of the time the phone was sweeping.)
+    if (performance.now() - lastSweepSent > 400 && ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: "sweep", need: needDirection() })); lastSweepSent = performance.now(); }
     lastSweepMine = performance.now();
   }
   if (r.motion > 0.3) {                         // moving at all: the other phone should sing for me
     if (performance.now() - lastMovingSent > 600 && ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: "moving" })); lastMovingSent = performance.now(); }
     lastMovingMine = performance.now();
   }
-  const beepInWindow = performance.now() - lastBeepAt < 1400;
-  if (snr > 3 && r.motion > 0.5 && !beepInWindow) stats = DSP.addRows(stats, r, 0.96);   // learn only while swept, never across a beep
+  // Beeps no longer spoil this: the note filter cuts them by >100 dB (simulated: beeps 300x louder than the
+  // note, motion still tracked to the millimetre). Pausing for every beep starved phone B of sweep time.
+  if (snr > 3 && r.motion > 0.35) stats = DSP.addRows(stats, r, 0.96);
   else if (stats) stats = DSP.addRows(stats, { lags: r.lags.map(o => ({ ...o, mxx: 0, mxy: 0, myy: 0, vx: 0, vy: 0, yy: 0, ys: 0, n: 0 })) }, 0.995);
   const f = DSP.solve(stats);
   lastFit = f;
-  if (f && f.r2 > 0.35 && f.mag > 0.3 && f.mag < 3 && f.sigma < 0.6) {
-    if (bearing == null) bearing = f.bearing;
+  // how far along the sweep is: enough motion overall, and in two directions (a left-right AND a forward-back)
+  const o = stats && stats[4];
+  if (o && o.n) {
+    const tr = o.mxx + o.myy, l2 = tr / 2 - Math.sqrt(Math.max(0, tr * tr / 4 - (o.mxx * o.myy - o.mxy * o.mxy)));
+    sweepPct = Math.round(100 * Math.min(1, (0.5 * Math.min(1, o.n / 60) + 0.5 * Math.min(1, (l2 / (tr || 1)) / 0.2)) * (f ? Math.min(1, 0.4 + f.r2) : 0.4)));
+  }
+  // |u| is the share of the motion that changes the distance: ~1 when the fit is real. A low |u| means the
+  // note was lost mid-sweep (probes: 0.36 with a wrong arrow that then stuck for 20 s), so it isn't trusted.
+  if (f && f.r2 > 0.5 && f.mag > 0.55 && f.mag < 1.6 && f.sigma < 0.4) {
+    if (bearing == null || performance.now() - bearingAt > 4000) lockFlash();
+    sweepPct = 100;
+    if (bearing == null || Math.abs(wrap180((f.bearing - bearing) / RAD)) > 25 || performance.now() - bearingAt > 4000) bearing = f.bearing;
     else {                                     // gentle smoothing so the arrow doesn't twitch
       const x = 0.7 * Math.sin(bearing) + 0.3 * Math.sin(f.bearing), y = 0.7 * Math.cos(bearing) + 0.3 * Math.cos(f.bearing);
       bearing = Math.atan2(x, y);
     }
-    sigma = f.sigma;
+    sigma = f.sigma; bearingAt = performance.now();
   }
   status();
 }, 250);
 
-function heading() {                         // where the top of the phone points, in the same world frame
+// A direction is worth asking for when there isn't a fresh one and GPS doesn't say we're far apart.
+function needDirection() { return (bearing == null || performance.now() - bearingAt > 4000) && !farInfo()?.far; }
+function heading() {                         // where the phone points (radians), in the same frame as the sound bearing
   if (!ori) return null;
-  const f = DSP.apply(DSP.rot(...ori), [0, 1, 0]);
-  return Math.atan2(f[0], f[1]);
+  const p = pointing(...ori);
+  return p == null ? null : p * RAD;
+}
+/* Each frame: sound when it's working (close up, exact), GPS when it isn't (far, or sound lost).
+   Distance: a sound reading from the last 6 s wins, else GPS.
+   Direction: a sound bearing from the last 20 s wins while you're within sound's reach, else GPS + compass. */
+let shownRot = null, wasAhead = false;
+// The wedge: a fan as wide as the arrow's uncertainty (± degrees), drawn pointing up inside the rotating arrow.
+function wedge(spread) {
+  const h = Math.max(4, Math.min(90, spread)) * RAD, r = 140;
+  $("#wedge").setAttribute("d", `M0 0L${(r * Math.sin(-h)).toFixed(1)} ${(-r * Math.cos(h)).toFixed(1)}A${r} ${r} 0 0 1 ${(r * Math.sin(h)).toFixed(1)} ${(-r * Math.cos(h)).toFixed(1)}Z`);
+}
+function source(which, detail) {
+  $("#srcSound").classList.toggle("on", which === "sound"); $("#srcGps").classList.toggle("on", which === "gps");
+  $("#srcSound").textContent = which === "sound" ? "Sound " + detail : "Sound";
+  $("#srcGps").textContent = which === "gps" ? "GPS " + detail : "GPS";
+}
+let lastArrow = null, lastSpread = null;
+let spinT = 0;
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function spin() {                                      // "still working it out": the arrow turns, ~1.4 s a turn
+  const now = performance.now(); worldShown = null; lastDrive = 0;
+  if (!calm) shownRot = (shownRot ?? 0) + (spinT ? (now - spinT) * 0.26 : 0);
+  spinT = now;
+  $("#arrow").style.transform = `rotate(${shownRot ?? 0}deg)`; $("#arrow").style.opacity = calm ? 0.25 : 0.55;
+  $("#wedge").setAttribute("d", "");
+}
+/* The arrow moves like a real needle: a critically damped spring (settles in ~0.3 s, never overshoots) pulls
+   it toward the answer, so a new measurement swings it over instead of snapping, and jitter is ironed out.
+   The spring works in the room's frame (answer + where the phone points): when you turn, the arrow
+   counter-turns at once with the gyroscope, only changes in the answer itself are eased. */
+let worldShown = null, worldVel = 0, lastDrive = 0;
+function drive(d) {
+  const now = performance.now(), dt = Math.min(0.05, lastDrive ? (now - lastDrive) / 1000 : 0); lastDrive = now;
+  const yaw = G.yaw ?? 0, target = d + yaw;
+  if (worldShown == null || spinT) { worldShown = (shownRot ?? d) + yaw; worldVel = 0; }
+  const K = 160, Cd = 2 * Math.sqrt(K);
+  worldVel += (K * wrap180(target - worldShown) - Cd * worldVel) * dt;
+  worldShown += worldVel * dt;
+  const shown = worldShown - yaw;
+  shownRot = shownRot == null ? shown : shownRot + wrap180(shown - shownRot);   // never spin the long way round
+  return wrap180(shown);
+}
+function point(d, opacity, label, spread = 20) {
+  const wasSpinning = !!spinT; spinT = 0; lastSpread = spread;
+  if (wasSpinning) worldShown = null;                       // start from where the spinner stopped
+  lastArrow = drive(d);                                      // what's on screen (the facing test measures this)
+  $("#arrow").style.transform = `rotate(${shownRot}deg)`; $("#arrow").style.opacity = opacity; wedge(spread);
+  const ahead = Math.abs(d) < Math.max(16, Math.min(spread, 30)); document.body.classList.toggle("aligned", ahead);
+  if (ahead && !wasAhead) navigator.vibrate?.(30); wasAhead = ahead;
+  $("#dir").textContent = ahead ? "Ahead of you" : Math.abs(d) > 135 ? "Behind you" : d > 0 ? "To your right" : "To your left";
+  if (label) $("#status").dataset.hint = label;
+}
+const fmtD = d => d >= 1000 ? (d / 1000).toFixed(1) + " km" : d < 10 ? d.toFixed(1) + " m" : Math.round(d) + " m";
+let mode = "none", distSrc = null;
+function activity(soundD) {
+  const now = performance.now(), sweeping = lastMotion > 0.35;
+  let txt = "", busy = false, pct = 0, searching = false;
+  if (!running) txt = "";
+  else if (anchor) { busy = ranging; txt = ranging ? "Measuring distance to the phone…" : peer ? "Ready" : "Waiting for the phone"; }
+  else if (!peer || !peerRunning()) { searching = true; txt = "Waiting for the other phone"; }
+  else if (mode === "walk") { busy = ranging; txt = "Following you as you walk"; }
+  else if (mode === "sound") { busy = ranging; txt = ranging ? "Locked on · re-measuring…" : "Locked on"; }
+  else if (sweeping && (mode === "none" || mode === "sound-old" || mode === "gps")) {
+    busy = true; pct = sweepPct; txt = `Working out the direction… ${pct}%` + (pct > 45 && pct < 100 ? " · now forward and back" : "");
+  }
+  else if (mode === "sound-old") txt = "Direction is a few seconds old · sweep to refresh";
+  else if (mode === "gps") { busy = ranging; txt = soundD != null ? "Rough direction from GPS · sweep or walk for an exact one" : "Rough direction from GPS · walk that way, it gets exact up close"; }
+  else if (soundD != null) { searching = true; busy = ranging; txt = ranging ? "Measuring distance…" : "Distance found · sweep your phone or walk to get the direction"; }
+  else if (farInfo()) { searching = true; busy = ranging; txt = ranging ? "Listening for the other phone…" : "Rough distance from GPS · it gets exact once you're within earshot"; }
+  else { searching = true; busy = true; txt = ranging ? "Listening for the other phone…" : "Looking for the other phone…"; }
+  $("#actTxt").textContent = txt; $("#activity").classList.toggle("busy", busy);
+  $("#rimProg").style.strokeDasharray = `${(RIM * pct / 100).toFixed(1)} ${RIM.toFixed(1)}`; $("#rimProg").style.opacity = pct ? 1 : 0;
+  $("#dial").classList.toggle("searching", searching && running);
+  $("#dist").classList.toggle("stale", distSrc === "sound" && now - lastAccepted > 3500 || distSrc === "gps");
 }
 function frame() {
-  const far = farInfo();
-  if (far && far.far && compass != null) {
-    let d = far.bearing * 180 / Math.PI - compass; while (d > 180) d -= 360; while (d < -180) d += 360;
-    $("#arrow").style.transform = `rotate(${d}deg)`; $("#arrow").classList.add("live"); $("#arrow").style.opacity = 1;
-    const ahead = Math.abs(d) < 16; document.body.classList.toggle("aligned", ahead);
-    $("#dist").textContent = far.dist >= 1000 ? (far.dist / 1000).toFixed(1) + " km" : "≈" + Math.round(far.dist) + " m";
-    $("#dir").textContent = (ahead ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left") + ` · GPS ±${Math.round(far.err)} m`;
-    requestAnimationFrame(frame);
-    return;
+  const g = farInfo(), now = performance.now();
+  const soundD = now - lastAccepted < 8000 ? liveDistance() : null;
+  // Sound measured within the last minute: keep showing that (dimmed when old), never GPS's guess, which was
+  // 30 m for two phones 1 m apart (probes), and made the number jump between 1 m and 30 m.
+  const soundRecent = KF.d != null && now - lastAccepted < 60000;
+  const h = heading(), age = now - bearingAt;
+  const haveSound = bearing != null && h != null && !(g && g.far);
+  // GPS direction only means something when the distance is well beyond the GPS error,
+  // and never when sound says you're within a few metres of each other.
+  // GPS points the rough way as soon as the distance is clearly more than nothing compared with its error
+  // (was 1.5x the error: indoors that error is ~13 m, so the rough arrow almost never showed). The wedge and
+  // the fading say how rough it is. Within 6 m by sound, GPS direction is just noise: sound takes over.
+  // Sound said "close" recently: GPS can't tell directions at that range (probes: 1 m apart by sound,
+  // 9-13 m by GPS, pointing at an empty spot), so it stays off until we could have walked past 15 m.
+  const closeBySound = soundRecent && KF.d + 1.5 * (now - lastAccepted) / 1000 < 30;
+  const gpsUsable = g && compass != null && g.dist > 0.7 * g.err && !closeBySound;
+  if (soundD != null) { $("#dist").textContent = fmtD(soundD); distSrc = "sound"; }
+  else if (soundRecent) { $("#dist").textContent = "~" + fmtD(KF.d); distSrc = "sound"; }
+  else if (g) { $("#dist").textContent = "≈" + fmtD(g.dist); distSrc = "gps"; }
+  else { $("#dist").textContent = "–"; distSrc = null; }
+  // shown uncertainty: the fit's own ± understated it (said ±3° when wrong), so never less than the fit quality allows
+  const sig = Math.max(5, sigma == null ? 15 : sigma / RAD, lastFit ? (1 - lastFit.r2) * 60 : 15);
+  const soundArrow = (op, spread) => point(wrap180((bearing - h) / RAD), op, "", spread);
+  if (anchor) {
+    mode = "anchor"; lastArrow = null; $("#arrow").style.opacity = 0.12; wedge(90); source(soundD != null ? "sound" : null, "");
+    $("#dir").textContent = soundD != null ? "Distance to the phone" : "Laptop is the fixed point";
+    activity(soundD); requestAnimationFrame(frame); return;
   }
-  showDistance();
-  const h = heading();
-  if (bearing != null && h != null) {
-    let d = (bearing - h) * 180 / Math.PI; while (d > 180) d -= 360; while (d < -180) d += 360;
-    $("#arrow").style.transform = `rotate(${d}deg)`; $("#arrow").classList.add("live");
-    $("#arrow").style.opacity = sigma == null ? 1 : Math.max(0.35, 1 - sigma * 1.2);
-    const ahead = Math.abs(d) < 16; document.body.classList.toggle("aligned", ahead);
-    const pm = (sigma == null ? "" : ` · ±${Math.round(sigma * 180 / Math.PI)}°`) + " · sound";
-    $("#dir").textContent = (ahead ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left") + pm;
+  /* Every source that has something to say about the direction gives an angle and how unsure it is (±°).
+     They're blended by confidence (weight 1/σ²), so when one fades and another takes over the arrow glides
+     instead of jumping. A sweep's answer gets less sure as it ages (people move: +1.2°/s). If the sources
+     disagree, the blend says so by widening the wedge. */
+  const wk = !(g && g.far) ? walkNow() : null;
+  const cands = [];
+  if (wk) cands.push({ kind: "walk", d: wk.arrow, s: wk.spread });
+  if (haveSound && age < 90000) cands.push({ kind: age < 20000 ? "sound" : "sound-old", d: wrap180((bearing - h) / RAD), s: sig + 1.2 * age / 1000 });
+  if (gpsUsable) cands.push({ kind: "gps", d: wrap180(g.bearing / RAD - compass), s: Math.min(80, Math.atan2(g.err, g.dist) / RAD) });
+  if (cands.length) {
+    let wx = 0, wy = 0, wsum = 0, best = cands[0];
+    for (const c of cands) {
+      const w = 1 / (c.s * c.s); wx += w * Math.sin(c.d * RAD); wy += w * Math.cos(c.d * RAD); wsum += w;
+      if (c.s < best.s) best = c;
+    }
+    const d = Math.atan2(wx, wy) / RAD, Rbar = Math.hypot(wx, wy) / wsum;
+    const spread = Math.max(4, 1 / Math.sqrt(wsum), Math.sqrt(-2 * Math.log(Math.max(1e-6, Rbar))) / RAD);
+    mode = best.kind;
+    point(d, Math.min(1, Math.max(0.45, 1.15 - spread / 60)), "", Math.min(80, spread));
+    if (mode === "walk") { source("sound", `· walking ±${Math.round(spread)}°`); if (soundD == null) { $("#dist").textContent = fmtD(wk.dist); distSrc = "walk"; } }
+    else if (mode === "sound") source("sound", `±${Math.round(spread)}°`);
+    else if (mode === "sound-old") source("sound", "· sweep to refresh");
+    else source("gps", `±${Math.round(g.err)} m`);
+  } else {
+    mode = "none"; lastArrow = null; document.body.classList.remove("aligned"); spin(); source(null);
+    $("#dir").textContent = peer && !peerRunning() ? "Waiting for the other phone to start"
+      : !g && !soundD ? (G.me ? "Waiting for the other phone…" : "Finding your location…")
+      : "Sweep your phone left and right";
   }
+  activity(soundD);
   requestAnimationFrame(frame);
 }
 
@@ -402,8 +712,10 @@ const deltas = {};
 let ranging = false, distance = null;
 function playChirp(delay) {
   lastBeepAt = performance.now() + delay * 1000;
-  const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = 0.9;
+  const playPerf = performance.now() + (delay + (ctx.outputLatency || 0)) * 1000;   // when it leaves the speaker
+  const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = beepGain;
   s.buffer = chirpBuf; s.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime + delay);
+  return playPerf;
 }
 function snapshot() {                          // last RING samples, oldest first
   const out = new Float32Array(RING);
@@ -416,12 +728,37 @@ function analyze(id, as) {
     ws.send(JSON.stringify({ t: "delta", id, as, delta: null, why: "stalled" })); finishRange(id); return;
   }
   const snap = snapshot();
-  const own = DSP.firstPath(DSP.correlate(snap, tplMine), fs);
+  // Find MY beep of this round: it can only be just after the moment I played it (plus the recording delay). Searching the whole recording took the loudest of my beeps, often one from an earlier round
+  // when readings run back to back, which put the partner's window in the wrong place (simulated: 12 of 24
+  // rounds lost; real probes: readings like -53 m).
+  const pp = deltas[id]?.playPerf;
+  // (mix25 had this window reaching 0.6 s BEFORE the play time: probes showed "own beep" found 500-780 ms
+  // after playing, i.e. the partner's beep, in half the rounds. Now: from the play time on, and once the
+  // recording delay is known, only ±80 ms around where it must be.)
+  let ownLo = 0, ownHi = RING;
+  if (pp != null) {
+    const playIdx = RING - (lastAudio - pp) / 1000 * fs;
+    const known = lagSamples.length >= 3;
+    ownLo = Math.max(0, Math.round(playIdx + (known ? audioLag / 1000 - 0.08 : -0.05) * fs));
+    ownHi = Math.min(RING, Math.round(playIdx + (known ? audioLag / 1000 + 0.08 : 0.35) * fs));   // index = beep start
+  }
+  const own = DSP.firstPath(DSP.correlate(snap, tplMine), fs, ownLo, ownHi);
+  noteOwnBeep(id, own);
   let other = null, delta = null, why = "";
   if (!own || own.snr <= 12) why = "own";
   else {
-    other = DSP.findOther(DSP.correlate(snap, tplOther), own.k, as, fs, BANDS[band].dur);
-    if (other && other.snr > 8) delta = as === "I" ? (other.k - own.k) / fs : (own.k - other.k) / fs;
+    const peerAt = deltas[id]?.peerAt;
+    const expectK = sync.off != null && peerAt != null ? RING - (lastAudio - (peerAt + sync.off)) / 1000 * fs : null;
+    const envO = DSP.correlate(snap, tplOther);
+    other = DSP.findOther(envO, own.k, as, fs, BANDS[band].dur, expectK);
+    // diagnostics: where the strongest partner-like beep really was in a wide span, and how strong
+    const gp = (BANDS[band].dur + 0.03) * fs, w = as === "I" ? DSP.firstPath(envO, fs, own.k + gp, Math.min(RING, own.k + 1.9 * fs)) : DSP.firstPath(envO, fs, Math.max(0, own.k - 1.9 * fs), own.k - gp);
+    deltas[id].diag = { wideAt: w ? Math.round(Math.abs(w.k - own.k) / fs * 1000) : null, wideSnr: w ? Math.round(w.snr) : null,
+                        expectAt: expectK == null ? null : Math.round(Math.abs(expectK - own.k) / fs * 1000) };
+    if (other && other.snr > 8) {
+      delta = as === "I" ? (other.k - own.k) / fs : (own.k - other.k) / fs;
+      if (peerAt != null) deltas[id].syncSample = lastAudio - (RING - other.k) / fs * 1000 - peerAt;   // learned if accepted
+    }
     else why = "other";
   }
   (deltas[id] = deltas[id] || {})[as] = delta;
@@ -434,71 +771,148 @@ function analyze(id, as) {
 /* Distance shown = median of the last 5 accepted readings. A sudden jump is only believed when the
    next reading agrees with it. */
 const accepted = []; let pendingJump = null;
+let lastSweepSent = 0;
 let lastAccepted = 0, lastSweepMine = 0, lastSweepPeer = 0, lastBeepAt = 0, lastMovingSent = 0, lastMovingMine = 0;
-function acceptDistance(D, weak) {
+/* Distance tracker (Kalman, distance + closing speed). Each reading moves the estimate at once in proportion
+   to how much it's trusted; between readings the number keeps moving at the measured speed. A reading far
+   outside what's possible is ignored, unless the next one agrees with it (then you really moved).
+   (Was: median of the last 3 readings and jumps only believed twice, so the screen lagged 1-2 readings.) */
+const KF = { d: null, v: 0, p00: 1, p01: 0, p11: 1, t: 0, odd: null };
+function kfPredict(t) { return KF.d == null ? null : Math.max(0, KF.d + KF.v * Math.min(1.5, (t - KF.t) / 1000)); }
+function kfStep(t) {                                   // move the estimate and its uncertainty to time t
+  const dt = Math.max(0, Math.min(3, (t - KF.t) / 1000)), q = 1.5;   // walking can change speed ~1.2 m/s² 
+  KF.d += KF.v * dt;
+  const p00 = KF.p00 + dt * (2 * KF.p01 + dt * KF.p11) + q * dt ** 3 / 3, p01 = KF.p01 + dt * KF.p11 + q * dt ** 2 / 2, p11 = KF.p11 + q * dt;
+  KF.p00 = p00; KF.p01 = p01; KF.p11 = p11; KF.t = t;
+}
+// tMeas: when the beeps went out. The reading describes that moment, not when the analysis finished
+// (~1 s later); the tracker then carries it forward to now at the measured speed.
+function acceptDistance(D, weak, tMeas) {
   if (!(D > -0.3 && D < 45)) return false;
   D = Math.max(0, D);
-  const med = median(accepted);
-  // A weak beep (far away, noisy room) only counts if it agrees with what we already believe:
-  // the last sound readings, or GPS when it's available.
-  if (weak) {
-    const g = farInfo();
-    const okSound = accepted.length && Math.abs(D - med) < Math.max(1.5, 0.25 * med);
-    const okGps = g && Math.abs(D - g.dist) < g.err + 5;
-    if (!okSound && !okGps) return false;
+  const now = performance.now(), t = Math.min(now, Math.max(tMeas ?? now, KF.t)), R = weak ? 0.4 ** 2 : 0.06 ** 2;
+  if (KF.d == null || t - KF.t > 12000) { Object.assign(KF, { d: D, v: 0, p00: R, p01: 0, p11: 1, t, odd: null }); }
+  else {
+    kfStep(t);
+    const y = D - KF.d, S = KF.p00 + R;
+    if (Math.abs(y) > Math.max(0.6, 3 * Math.sqrt(S))) {
+      // Can't be right... unless the next reading says the same thing.
+      // believe the jump when the next reading agrees AND it's walkable in the time (≤3 m/s); a bigger jump
+      // needs three readings in a row (probes: 0.5 m → 24 m in a second, from a misheard beep)
+      const walkable = Math.abs(D - KF.d) <= 3 * (t - KF.t) / 1000 + 1;
+      const agree = KF.odd && t - KF.odd.t < 4000 && Math.abs(D - KF.odd.D) < 0.6;
+      if (agree && (walkable || KF.odd.n >= 2)) Object.assign(KF, { d: D, v: 0, p00: R, p01: 0, p11: 1, odd: null });
+      else { KF.odd = agree ? { D, t, n: KF.odd.n + 1 } : { D, t, n: 1 }; return false; }
+    } else {
+      if (weak && Math.abs(y) > 1.5) return false;     // a faint beep only counts when it agrees
+      const k0 = KF.p00 / S, k1 = KF.p01 / S;
+      KF.d += k0 * y; KF.v = Math.max(-3, Math.min(3, KF.v + k1 * y));
+      const p00 = (1 - k0) * KF.p00, p01 = (1 - k0) * KF.p01, p11 = KF.p11 - k1 * KF.p01;
+      KF.p00 = p00; KF.p01 = p01; KF.p11 = p11; KF.odd = null;
+    }
   }
-  if (accepted.length >= 2 && Math.abs(D - med) > Math.max(1.2, 0.35 * med)) {
-    if (pendingJump != null && Math.abs(D - pendingJump) < 0.8) { accepted.length = 0; accepted.push(pendingJump); pendingJump = null; }
-    else { pendingJump = D; return false; }
-  } else pendingJump = null;
   accepted.push(D); if (accepted.length > 3) accepted.shift();
-  lastAccepted = performance.now();
+  lastAccepted = now;
   return true;
 }
 const median = a => { if (!a.length) return NaN; const b = [...a].sort((x, y) => x - y); return b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2; };
+function adaptBeep(d) {
+  // the other phone measured MY beep: as initiator that's the responder's reading, and vice versa
+  const heard = d.mine === "I" ? d.snrR : d.mine === "R" ? d.snrI : null;
+  if (heard == null) return;
+  if (d["why" + d.mine] === "own") { beepGain = Math.min(BEEP_MAX, beepGain * 2); return; }   // I couldn't hear my own beep
+  if (!heard) beepGain = Math.min(BEEP_MAX, beepGain * 2);              // not heard at all: much louder
+  else if (heard < 25) beepGain = Math.min(BEEP_MAX, beepGain * 1.6);
+  else if (heard > 120) beepGain = Math.max(0.2, beepGain * 0.6);   // floor 0.2: at 0.08 the partner's louder
+  else if (heard > 60) beepGain = Math.max(0.2, beepGain * 0.85);   // beep outshone mine at my own mic
+}
 function finishRange(id) {
   const d = deltas[id]; if (!d || d.I === undefined || d.R === undefined) return;
-  ranging = false;
+  if (ranging && d.mine === "I") sendDone();
+  ranging = false; lastRangeEnd = performance.now();
+  adaptBeep(d);
   if (d.I == null || d.R == null) {
     const mine = role === "a" ? d.whyI : d.whyR, theirs = role === "a" ? d.whyR : d.whyI;
     lastFail = mine === "stalled" || theirs === "stalled" ? "Distance: a phone's microphone stopped. Reload that phone."
              : mine === "own" ? "Distance: this phone can't hear its own beep (it may be filtering out its own sound)."
              : theirs === "own" ? "Distance: the other phone can't hear its own beep."
              : "Distance: a phone can't hear the other's beep. Turn both volumes up, or try Quiet: off.";
+    if (sync.off != null && ++sync.fails >= 2) syncReset();      // two misses in a row with the narrow window
+    const pk = d.peaks || {}, r1 = x => x == null ? null : Math.round(x);
+    probe("range-fail", { whyI: d.whyI, whyR: d.whyR, snrI: r1(d.snrI), snrR: r1(d.snrR), ownSnr: r1(pk.own?.snr), otherSnr: r1(pk.other?.snr), beep: beepGain,
+                          rtt: d.rtt ?? null, diag: d.diag || null, synced: sync.off != null });
     status(); return;
   }
   const D = DSP.distance(d.I, d.R);
   d.raw = D;
-  setTimeout(() => probe("range"), 0);
+  setTimeout(() => probe("range", { rtt: d.rtt ?? null, diag: d.diag || null, synced: sync.off != null }), 0);
   lastFail = D > -0.3 && D < 45 ? "" : `Distance: got a reading that makes no sense (${D.toFixed(1)} m), ignored.`;
   const weak = Math.min(d.snrI || 0, d.snrR || 0) < 14;
   d.weak = weak;
-  if (acceptDistance(D, weak)) {
-    distance = median(accepted);
+  if (acceptDistance(D, weak, d.snap ? d.snap.t + 250 : undefined)) {
+    addWalkPoint(d.snap, D); freshReading(); syncLearn(d.syncSample); sync.fails = 0;
+    distance = KF.d;
     base = { d: distance, s: sHist.length ? sHist[sHist.length - 1].s : null, t: performance.now() };
   }
   status();
 }
+const RIM = 2 * Math.PI * 149;
+function ripple() { const p = $("#ping"); p.classList.remove("go"); void p.offsetWidth; p.classList.add("go"); }
+function freshReading() { const d = $("#dist"); d.classList.remove("fresh"); void d.offsetWidth; d.classList.add("fresh"); }
+function lockFlash() { const d = $("#dial"); d.classList.remove("locked"); void d.offsetWidth; d.classList.add("locked"); navigator.vibrate?.([15, 40, 15]); }
+let sweepPct = 0;
 function startRange(manual) {
   if (!peer || ranging) return;
   // don't beep while either phone is being swept for direction: the beep would spoil that measurement
-  if (!manual && performance.now() - Math.max(lastSweepMine, lastSweepPeer) < 900) return;
+  // (beeping during a sweep is fine now, see the direction loop)
   ranging = true;
   const id = Math.random().toString(36).slice(2, 8);
-  ws.send(JSON.stringify({ t: "range", id }));
-  playChirp(0.05);
-  lastBeepAt = performance.now() + 1000;        // the answering beep lands within about a second
-  setTimeout(() => analyze(id, "I"), 1550);
-  setTimeout(() => { ranging = false; }, 2600);
+  (deltas[id] = deltas[id] || {}).mine = "I"; deltas[id].snap = walkSnap();
+  const at = performance.now() + (0.05 + (ctx.outputLatency || 0)) * 1000;   // when my beep leaves the speaker
+  deltas[id].sentAt = performance.now();
+  ws.send(JSON.stringify({ t: "range", id, at }));
+  deltas[id].playPerf = playChirp(0.05); ripple();
+  lastBeepAt = performance.now() + 1000;
+  // Analyse as soon as the other phone says it has beeped ("chirped"); this is the fallback if that's lost.
+  deltas[id].fallback = setTimeout(() => analyze(id, "I"), 2300);
+  setTimeout(() => { if (ranging) { ranging = false; lastRangeEnd = performance.now(); sendDone(); } }, 2800);
+}
+// Round timing (was a fixed 2.6 s per reading, so one reading every ~3 s):
+// responder beeps 0.40 s after the request (beeps never overlap: each lasts 0.30 s and the first starts
+// 0.05 s after sending), tells the initiator at once, and both analyse right after the second beep.
+/* Acoustic clock sync. Each beep's message carries when its sender played it (sender's clock). When I find
+   that beep in my recording, (where I heard it) − (when they played it) = clock offset + speaker/mic delays
+   + flight time: nearly constant for a pair, whatever the network does. Once two rounds agree on it, the
+   next partner beep is searched only ±0.12 s around where it must be. Learned only from rounds whose
+   distance was accepted, so a misheard beep can't teach it a wrong offset. */
+const sync = { samples: [], off: null, fails: 0 };
+// the partner reloaded (its clock restarted) or something moved: start over with the wide window
+function syncReset() { sync.samples.length = 0; sync.off = null; sync.fails = 0; }
+function syncLearn(sample) {
+  if (sample == null || !isFinite(sample)) return;
+  sync.samples.push(sample); if (sync.samples.length > 7) sync.samples.shift();
+  if (sync.samples.length >= 2) {
+    const m = median(sync.samples), close = sync.samples.filter(x => Math.abs(x - m) < 30);
+    if (close.length >= 2) sync.off = median(close);
+  }
+}
+let wantSince = 0;
+function sendDone() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "done" })); }
+const ANSWER_DELAY = 0.40;   // beeps start >= 0.35 s apart even with no network delay (findOther needs 0.33 s)
+let lastRangeEnd = 0;
+function onChirped(id) {
+  const d = deltas[id]; if (!d || d.mine !== "I" || d.I !== undefined) return;
+  clearTimeout(d.fallback);
+  setTimeout(() => analyze(id, "I"), (ANSWER_DELAY + BANDS[band].dur + 0.2) * 1000);
 }
 
 /* Between beeps, the tone's phase tracks how far you've moved toward the other phone (mm-level),
    so the number moves as you walk; each beep re-anchors it. */
 let base = null;
 function liveDistance() {
-  if (!base) return distance;
+  if (!base) return kfPredict(performance.now()) ?? distance;
   const snr = DM.amp / (DM.noise || 1e-9), last = sHist[sHist.length - 1];
-  if (base.s == null || !last || snr < 3 || performance.now() - base.t > 8000) return base.d;
+  if (base.s == null || !last || snr < 3 || performance.now() - base.t > 8000) return kfPredict(performance.now()) ?? base.d;
   return Math.max(0, base.d - (last.s - base.s));
 }
 function showDistance() {
@@ -506,29 +920,173 @@ function showDistance() {
   $("#dist").textContent = d == null ? "–" : d < 10 ? d.toFixed(1) + " m" : Math.round(d) + " m";
 }
 
-/* ---------- far away: GPS + compass (like Find My before Precision Finding takes over) */
-let myFix = null, peerFix = null, compass = null, gpsErr = "";
-let gpsWatch = null;
+/* ---------- far away, and fallback: GPS for position, gyroscope + compass for where the phone points
+   - Position: a small Kalman filter blends each fix by its reported accuracy; one fix far outside the
+     error is held back until the next one agrees.
+   - Pointing: the gyroscope gives smooth turning; the compass corrects its drift slowly. A sudden compass
+     jump (laptops, steel) is ignored for 2.5 s, then followed quickly if it lasts. Walking direction from
+     GPS corrects it too. */
+const RAD = Math.PI / 180, R_EARTH = 6371000;
+const wrap180 = d => { d %= 360; if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
+const enu = (o, lat, lon) => ({ x: (lon - o.lon) * RAD * R_EARTH * Math.cos(o.lat * RAD), y: (lat - o.lat) * RAD * R_EARTH });
+const fromEnu = (o, x, y) => ({ lat: o.lat + y / R_EARTH / RAD, lon: o.lon + x / (R_EARTH * Math.cos(o.lat * RAD)) / RAD });
+const G = { me: null, raw: null, yaw: null, offset: null, jumpSince: 0, flat: false, compassRaw: null, compassAcc: null,
+            absYaw: null, relSeen: false, fixes: 0, held: 0 };
+let peerFix = null, compass = null, gpsErr = "", gpsWatch = null, sendAt = 0;
+
+function gpsFix(pos) {
+  const c = pos.coords, now = Date.now(), acc = Math.max(3, c.accuracy || 50);
+  locState = "granted"; gpsErr = "";
+  G.raw = { acc: c.accuracy, speed: c.speed, heading: c.heading }; G.fixes++;
+  if (acc > 200) return;
+  let m = G.me;
+  if (!m) m = G.me = { lat: c.latitude, lon: c.longitude, v: acc * acc, t: now, hold: null };
+  else {
+    const dt = Math.max(0, (now - m.t) / 1000), v = m.v + 9 * dt;            // walking can move you ~3 m a second
+    const p = enu(m, c.latitude, c.longitude), jump = Math.hypot(p.x, p.y);
+    const agrees = m.hold && Math.hypot(...Object.values(enu(m.hold, c.latitude, c.longitude))) < acc;
+    if (jump > 3 * Math.sqrt(v + acc * acc) && !agrees) { m.hold = { lat: c.latitude, lon: c.longitude }; m.v = v; m.t = now; G.held++; return; }
+    const k = v / (v + acc * acc), q = fromEnu(m, k * p.x, k * p.y);
+    Object.assign(m, { lat: q.lat, lon: q.lon, v: (1 - k) * v, t: now, hold: null });
+  }
+  if (c.speed > 1 && c.heading != null && !isNaN(c.heading) && acc < 20 && G.flat && G.yaw != null) nudge(c.heading, 0.15);
+  if (now - sendAt > 900) shareFix();
+}
+function shareFix() {
+  const m = G.me; if (!m || !ws || ws.readyState !== 1) return;
+  sendAt = Date.now();
+  ws.send(JSON.stringify({ t: "gps", lat: m.lat, lon: m.lon, acc: Math.sqrt(m.v + 9 * (Date.now() - m.t) / 1000) }));
+}
+setInterval(() => { if (Date.now() - sendAt > 4000) shareFix(); }, 1000);
 function startGps() {
   if (!navigator.geolocation) { gpsErr = "no GPS in this browser"; return; }
   if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
-  gpsWatch = navigator.geolocation.watchPosition(p => {
-    myFix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, t: Date.now() };
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "gps", ...myFix }));
-    locState = "granted"; perms();
-  }, e => { gpsErr = e.message || "location denied"; if (e.code === 1) locState = "denied"; perms(); }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+  gpsWatch = navigator.geolocation.watchPosition(gpsFix, e => { gpsErr = e.message || "location denied"; if (e.code === 1) locState = "denied"; perms(); },
+                                                 { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
-// true-north heading: iOS gives webkitCompassHeading; Android gives an absolute orientation event
-addEventListener("deviceorientation", e => { if (e.webkitCompassHeading != null) compass = e.webkitCompassHeading; });
-addEventListener("deviceorientationabsolute", e => { if (e.alpha != null) compass = (360 - e.alpha) % 360; });
 
+// W3C alpha/beta/gamma → which way the phone points (degrees clockwise from the frame's north):
+// its top while it's flat-ish, its back as it stands up.
+function pointing(a, b, g) {
+  const cZ = Math.cos(a * RAD), sZ = Math.sin(a * RAD), cX = Math.cos(b * RAD), sX = Math.sin(b * RAD), cY = Math.cos(g * RAD), sY = Math.sin(g * RAD);
+  const m1 = -cX * sZ, m2 = cY * sZ * sX + cZ * sY, m4 = cZ * cX, m5 = sZ * sY - cZ * cY * sX;
+  const top = Math.hypot(m1, m4), w = Math.max(0, 1 - top), hx = m1 - w * m2, hy = m4 - w * m5;
+  return Math.hypot(hx, hy) < 0.2 ? null : (Math.atan2(hx, hy) / RAD + 360) % 360;
+}
+function nudge(trueHeading, gain) {
+  if (G.offset == null) { G.offset = wrap180(trueHeading - G.yaw); return; }
+  const d = wrap180(trueHeading - G.yaw - G.offset);
+  if (Math.abs(d) > 35) {
+    if (!G.jumpSince) G.jumpSince = Date.now();
+    if (Date.now() - G.jumpSince < 2500) return;                 // a passing disturbance: ignore it
+    gain = Math.max(gain, 0.15);                                  // it lasted: it's real, catch up fast
+  } else G.jumpSince = 0;
+  G.offset = wrap180(G.offset + gain * d);
+}
+function orient(e, absolute) {
+  if (e.alpha == null) return;
+  const y = pointing(e.alpha, e.beta, e.gamma); if (y == null) return;
+  if (absolute) {                                                 // Android: this one is already true north
+    G.absYaw = y;
+    if (!G.relSeen) { G.yaw = y; if (G.offset == null) G.offset = 0; }
+    else if (G.flat && G.yaw != null && (G.rate || 0) < 15 && lastMotion < 0.3) nudge(y, 0.02);
+  } else {
+    const now = performance.now();
+    if (G.yaw != null && G.yawAt) {                               // how fast the phone is turning (deg/s, smoothed)
+      const dt = Math.max(1, now - G.yawAt) / 1000;
+      G.rate = 0.8 * (G.rate || 0) + 0.2 * Math.abs(wrap180(y - G.yaw)) / dt;
+    }
+    G.relSeen = true; G.yaw = y; G.yawAt = now;
+    // The iPhone compass trails real turning by up to a second, so while the phone turns or is being swept
+    // for sound, compass minus gyroscope is lag, not drift: don't correct with it then.
+    const steady = (G.rate || 0) < 15 && lastMotion < 0.3;
+    G.flat = Math.abs(e.beta) < 50 && Math.abs(e.gamma) < 50;
+    if (e.webkitCompassHeading != null) { G.compassRaw = e.webkitCompassHeading; G.compassAcc = e.webkitCompassAccuracy; }
+    // iOS: its compass means the same as our pointing only while the phone is roughly flat
+    if (e.webkitCompassHeading != null && G.flat && (steady || G.offset == null) && !(e.webkitCompassAccuracy > 35 || e.webkitCompassAccuracy < 0)) nudge(e.webkitCompassHeading, G.offset == null ? 1 : 0.02);   // (accuracy -1 = not calibrated)
+    if (G.absYaw != null && G.offset == null) G.offset = wrap180(G.absYaw - y);
+  }
+  compass = G.yaw != null && G.offset != null ? (G.yaw + G.offset + 360) % 360 : null;
+}
+addEventListener("deviceorientation", e => orient(e, false));
+addEventListener("deviceorientationabsolute", e => orient(e, true));
+
+/* ---------- walking: steps + sound distances → where the other phone is
+   Each beep gives an exact distance; steps (0.7 m, in the direction the phone points) say where I was when
+   it was measured, relative to where the other person was. A few steps later the distances only fit one
+   place for them (or two mirror places on a straight walk: then the side we already believed wins).
+   Simulated: median 3-9°, 90% within 10-29°, when the side is known. Works in the gyroscope's own frame
+   (no compass) while they stand still; uses true north (compass) when they walk too. */
+const STRIDE = 0.7;
+const W = { rel: { x: 0, y: 0 }, tru: { x: 0, y: 0 }, steps: 0, peerSteps: [], pts: [], fix: null, up: false, lastStep: 0 };
+function stepDetect(az, t) {
+  // one step = vertical acceleration rising above 1.2 m/s², then falling back below 0 (at most ~3.5 a second)
+  if (!W.up && az > 1.2 && t - W.lastStep > 280) W.up = true;
+  else if (W.up && az < 0) { W.up = false; W.lastStep = t; onStep(); }
+}
+function onStep() {
+  if (G.yaw == null) return;
+  const r = G.yaw * RAD; W.rel.x += STRIDE * Math.sin(r); W.rel.y += STRIDE * Math.cos(r);
+  if (compass != null) { const c = compass * RAD; W.tru.x += STRIDE * Math.sin(c); W.tru.y += STRIDE * Math.cos(c); }
+  W.steps++;
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "step", x: W.tru.x, y: W.tru.y }));
+}
+function peerTrueNow() { const p = W.peerSteps[W.peerSteps.length - 1]; return p ? { x: p.x, y: p.y, n: W.peerSteps.length } : { x: 0, y: 0, n: 0 }; }
+function walkSnap() { return { t: performance.now(), rel: { ...W.rel }, tru: { ...W.tru }, peer: peerTrueNow() }; }
+function addWalkPoint(snap, D) {
+  if (!snap) return;
+  const now = performance.now();
+  W.pts.push({ ...snap, D: Math.max(0, D) });
+  W.pts = W.pts.filter(p => now - p.t < 25000).slice(-14);
+  solveWalkNow();
+}
+function solveWalkNow() {
+  const pts = W.pts; if (pts.length < 4) return;
+  const peerMoved = pts.some(p => p.peer.n !== pts[0].peer.n);
+  const frameName = peerMoved ? "true" : "rel";
+  if (peerMoved && compass == null) return;
+  const P = pts.map(p => frameName === "rel" ? { x: p.rel.x, y: p.rel.y, D: p.D } : { x: p.tru.x - p.peer.x, y: p.tru.y - p.peer.y, D: p.D });
+  const s = DSP.solveWalk(P); if (!s || s.spread < 1.2 || s.res > 0.3) return;
+  const last = P[P.length - 1], bOf = c => Math.atan2(c.cx - last.x, c.cy - last.y);
+  let prior = null;   // which side they're on, from what we already believe
+  if (bearing != null && performance.now() - bearingAt < 60000) prior = frameName === "rel" ? bearing : (G.offset == null ? null : bearing + G.offset * RAD);
+  if (prior == null && W.fix && W.fix.frame === frameName) prior = W.fix.b;
+  if (prior == null && frameName === "true") { const g = farInfo(); if (g && g.dist > 1.5 * g.err) prior = g.bearing; }
+  let pick = s;
+  // A straight walk leaves two mirror answers that fit the distances about equally well: then the side we
+  // already believed decides. If the mirror fits clearly worse, the walk itself has decided.
+  const ambiguous = s.mirror && s.mirror.res < 2 * s.res + 0.08;
+  if (ambiguous) {
+    if (prior == null) return;
+    const off = c => Math.abs(wrap180((bOf(c) - prior) / RAD));
+    if (off(s.mirror) < off(s)) pick = s.mirror;
+  }
+  W.fix = { frame: frameName, cx: pick.cx, cy: pick.cy, t: performance.now(), res: pick.res, width: s.width, b: bOf(pick), stepsAt: W.steps };
+}
+/* The walking answer right now: bearing (radians, in its frame), distance, and the arrow angle. */
+function walkNow() {
+  const f = W.fix; if (!f || performance.now() - f.t > 12000 || W.steps - f.stepsAt > 12) return null;
+  const p = f.frame === "rel" ? W.rel : (() => { const q = peerTrueNow(); return { x: W.tru.x - q.x, y: W.tru.y - q.y }; })();
+  const b = Math.atan2(f.cx - p.x, f.cy - p.y), dist = Math.hypot(f.cx - p.x, f.cy - p.y);
+  const h = heading();
+  const arrow = f.frame === "rel" ? (h == null ? null : wrap180((b - h) / RAD)) : (compass == null ? null : wrap180(b / RAD - compass));
+  if (arrow == null) return null;
+  return { arrow, dist, spread: Math.max(6, Math.atan2(3 * f.res + 0.2, Math.max(dist, 0.5)) / RAD) };
+}
+
+// for automated tests of the walking logic in a desktop browser
+if (new URLSearchParams(location.search).has("test")) window.__walk = { W, onStep, addWalkPoint, walkSnap, walkNow };
+
+/* GPS distance and bearing (radians from north), and whether it says you're beyond sound's reach. */
 function farInfo() {
-  if (!myFix || !peerFix || Date.now() - peerFix.t > 20000) return null;
-  const g = DSP.geo(myFix, peerFix), err = myFix.acc + peerFix.acc;
-  const soundAlive = performance.now() - lastAccepted < 5000;
-  // Sound wins while it's producing readings, unless GPS clearly says you're beyond its range.
-  const far = soundAlive ? g.dist > Math.max(40, err) : g.dist > Math.max(15, Math.min(err, 30));
-  return { ...g, err, far };
+  const m = G.me;
+  if (!m || !peerFix || Date.now() - peerFix.t > 30000) return null;
+  const p = enu(m, peerFix.lat, peerFix.lon), dist = Math.hypot(p.x, p.y);
+  const myV = m.v + 9 * (Date.now() - m.t) / 1000, peerV = peerFix.acc * peerFix.acc + 9 * (Date.now() - peerFix.t) / 1000;
+  const err = Math.sqrt(myV + peerV);
+  const soundAlive = performance.now() - lastAccepted < 8000;
+  const far = soundAlive ? dist > Math.max(40, err) : dist > Math.max(20, err);
+  return { dist, bearing: Math.atan2(p.x, p.y), err, far };
 }
 
 /* ---------- auto-update: when a newer version of this page is deployed, reload (while not mid-measurement) */
@@ -545,30 +1103,53 @@ function connect() {
   ws = new WebSocket(`wss://${location.host}/ws?room=${encodeURIComponent(room)}`);
   ws.onmessage = e => {
     const d = JSON.parse(e.data);
-    if (d.t === "hello") { role = d.role; peer = d.peer; $("#roleTxt").textContent = "Phone " + role.toUpperCase() + " · " + VERSION; setTone(); }
-    else if (d.t === "peer") peer = d.on;
-    else if (d.t === "range" && running) { lastBeepAt = performance.now(); playChirp(0.40); setTimeout(() => analyze(d.id, "R"), 1050); }
+    if (d.t === "hello") {
+      role = d.role; peer = d.peer; applyCode(d.code ?? 0); $("#roleTxt").textContent = `${VERSION} · ${code}`; $("#meBadge").textContent = role.toUpperCase();
+      const css = document.documentElement.style;
+      css.setProperty("--me", role === "a" ? "var(--lilac)" : "var(--sky)"); css.setProperty("--them", role === "a" ? "var(--sky)" : "var(--lilac)");
+      setTone();
+    }
+    else if (d.t === "peer") { peer = d.on; if (!d.on) peerRunningAt = 0; syncReset(); }
+    else if (d.t === "alive") { peerRunningAt = d.running ? Date.now() : 0; if (peerAnchor !== !!d.anchor) { peerAnchor = !!d.anchor; setTone(); } }
+    else if (d.t === "step") { W.peerSteps.push({ x: d.x, y: d.y }); if (W.peerSteps.length > 400) W.peerSteps.splice(0, 100); }
+    else if (d.t === "range" && running) {
+      (deltas[d.id] = deltas[d.id] || {}).mine = "R"; deltas[d.id].snap = walkSnap(); lastBeepAt = performance.now();
+      deltas[d.id].playPerf = playChirp(ANSWER_DELAY); deltas[d.id].peerAt = d.at;
+      ws.send(JSON.stringify({ t: "chirped", id: d.id, at: deltas[d.id].playPerf })); ripple();
+      setTimeout(() => analyze(d.id, "R"), (ANSWER_DELAY + BANDS[band].dur + 0.15) * 1000);
+    }
+    else if (d.t === "chirped") { if (deltas[d.id]) { deltas[d.id].peerAt = d.at; deltas[d.id].rtt = Math.round(performance.now() - deltas[d.id].sentAt); } onChirped(d.id); }
+    else if (d.t === "turn") { wantSince = 0; if (running && peer && !ranging) startRange(); else sendDone(); }
     else if (d.t === "band") setBand(d.band, false);
-    else if (d.t === "sweep") { lastSweepPeer = performance.now(); lastPeerMoving = performance.now(); }
+    else if (d.t === "sweep") { lastSweepPeer = performance.now(); lastPeerMoving = performance.now(); if (d.need !== false) lastPeerNeeds = performance.now(); }
     else if (d.t === "moving") lastPeerMoving = performance.now();
     else if (d.t === "heard") onHeard(d.snr);
     else if (d.t === "tonef") listenTo(d.f);
-    else if (d.t === "gps") peerFix = { lat: d.lat, lon: d.lon, acc: d.acc, t: Date.now() };
+    else if (d.t === "gps") peerFix = { lat: d.lat, lon: d.lon, acc: d.acc || 30, t: Date.now() };
     else if (d.t === "delta") { const x = (deltas[d.id] = deltas[d.id] || {}); x[d.as] = d.delta; x["why" + d.as] = d.why; x["snr" + d.as] = d.snr; finishRange(d.id); }
     $("#peerDot").classList.toggle("on", peer);
-    $("#peerTxt").textContent = peer ? "Other phone connected" : "Waiting for the other phone";
+    $("#peerTxt").textContent = peer ? (peerAnchor ? "Laptop connected" : `Phone ${role === "a" ? "B" : "A"} connected`) : "Open this page on the other phone";
   };
-  ws.onclose = () => { $("#peerTxt").textContent = "Disconnected. Reload."; $("#peerDot").classList.remove("on"); };
+  ws.onclose = () => { $("#peerTxt").textContent = "Reconnecting…"; $("#peerDot").classList.remove("on"); peer = false; setTimeout(connect, 1500); };
 }
 connect();
+// Tell the other phone every 2 s whether this one is actually measuring (after an update the page reloads
+// and needs Start again; without this the other phone just waited silently with a dead arrow).
+let peerRunningAt = 0;
+const peerRunning = () => Date.now() - peerRunningAt < 5000;
+setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "alive", running, anchor })); }, 2000);
+$("#laptopBtn").onclick = () => { anchor = true; $("#start").click(); };
 
 function setTone() {
   if (!role) return;
   const B = BANDS[band];
-  myToneF = B.tone[role]; peerToneF = B.tone[role === "a" ? "b" : "a"]; lowReports = 0;
+  // A laptop speaker is weak at 19 kHz (probes: phone heard it at SNR <5), so the laptop always takes the
+  // lower note and the phone the higher one, whatever their roles.
+  const mine = anchor ? "b" : peerAnchor ? "a" : role;
+  myToneF = B.tone[mine]; peerToneF = B.tone[mine === "a" ? "b" : "a"]; lowReports = 0;
   DM.f = peerToneF;                                      // listen for the other phone's note
   if (fs) {
-    DM.dph = 2 * Math.PI * DM.f / fs; DM.ndph = 2 * Math.PI * (DM.f - 450) / fs;
+    DM.dph = 2 * Math.PI * DM.f / fs; DM.ndph = 2 * Math.PI * noiseF(DM.f) / fs;
     DM.last = null; DM.amp = 0; sHist.length = 0; stats = null;
     tplMine = DSP.chirp(fs, role !== "b", B.lo, B.hi, B.dur); tplOther = DSP.chirp(fs, role === "b", B.lo, B.hi, B.dur);
     chirpBuf = ctx.createBuffer(1, tplMine.length, fs); chirpBuf.copyToChannel(tplMine, 0);
@@ -578,7 +1159,7 @@ function setTone() {
 }
 function listenTo(f) {                                   // the other phone moved its note
   peerToneF = f; DM.f = f;
-  if (fs) { DM.dph = 2 * Math.PI * f / fs; DM.ndph = 2 * Math.PI * (f - 450) / fs; DM.last = null; DM.amp = 0; sHist.length = 0; stats = null; base = null; }
+  if (fs) { DM.dph = 2 * Math.PI * f / fs; DM.ndph = 2 * Math.PI * noiseF(f) / fs; DM.last = null; DM.amp = 0; sHist.length = 0; stats = null; base = null; }
 }
 // once a second tell the other phone how well I hear its note; lower my own note if it can't hear me
 setInterval(() => {
@@ -589,10 +1170,20 @@ function setToneOn(on) {
   if (!oscGain || on === toneOn) return;
   toneOn = on; if (on) toneOnSince = performance.now();
   const t = ctx.currentTime; oscGain.gain.cancelScheduledValues(t); oscGain.gain.setValueAtTime(oscGain.gain.value, t);
-  oscGain.gain.linearRampToValueAtTime(on ? TONE_LEVEL : 0, t + (on ? 0.15 : 0.4));
+  oscGain.gain.linearRampToValueAtTime(on ? toneLevel : 0, t + (on ? 0.15 : 0.4));
 }
-setInterval(() => { if (running) setToneOn(performance.now() - lastPeerMoving < 2500); }, 200);
+// The note plays only while the other person sweeps their phone AND still needs a direction: not while
+// they just walk or hold it (probes: it was on 75-85% of the time, a thin squeal people could hear).
+setInterval(() => { if (running) setToneOn(performance.now() - lastPeerNeeds < 1200); }, 200);
+// The other phone says how clearly it hears my note (once a second): aim for SNR ~15-40.
+// (Notes stay at fixed pitches: moving them made the two notes collide, probes showed 100 Hz apart.)
 function onHeard(snr) {
+  if (!oscGain || !toneOn || performance.now() - toneOnSince < 1200) return;   // silence isn't "can't hear"
+  const was = toneLevel;
+  if (snr > 40) toneLevel = Math.max(0.015, toneLevel * 0.8);
+  else if (snr < 10) toneLevel = Math.min(TONE_MAX, toneLevel * 1.4);
+  if (toneLevel !== was) { const t = ctx.currentTime; oscGain.gain.cancelScheduledValues(t); oscGain.gain.setValueAtTime(oscGain.gain.value, t); oscGain.gain.linearRampToValueAtTime(toneLevel, t + 0.3); }
+  return;
   if (!osc || myToneF == null) return;
   if (!toneOn || performance.now() - toneOnSince < 1200) { lowReports = 0; return; }   // silence isn't "can't hear"
   lowReports = snr < 3 ? lowReports + 1 : 0;
@@ -616,23 +1207,29 @@ function probe(kind = "tick", extra = {}) {
   const r = x => x == null || !isFinite(x) ? null : Math.round(x * 1000) / 1000;
   ws.send(JSON.stringify({ t: "probe", kind, v: VERSION, ...extra,
     band, peer, running, fs, ua: kind === "start" ? navigator.userAgent : undefined,
-    tone: { emit: myToneF, on: toneOn, listen: DM.f, amp: r(DM.amp), noise: r(DM.noise), snr: r(DM.amp / (DM.noise || 1e-9)), sLen: sHist.length },
+    audioLag: Math.round(audioLag), lagSamples: lagSamples.map(Math.round), sync: { off: sync.off == null ? null : Math.round(sync.off), n: sync.samples.length },
+    mic: { peak: r(micPeak), silentFor: Math.round(performance.now() - lastSound) },
+    tone: { level: r(toneLevel), beep: r(beepGain), emit: myToneF, on: toneOn, listen: DM.f, amp: r(DM.amp), noise: r(DM.noise), snr: r(DM.amp / (DM.noise || 1e-9)), sLen: sHist.length },
     motion: { events: aHist.length, last: aHist.length ? Math.round(performance.now() - aHist[aHist.length - 1].t) : null,
               ori: ori && ori.map(v => Math.round(v)), perm: motionState, gSign, rms: r(lastMotion) },
     fit: lastFit && { r2: r(lastFit.r2), mag: r(lastFit.mag), sigma: r(lastFit.sigma), lag: lastFit.lag, bearing: r(lastFit.bearing) },
     arrow: { bearing: r(bearing), sigma: r(sigma), heading: r(heading()) },
-    mode: farInfo()?.far ? "gps" : "sound",
+    anchor, peerAnchor,
+    shown: { arrow: r(lastArrow), spread: r(lastSpread), dist: $("#dist").textContent, distSrc },
+    walk: { steps: W.steps, pts: W.pts.length, peerSteps: W.peerSteps.length, fix: W.fix && { frame: W.fix.frame, res: r(W.fix.res), width: r(W.fix.width), age: Math.round(performance.now() - W.fix.t) } },
+    mode, gpsFilter: { rate: r(G.rate), my: r(G.me && Math.sqrt(G.me.v)), raw: r(G.raw?.acc), fixes: G.fixes, held: G.held, yaw: r(G.yaw), offset: r(G.offset),
+                       compassRaw: r(G.compassRaw), compassAcc: r(G.compassAcc), abs: r(G.absYaw), flat: G.flat },
     range: L && { id: last[0], I: r(L.I), R: r(L.R), whyI: L.whyI, whyR: L.whyR, raw: r(L.raw), snrI: r(L.snrI), snrR: r(L.snrR), weak: L.weak,
                   own: pk && pk.own && { k: r(pk.own.k), snr: r(pk.own.snr), peak: r(pk.own.peakSnr) },
                   other: pk && pk.other && { k: r(pk.other.k), snr: r(pk.other.snr), peak: r(pk.other.peakSnr) } },
-    distance: r(distance), live: r(liveDistance()), accepted: accepted.map(r),
-    gps: { me: myFix && { acc: r(myFix.acc), age: Date.now() - myFix.t }, peer: peerFix && { acc: r(peerFix.acc), age: Date.now() - peerFix.t },
+    distance: r(distance), live: r(liveDistance()), accepted: accepted.map(r), kf: KF.d == null ? null : { d: r(KF.d), v: r(KF.v), sd: r(Math.sqrt(KF.p00)) },
+    gps: { me: G.me && { acc: r(Math.sqrt(G.me.v)), age: Date.now() - G.me.t }, peer: peerFix && { acc: r(peerFix.acc), age: Date.now() - peerFix.t },
            far: (() => { const f = farInfo(); return f && { dist: r(f.dist), bearing: r(f.bearing), err: r(f.err), far: f.far }; })(), compass: r(compass), err: gpsErr || null }, fail: lastFail || null, status: $("#status").textContent,
     truth: parseFloat($("#truth").value) || null, perms: { mic: micState, motion: motionState, loc: locState }, audio: { calls: audioCalls, stale: Math.round(performance.now() - lastAudio), state: ctx && ctx.state } }));
 }
 setInterval(() => { if (running) probe(); }, 1000);
 // watchdog: if the microphone stops feeding us, try to wake the audio up and say so
-let audioWarn = "";
+let audioWarn = "", micPeak = 0, lastSound = 0;
 setInterval(async () => {
   if (!running) return;
   const stale = performance.now() - lastAudio;
@@ -641,8 +1238,14 @@ setInterval(async () => {
     try { await ctx.resume(); } catch {}
     if (micStream && micStream.getAudioTracks()[0]?.readyState === "ended") audioWarn = "Microphone was turned off by the phone. Reload the page.";
     probe("audio-stall", { stale: Math.round(stale), state: ctx.state, track: micStream?.getAudioTracks()[0]?.readyState });
-  } else audioWarn = "";
+  } else if (performance.now() - lastSound > 1500) {
+    // The microphone runs but delivers pure silence (probes: phone B, amplitude exactly 0 for minutes).
+    // On iPhone that happens when another tab, or another app, holds the microphone.
+    audioWarn = "This phone's microphone is silent. Close other tabs with this page (and apps using the mic), then reload.";
+    if (!micSilentSent) { micSilentSent = true; probe("mic-silent"); }
+  } else { audioWarn = ""; micSilentSent = false; }
 }, 1000);
+let micSilentSent = false;
 document.addEventListener("visibilitychange", () => { if (!document.hidden && ctx) ctx.resume(); });
 addEventListener("error", e => probe("error", { msg: String(e.message), line: e.lineno }));
 addEventListener("unhandledrejection", e => probe("error", { msg: String(e.reason) }));
@@ -673,23 +1276,34 @@ $("#start").onclick = async () => {
     oscGain.gain.setValueAtTime(0, ctx.currentTime);   // silent until the other phone needs it
     osc.connect(oscGain); oscGain.connect(ctx.destination); osc.start();
     setTone();
-    running = true; $("#start").style.display = "none"; frame();
-    startGps();
+    running = true; $("#start").style.display = "none"; $("#laptopBtn").style.display = "none"; frame();
+    if (anchor) { document.body.classList.add("anchor"); $("#meBadge").textContent = "L"; $("#dir").textContent = "Laptop is the fixed point"; }
+    startGps();   // the laptop too: without its location the phone had no rough arrow (probes: 70% of the time)
     motionState = await ask; perms(); status();
     probe("start", { track: trackSettings, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency });
-    let lastAuto = 0;
     setInterval(() => {
-      if (role !== "a" || !peer || !running) return;
+      if (role !== "a" || !peer || !running || ranging) return;
       const someoneMoving = performance.now() - Math.max(lastMovingMine, lastPeerMoving) < 3000;
-      if (performance.now() - lastAuto < (someoneMoving ? 1500 : 4000)) return;
-      lastAuto = performance.now(); startRange();
-    }, 250);
+      // pause after each reading: none while someone moves (a reading every ~1 s), 3 s when both are still
+      const pause = farInfo()?.far && performance.now() - lastAccepted > 8000 ? 8000 : someoneMoving ? 150 : 3000;
+      if (performance.now() - lastRangeEnd < pause) return;
+      // ask the server for a turn (other pairs on our band may be beeping); it answers "turn"
+      if (wantSince && performance.now() - wantSince < 4000) return;
+      wantSince = performance.now(); ws.send(JSON.stringify({ t: "want" }));
+    }, 100);
   } catch (err) {
     micState = /denied|not allowed|permission/i.test(err.message) ? "denied" : micState; perms();
     status("Couldn't start: " + err.message + ". Open this page over https and allow the microphone."); probe("error", { msg: "start: " + err.message });
   }
 };
 $("#rangeBtn").onclick = () => startRange(true);
+// Ground truth for direction: point the top of the phone at the other person, tap. The arrow's angle at
+// that moment is the error.
+$("#facingBtn").onclick = () => {
+  probe("facing", { arrowErr: lastArrow == null ? null : Math.round(lastArrow) });
+  navigator.vibrate?.(20); const b = $("#facingBtn"); b.textContent = lastArrow == null ? "No arrow yet" : `Saved: arrow was off by ${Math.abs(Math.round(lastArrow))}°`;
+  setTimeout(() => b.textContent = "I'm facing them now", 1500);
+};
 // Permission buttons: green = allowed, orange = tap to ask again. If the system won't ask again, say where to switch it on.
 function perms() {
   const set = (id, st) => { const b = $(id); b.classList.toggle("ok", st === "granted"); b.classList.toggle("no", st === "denied" || st === "unknown"); };
@@ -719,12 +1333,14 @@ function status(msg) {
   else if (farInfo()?.far) $("#status").textContent = compass == null
       ? "Far away: using GPS. The compass isn't available yet, move the phone in a figure 8."
       : "Far away: using GPS. Walk where the arrow points; close up it switches to sound for precision.";
-  else if (running && (!ori || !aHist.length)) {
+  else if (running && !anchor && (!ori || !aHist.length)) {
     $("#status").textContent = motionState === "denied"
       ? "Motion access is off, so the arrow can't move. Tap Allow motion access. If nothing pops up: Settings > Apps > Safari > Motion & Orientation Access, then reload."
       : "No motion data yet. Tap Allow motion access.";
   }
   else if (!peer) $("#status").textContent = "Open this same page on the other phone.";
+  else if (!peerRunning()) $("#status").textContent = "The other phone is open but not started: tap Start on it.";
+  else if (anchor) $("#status").textContent = "Keep this laptop still. On the phone, type the real distance under Testing tools.";
   else if (DM.amp / (DM.noise || 1e-9) < 3) $("#status").textContent = "Can't hear the other phone's tone yet. Turn its volume up.";
   else if (bearing == null) {
     // which axes have been swept so far (eigenvalues of the motion matrix)
@@ -735,7 +1351,7 @@ function status(msg) {
       : "Keep sweeping, almost there.";
   }
   else $("#status").textContent = "Sweep again (left-right, then forward-back) any time to update the arrow.";
-  $("#motionBtn").style.display = running && (!ori || !aHist.length) ? "block" : "none";
+  $("#motionBtn").style.display = running && !anchor && (!ori || !aHist.length) ? "block" : "none";
   if (dbgOn) {
     const f = lastFit, p = Object.values(deltas).slice(-1)[0]?.peaks;
     $("#dbg").textContent = [
