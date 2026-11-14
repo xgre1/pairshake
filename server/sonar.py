@@ -93,7 +93,9 @@ async def ws_handler(req):
     if role is None:
         raise web.HTTPConflict(text="room full")
     other = "b" if role == "a" else "a"
-    ws = web.WebSocketResponse(heartbeat=20)
+    # 5 s heartbeat: a phone that drops off (sleep, network change) is noticed fast, otherwise its dead
+    # socket keeps the seat and the phone's reconnect is refused as "room full" for up to ~40 s
+    ws = web.WebSocketResponse(heartbeat=5)
     await ws.prepare(req)
     R[role] = ws
     await ws.send_json({"t": "hello", "role": role, "peer": other in R, "code": code_for(room)})
