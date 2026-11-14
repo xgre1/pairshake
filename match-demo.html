@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomie — meet the right person</title>
+<style>
+:root{
+  --bg:#0c0d10; --panel:#15171c; --panel2:#1c1f26; --line:#2a2e37;
+  --fg:#f1f2f4; --muted:#9097a3; --accent:#7cf2c4; --accent2:#8aa8ff; --warm:#ffb86b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px;display:grid;grid-template-columns:1.1fr 420px;gap:28px;align-items:start}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}.room{order:2}}
+header.top{max-width:1180px;margin:0 auto;padding:22px 20px 0;display:flex;align-items:baseline;gap:14px}
+.logo{font-weight:700;font-size:20px;letter-spacing:-.02em}
+.logo span{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px}
+
+/* room */
+.room{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;position:sticky;top:20px}
+.room h3{font-size:13px;color:var(--muted);font-weight:500;display:flex;justify-content:space-between}
+.room svg{width:100%;height:auto;display:block;margin-top:8px}
+.dot{transition:r .4s, fill .4s, opacity .4s}
+.edge{stroke:var(--accent);stroke-width:1.6;fill:none;stroke-dasharray:400;stroke-dashoffset:400;transition:stroke-dashoffset 1s ease}
+.edge.on{stroke-dashoffset:0}
+.stats{display:flex;gap:18px;margin-top:10px;font-size:13px;color:var(--muted)}
+.stats b{color:var(--fg);font-size:18px;display:block}
+
+/* phone */
+.phone{background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:22px;min-height:640px;position:relative;overflow:hidden}
+.screen{display:none;animation:in .35s ease}
+.screen.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.eyebrow{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+h1{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:6px 0 14px}
+.prompt li{list-style:none;color:var(--muted);padding:4px 0}
+.prompt li b{color:var(--fg);font-weight:600}
+
+.micwrap{display:flex;flex-direction:column;align-items:center;margin:26px 0 14px;gap:12px}
+.mic{width:104px;height:104px;border-radius:50%;background:var(--accent);color:#06281c;display:grid;place-items:center;position:relative;transition:transform .15s}
+.mic:active{transform:scale(.96)}
+.mic svg{width:40px;height:40px}
+.mic.rec{background:#ff6b6b;color:#fff}
+.mic.rec::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:2px solid #ff6b6b;animation:pulse 1.2s infinite}
+@keyframes pulse{from{opacity:.9;transform:scale(.9)}to{opacity:0;transform:scale(1.25)}}
+.timer{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.transcript{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-height:96px;font-size:14px;width:100%;color:var(--fg);resize:vertical;font-family:inherit}
+.transcript:empty::before{content:attr(data-ph);color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{padding:11px 16px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-weight:500;font-size:14px}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn:disabled{opacity:.4;cursor:default}
+.link{color:var(--muted);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+/* matching */
+.scan{display:grid;place-items:center;height:520px;text-align:center;gap:10px}
+.scan .ring{width:120px;height:120px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan p{color:var(--muted);font-size:14px}
+
+/* match card */
+.buzz{animation:buzz .5s ease 2}
+@keyframes buzz{0%,100%{transform:none}20%{transform:translateX(-4px) rotate(-.5deg)}40%{transform:translateX(4px) rotate(.5deg)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.notif{background:linear-gradient(135deg,#1e2a26,#1a1f2b);border:1px solid #2f4a40;border-radius:18px;padding:16px}
+.notif .where{font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.04em}
+.person{display:flex;gap:12px;align-items:center;margin:10px 0 4px}
+.av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:18px;color:#0c0d10;flex:none}
+.person .n{font-weight:650;font-size:17px}
+.person .r{color:var(--muted);font-size:13px}
+.score{margin-left:auto;text-align:right}
+.score b{font-size:22px;color:var(--accent);display:block;line-height:1}
+.score small{color:var(--muted);font-size:11px}
+.common{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.common div{display:flex;gap:8px;font-size:14px}
+.common i{font-style:normal;flex:none;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:11px;background:#24302c;color:var(--accent)}
+.quote{margin-top:12px;font-size:13px;color:var(--muted);border-left:2px solid var(--line);padding-left:10px}
+.socials{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.soc{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.soc .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;background:#262a33}
+.soc a{color:var(--fg);text-decoration:none;font-size:14px;flex:1}
+.soc a:hover{text-decoration:underline}
+.follow{padding:6px 12px;border-radius:9px;font-size:13px;font-weight:600;background:var(--fg);color:var(--bg)}
+.follow.done{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.deeper{margin-top:12px;display:flex;gap:8px}
+.deeper .btn{flex:1}
+
+.chat{margin-top:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;display:none}
+.chat.on{display:block;animation:in .3s}
+.chat .lbl{font-size:12px;color:var(--muted);margin-bottom:6px}
+.chat .draft{font-size:14px;background:#0f1114;border-radius:10px;padding:10px;border:1px solid var(--line)}
+.sent{color:var(--accent);font-size:13px;margin-top:8px;display:none}
+
+.sharpen{margin-top:16px;border:1px dashed var(--line);border-radius:16px;padding:14px}
+.sharpen .q{font-weight:600;margin:4px 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:8px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.chip:hover{border-color:var(--accent)}
+.progress{display:flex;gap:4px;margin-top:2px}
+.progress span{height:3px;flex:1;border-radius:2px;background:var(--line)}
+.progress span.on{background:var(--accent)}
+.done-msg{text-align:center;padding:6px 0;color:var(--muted);font-size:14px}
+.done-msg b{color:var(--fg);display:block;font-size:16px;margin-bottom:2px}
+
+.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}
+.tab{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:13px;white-space:nowrap}
+.tab.on{border-color:var(--accent)}
+.tab .mini{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#0c0d10}
+.toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-80px);background:var(--accent);color:#06281c;font-weight:700;padding:8px 14px;border-radius:999px;font-size:13px;transition:transform .35s cubic-bezier(.2,1.4,.4,1);z-index:5}
+.toast.on{transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">Room<span>ie</span></div>
+  <div class="sub">Talk for 20 seconds. Meet the one person in this room you should meet.</div>
+</header>
+
+<div class="wrap">
+  <!-- Room view (what the big stage screen shows) -->
+  <section class="room">
+    <h3><span>Live room · Gen AI Summit Hackathon</span><span id="liveCount">0 voices in</span></h3>
+    <svg id="roomSvg" viewBox="0 0 600 440"></svg>
+    <div class="stats">
+      <div><b id="sPeople">0</b>people spoke</div>
+      <div><b id="sMatches">0</b>intros made</div>
+      <div><b id="sMet">0</b>met in person</div>
+    </div>
+  </section>
+
+  <!-- Phone view (what each attendee sees) -->
+  <section class="phone" id="phone">
+    <div class="toast" id="toast">+1 new match</div>
+
+    <!-- 1. record -->
+    <div class="screen on" id="s-record">
+      <div class="eyebrow">Step 1 of 1</div>
+      <h1>Tell the room who you are.</h1>
+      <ul class="prompt">
+        <li><b>What</b> are you building?</li>
+        <li><b>What</b> do you need right now?</li>
+        <li><b>What</b> can you help others with?</li>
+      </ul>
+      <div class="micwrap">
+        <button class="mic" id="mic" aria-label="Record">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <div class="timer" id="timer">Tap and talk · 20s</div>
+      </div>
+      <div class="transcript" id="transcript" contenteditable="true" data-ph="Your words appear here. No mic? Just type."></div>
+      <div class="row">
+        <button class="btn primary" id="go" disabled>Find my people</button>
+        <button class="link" id="sample">Use a sample</button>
+      </div>
+    </div>
+
+    <!-- 2. matching -->
+    <div class="screen" id="s-scan">
+      <div class="scan">
+        <div class="ring"></div>
+        <div><b id="scanTitle">Listening to the room…</b><p id="scanSub">Comparing you with 112 people</p></div>
+      </div>
+    </div>
+
+    <!-- 3. results -->
+    <div class="screen" id="s-result">
+      <div class="tabs" id="tabs"></div>
+      <div id="card"></div>
+      <div class="sharpen" id="sharpen"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- fictional attendees ---------- */
+const PEOPLE = [
+ {id:1,name:"Eleni Markou",role:"Product designer, ex-fintech",row:5,seat:12,color:"#ffb86b",
+  does:["design","edu"],needs:["backend","agents"],offers:["design","frontend","pitch"],
+  quote:"I want to build a tutor that actually notices when you're lost.",
+  soc:{x:"@eleni.designs",linkedin:"in/elenimarkou",github:"emarkou"}},
+ {id:2,name:"Tom Becker",role:"Voice infra engineer",row:2,seat:4,color:"#8aa8ff",
+  does:["voice","backend"],needs:["design","users"],offers:["voice","backend","agents"],
+  quote:"Latency is my whole personality right now.",
+  soc:{x:"@tbecker_rt",linkedin:"in/tombecker",github:"tbeck"}},
+ {id:3,name:"Nikos Alexiou",role:"Med student, builds on weekends",row:8,seat:3,color:"#7cf2c4",
+  does:["health","agents"],needs:["frontend","ml"],offers:["health","users"],
+  quote:"Doctors lose 2 hours a day to paperwork. I've watched it.",
+  soc:{x:"@nikos_md",linkedin:"in/nalexiou",github:"nalex"}},
+ {id:4,name:"Priya Raman",role:"ML engineer, small models",row:3,seat:9,color:"#f78fb3",
+  does:["ml","agents"],needs:["users","pitch"],offers:["ml","backend"],
+  quote:"I can make a 3B model do things you'd pay GPT for.",
+  soc:{x:"@priya_tiny",linkedin:"in/priyaraman",github:"praman"}},
+ {id:5,name:"Dimitra Kosta",role:"Founder, language school",row:6,seat:1,color:"#c3a6ff",
+  does:["edu","greece"],needs:["agents","voice"],offers:["users","sales"],
+  quote:"I have 400 students and zero engineers.",
+  soc:{x:"@dimitra.k",linkedin:"in/dimitrakosta",github:"dkosta"}},
+ {id:6,name:"Sam Okafor",role:"Full-stack, ships fast",row:4,seat:15,color:"#ffd36b",
+  does:["frontend","backend","agents"],needs:["design","idea"],offers:["frontend","backend"],
+  quote:"Give me a problem and a Figma. I'll give you a URL by tonight.",
+  soc:{x:"@samships",linkedin:"in/samokafor",github:"sokafor"}},
+ {id:7,name:"Lena Vogt",role:"Angel investor, pre-seed AI",row:1,seat:2,color:"#6bdcff",
+  does:["fundraising"],needs:["agents"],offers:["pitch","fundraising"],
+  quote:"Show me the agent doing the job, not the slide.",
+  soc:{x:"@lenavogt",linkedin:"in/lenavogt",github:null}},
+ {id:8,name:"Yusuf Demir",role:"Robotics + sensors",row:7,seat:8,color:"#b5f27c",
+  does:["hardware","ml"],needs:["voice","frontend"],offers:["hardware"],
+  quote:"I brought a robot arm. Nobody has asked about it yet.",
+  soc:{x:"@yusuf_bots",linkedin:"in/yusufdemir",github:"ydemir"}},
+ {id:9,name:"Maria Papadaki",role:"Growth marketer",row:5,seat:2,color:"#ff8a6b",
+  does:["sales","greece"],needs:["agents","frontend"],offers:["users","sales","pitch"],
+  quote:"I can get your demo in front of 10k people by Monday.",
+  soc:{x:"@mariagrows",linkedin:"in/mpapadaki",github:null}},
+ {id:10,name:"Chen Wei",role:"Audio ML researcher",row:3,seat:1,color:"#9ef0ff",
+  does:["voice","ml"],needs:["design","users"],offers:["voice","ml"],
+  quote:"Speech is the only interface my grandmother uses.",
+  soc:{x:"@chenwei_audio",linkedin:"in/chenwei",github:"cwei"}},
+];
+
+const TAGS = {
+  voice:{label:"voice & audio",re:/\b(voice|speech|audio|call|calls|phone|listen|speak|talk)\w*/i},
+  agents:{label:"AI agents",re:/\b(agent|agents|agentic|autonomous|automat)\w*/i},
+  design:{label:"design",re:/\b(design|designer|ux|figma|visual)\w*/i},
+  frontend:{label:"frontend",re:/\b(frontend|front-end|react|website|web app|interface)\w*/i},
+  backend:{label:"backend",re:/\b(backend|back-end|api|server|infra|database|scal)\w*/i},
+  ml:{label:"ML / models",re:/\b(model|models|fine-?tun|ml|machine learning|llm|training)\w*/i},
+  health:{label:"healthcare",re:/\b(health|medical|doctor|patient|clinic|hospital)\w*/i},
+  edu:{label:"education",re:/\b(education|learn|student|teach|school|tutor|language)\w*/i},
+  fundraising:{label:"fundraising",re:/\b(investor|funding|raise|vc|seed|angel)\w*/i},
+  users:{label:"first users",re:/\b(users|customers|testers|audience)\b/i},
+  sales:{label:"growth",re:/\b(sales|growth|marketing|distribution)\w*/i},
+  pitch:{label:"pitching",re:/\b(pitch|demo day|stage|present)\w*/i},
+  greece:{label:"Greece",re:/\b(greek|greece|athens)\w*/i},
+  hardware:{label:"hardware",re:/\b(hardware|robot|device|sensor|arm)\w*/i},
+  idea:{label:"a good idea",re:/\b(idea|ideas)\b/i},
+};
+const NEED_RE=/\b(need|needs|looking for|want|missing|lack|help with|struggl|stuck|find)\w*/i;
+const OFFER_RE=/\b(can help|good at|happy to|i know|i can|offer|experience|i've|i have)\w*/i;
+
+const SAMPLE="I'm building a voice agent that helps students practise speaking a new language. I need a designer and maybe a frontend person, I'm stuck on the interface. I can help anyone with backend and API stuff, I've done that for years.";
+
+/* ---------- state ---------- */
+let me={does:new Set(),needs:new Set(),offers:new Set()};
+let shown=[]; let active=null; let round=0; const MAX_ROUNDS=3;
+const followed=new Set();
+let stats={people:87,matches:41,met:12};
+
+/* ---------- parsing & scoring ---------- */
+function parse(text){
+  const out={does:new Set(),needs:new Set(),offers:new Set()};
+  text.split(/[.!?]+|\band\b(?= i)/i).forEach(s=>{
+    const bucket=NEED_RE.test(s)?"needs":OFFER_RE.test(s)?"offers":"does";
+    for(const [k,t] of Object.entries(TAGS)) if(t.re.test(s)) out[bucket].add(k);
+  });
+  return out;
+}
+function score(p){
+  let s=0, why=[];
+  p.does.forEach(t=>{ if(me.does.has(t)){s+=2;why.push(["=",`You're both building with <b>${TAGS[t].label}</b>`]);} });
+  p.offers.forEach(t=>{ if(me.needs.has(t)){s+=3;why.push(["→",`You need <b>${TAGS[t].label}</b>. ${first(p)} does exactly that`]);} });
+  p.needs.forEach(t=>{ if(me.offers.has(t)){s+=3;why.push(["←",`${first(p)} is looking for <b>${TAGS[t].label}</b>. That's you`]);} });
+  return {s,why};
+}
+const first=p=>p.name.split(" ")[0];
+function ranked(){
+  return PEOPLE.map(p=>({p,...score(p)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+}
+const pct=s=>Math.min(97,58+s*5);
+
+/* ---------- room svg ---------- */
+const svg=document.getElementById("roomSvg");
+const NS="http://www.w3.org/2000/svg";
+const ME_POS={x:300,y:220};
+const crowd=[];
+(function buildRoom(){
+  let seed=7; const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;
+  for(let i=0;i<86;i++){
+    const a=rnd()*Math.PI*2, r=70+rnd()*150;
+    crowd.push({x:300+Math.cos(a)*r*1.25,y:220+Math.sin(a)*r*.9});
+  }
+  crowd.forEach((c,i)=>{
+    const d=document.createElementNS(NS,"circle");
+    d.setAttribute("cx",c.x);d.setAttribute("cy",c.y);d.setAttribute("r",0);
+    d.setAttribute("fill","#3a404c");d.classList.add("dot");
+    svg.appendChild(d);c.el=d;
+    setTimeout(()=>{d.setAttribute("r",3.5);},40*i);
+  });
+  // named people take some crowd slots
+  PEOPLE.forEach((p,i)=>{p.pos=crowd[i*8+3];});
+  const meDot=document.createElementNS(NS,"circle");
+  meDot.setAttribute("cx",ME_POS.x);meDot.setAttribute("cy",ME_POS.y);meDot.setAttribute("r",0);
+  meDot.setAttribute("fill","#f1f2f4");meDot.classList.add("dot");meDot.id="meDot";
+  svg.appendChild(meDot);
+  let n=0;const iv=setInterval(()=>{n+=3;document.getElementById("liveCount").textContent=Math.min(n,stats.people)+" voices in";if(n>=stats.people)clearInterval(iv)},60);
+  renderStats();
+})();
+function renderStats(){
+  sPeople.textContent=stats.people;sMatches.textContent=stats.matches;sMet.textContent=stats.met;
+}
+function connect(p){
+  const pos=p.pos;
+  const path=document.createElementNS(NS,"path");
+  const mx=(ME_POS.x+pos.x)/2, my=(ME_POS.y+pos.y)/2-30;
+  path.setAttribute("d",`M${ME_POS.x},${ME_POS.y} Q${mx},${my} ${pos.x},${pos.y}`);
+  path.classList.add("edge");
+  svg.insertBefore(path,svg.firstChild);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>path.classList.add("on")));
+  pos.el.setAttribute("fill",p.color);pos.el.setAttribute("r",8);
+  const t=document.createElementNS(NS,"text");
+  t.setAttribute("x",pos.x+11);t.setAttribute("y",pos.y+4);t.setAttribute("fill","#f1f2f4");
+  t.setAttribute("font-size","13");t.textContent=first(p);
+  svg.appendChild(t);
+}
+
+/* ---------- sound + haptics ---------- */
+let ac;
+function chime(big){
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const notes=big?[660,880,1320]:[880,1175];
+    notes.forEach((f,i)=>{
+      const o=ac.createOscillator(),g=ac.createGain();
+      o.type="sine";o.frequency.value=f;
+      const t=ac.currentTime+i*.09;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.18,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.5);
+      o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.55);
+    });
+  }catch(e){}
+  if(navigator.vibrate) navigator.vibrate(big?[80,60,80]:[60]);
+}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),1600);}
+
+/* ---------- recording ---------- */
+const mic=document.getElementById("mic"),timerEl=document.getElementById("timer"),tr=document.getElementById("transcript"),go=document.getElementById("go");
+let rec=null,recOn=false,tick=null,finalText="";
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function updateGo(){go.disabled=tr.textContent.trim().length<12;}
+tr.addEventListener("input",updateGo);
+mic.onclick=()=>{
+  if(!SR){timerEl.textContent="Voice needs Chrome. Type instead ↓";tr.focus();return;}
+  recOn?stopRec():startRec();
+};
+function startRec(){
+  rec=new SR();rec.lang="en-US";rec.interimResults=true;rec.continuous=true;
+  finalText=tr.textContent.trim()?tr.textContent.trim()+" ":"";
+  rec.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal)finalText+=r[0].transcript+" ";else interim+=r[0].transcript;
+    }
+    tr.textContent=finalText+interim;updateGo();
+  };
+  rec.onend=()=>{if(recOn)stopRec();};
+  rec.start();recOn=true;mic.classList.add("rec");
+  let left=20;timerEl.textContent=`Listening · ${left}s`;
+  tick=setInterval(()=>{left--;timerEl.textContent=`Listening · ${left}s`;if(left<=0)stopRec();},1000);
+}
+function stopRec(){
+  recOn=false;clearInterval(tick);mic.classList.remove("rec");
+  try{rec&&rec.stop();}catch(e){}
+  timerEl.textContent="Got it. Tap to add more";updateGo();
+}
+document.getElementById("sample").onclick=()=>{
+  tr.textContent="";let i=0;
+  const iv=setInterval(()=>{tr.textContent=SAMPLE.slice(0,i+=3);if(i>=SAMPLE.length){clearInterval(iv);tr.textContent=SAMPLE;updateGo();}},18);
+};
+
+/* ---------- flow ---------- */
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));}
+go.onclick=()=>{
+  if(recOn)stopRec();
+  me=parse(tr.textContent);
+  if(!me.does.size&&!me.needs.size&&!me.offers.size) me.does.add("agents");
+  show("s-scan");
+  document.getElementById("meDot").setAttribute("r",9);
+  stats.people++;renderStats();
+  const steps=[["Listening to the room…","Comparing you with 112 people"],["Found 9 people worth meeting","Picking the one who matters most"],["Writing your intro","So you don't have to"]];
+  steps.forEach((s,i)=>setTimeout(()=>{scanTitle.textContent=s[0];scanSub.textContent=s[1];},i*700));
+  setTimeout(()=>{reveal(true);},2200);
+};
+function reveal(firstTime){
+  const next=ranked().find(x=>!shown.includes(x.p.id));
+  if(!next){toast("No new match for that one");if(shown.length)render();return;}
+  shown.push(next.p.id);active=next.p.id;
+  connect(next.p);stats.matches++;renderStats();
+  show("s-result");render();
+  const card=document.querySelector(".notif");card.classList.add("buzz");
+  chime(firstTime);if(!firstTime)toast("+1 new match unlocked");
+}
+function render(){
+  const all=ranked();
+  // tabs
+  tabs.innerHTML=shown.map(id=>{const p=PEOPLE.find(x=>x.id===id);
+    return `<button class="tab ${id===active?"on":""}" data-id="${id}"><span class="mini" style="background:${p.color}">${p.name[0]}</span>${first(p)}</button>`}).join("");
+  tabs.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{active=+b.dataset.id;render();});
+  // card
+  const m=all.find(x=>x.p.id===active)||{p:PEOPLE.find(x=>x.id===active),s:1,why:[]};
+  const p=m.p;
+  const soc=[["X","x",p.soc.x],["in","linkedin",p.soc.linkedin],["GH","github",p.soc.github]].filter(s=>s[2]);
+  const opener=buildOpener(p,m.why);
+  card.innerHTML=`
+   <div class="notif">
+     <div class="where">ROW ${p.row} · SEAT ${p.seat} · 14 METRES FROM YOU</div>
+     <div class="person">
+       <div class="av" style="background:${p.color}">${p.name.split(" ").map(w=>w[0]).join("")}</div>
+       <div><div class="n">${p.name}</div><div class="r">${p.role}</div></div>
+       <div class="score"><b>${pct(m.s)}%</b><small>match</small></div>
+     </div>
+     <div class="common">${m.why.slice(0,3).map(w=>`<div><i>${w[0]}</i><span>${w[1]}</span></div>`).join("")}</div>
+     <div class="quote">“${p.quote}” ${first(p)}, 2 hours ago</div>
+     <div class="socials">${soc.map(s=>`
+       <div class="soc"><span class="ic">${s[0]}</span><a href="#" onclick="return false">${s[2]}</a>
+       <button class="follow ${followed.has(p.id+s[1])?"done":""}" data-k="${p.id+s[1]}">${followed.has(p.id+s[1])?"Following":"Follow"}</button></div>`).join("")}</div>
+     <div class="deeper">
+       <button class="btn primary" id="deeperBtn">Go deeper</button>
+       <button class="btn" id="metBtn">We met ✓</button>
+     </div>
+     <div class="chat" id="chat">
+       <div class="lbl">Your agent drafted this. Edit or send.</div>
+       <div class="draft" contenteditable="true">${opener}</div>
+       <div class="row">
+         <button class="btn primary" id="sendIntro">Send intro to both</button>
+         <button class="btn" id="book">Book 10 min · 15:30 coffee bar</button>
+       </div>
+       <div class="sent" id="sent"></div>
+     </div>
+   </div>`;
+  card.querySelectorAll(".follow").forEach(b=>b.onclick=()=>{followed.add(b.dataset.k);b.classList.add("done");b.textContent="Following";});
+  deeperBtn.onclick=()=>{chat.classList.toggle("on");};
+  metBtn.onclick=()=>{stats.met++;renderStats();metBtn.textContent="Met ✓";metBtn.disabled=true;chime(false);};
+  sendIntro.onclick=()=>{sent.style.display="block";sent.textContent=`Sent. ${first(p)} got your intro with the same context.`;};
+  book.onclick=()=>{sent.style.display="block";sent.textContent=`Booked. Both calendars have 15:30 at the coffee bar.`;};
+  renderSharpen();
+}
+function buildOpener(p,why){
+  const need=[...me.needs].find(t=>p.offers.includes(t));
+  const give=[...me.offers].find(t=>p.needs.includes(t));
+  let s=`Hey ${first(p)}, I'm in row 9. `;
+  if(need) s+=`I'm stuck on ${TAGS[need].label} and heard that's your thing. `;
+  if(give) s+=`I saw you need ${TAGS[give].label}, which I can help with. `;
+  s+="Got 10 minutes for a coffee?";
+  return s;
+}
+
+/* ---------- progressive sharpening: one tap, instant payoff, hard stop ---------- */
+const QUESTIONS=[
+  {q:"What would help most in the next 24 hours?",opts:[["A teammate","idea"],["Feedback from users","users"],["A technical unblock","backend"],["Someone to pitch to","fundraising"]]},
+  {q:"Which skill is your team missing?",opts:[["Design","design"],["Frontend","frontend"],["Voice / audio","voice"],["ML","ml"],["Hardware","hardware"]]},
+  {q:"Who else would you like to meet?",opts:[["People in education","edu"],["People in health","health"],["Investors","fundraising"],["Greek founders","greece"]]},
+];
+function renderSharpen(){
+  const el=document.getElementById("sharpen");
+  const bars=Array.from({length:MAX_ROUNDS},(_,i)=>`<span class="${i<round?"on":""}"></span>`).join("");
+  if(round>=MAX_ROUNDS){
+    el.innerHTML=`<div class="done-msg"><b>That's enough questions.</b>You have ${shown.length} people to meet. Go meet them.</div>`;return;
+  }
+  const Q=QUESTIONS[round];
+  el.innerHTML=`<div class="eyebrow">One tap unlocks another match</div><div class="progress">${bars}</div>
+    <div class="q">${Q.q}</div>
+    <div class="chips">${Q.opts.map(o=>`<button class="chip" data-t="${o[1]}">${o[0]}</button>`).join("")}</div>`;
+  el.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    const t=c.dataset.t;
+    if(round===2) me.does.add(t); else me.needs.add(t);
+    round++;reveal(false);
+  });
+}
+</script>
+</body>
+</html>

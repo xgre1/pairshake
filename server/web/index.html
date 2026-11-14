@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Roomie</title>
+<style>
+:root{
+  --bg:#ffffff; --fg:#0b0b0d; --sec:rgba(60,60,67,.62); --ter:rgba(60,60,67,.32);
+  --fill:#f2f2f7; --fill2:rgba(118,118,128,.12); --hair:rgba(60,60,67,.12);
+  --iris:#6E6BF2; --lilac:#B9A7FF; --sky:#8FD3FF; --blush:#FFB8CF; --glow:#F4F0FF;
+  --serif: ui-serif, "New York", "Iowan Old Style", "Charter", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
+  --r:20px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#000; --fg:#f5f5f7; --sec:rgba(235,235,245,.6); --ter:rgba(235,235,245,.3);
+         --fill:#1c1c1e; --fill2:rgba(118,118,128,.24); --hair:rgba(84,84,88,.5); }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--fg);font:17px/1.42 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--iris);outline-offset:3px;border-radius:8px}
+.serif{font-family:var(--serif);font-weight:400;letter-spacing:-.01em}
+.sec{color:var(--sec)} .ter{color:var(--ter)}
+.foot{font-size:13px} .cap{font-size:12px}
+.eyebrow{font-size:13px;font-weight:600;color:var(--sec)}
+
+/* screens: one column on phones, stage + panel side by side on computers */
+.screen{display:none;min-height:100dvh}
+.screen.on{display:grid;animation:fade .45s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.stage{display:grid;place-items:center;position:relative;overflow:hidden}
+.panel{display:flex;flex-direction:column;padding:28px 24px calc(20px + env(safe-area-inset-bottom))}
+@media (min-width: 900px){
+  .screen.on{grid-template-columns:minmax(0,1.15fr) minmax(420px,1fr)}
+  .stage{position:sticky;top:0;height:100dvh;background:var(--fill)}
+  .panel{max-width:560px;width:100%;min-height:100dvh;justify-content:center;padding:56px 56px 40px}
+  .only-phone{display:none!important}
+}
+@media (max-width: 899px){ .only-desk{display:none!important} }
+
+/* the button */
+.primary{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;
+  padding:17px 20px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:600;transition:transform .12s,opacity .2s}
+.primary:active{transform:scale(.98)}
+.primary small{font-weight:400;font-size:13px;opacity:.6}
+.primary[disabled]{opacity:.35;cursor:default}
+.ghost{padding:12px;color:var(--sec);width:100%}
+.pill{padding:7px 14px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:600;font-size:15px}
+.icon-btn{width:32px;height:32px;border-radius:50%;background:var(--fill2);display:grid;place-items:center;color:var(--sec)}
+
+/* Emma's orb */
+.orb{--s:200px;--k:1;width:var(--s);height:var(--s);border-radius:50%;position:relative;overflow:hidden;
+  transform:scale(var(--k));transition:transform .12s ease-out;isolation:isolate;
+  box-shadow:0 calc(var(--s)*.08) calc(var(--s)*.32) rgba(110,107,242,.28), inset 0 0 0 .5px rgba(255,255,255,.4)}
+.orb::before,.orb::after{content:"";position:absolute;inset:-30%;filter:blur(calc(var(--s)*.07))}
+.orb::before{background:
+  radial-gradient(circle at 28% 30%, var(--sky) 0 18%, transparent 45%),
+  radial-gradient(circle at 72% 32%, var(--blush) 0 16%, transparent 44%),
+  radial-gradient(circle at 50% 78%, var(--iris) 0 20%, transparent 50%),
+  radial-gradient(circle at 50% 50%, var(--glow) 0 12%, transparent 40%), var(--lilac);
+  animation:swirl 10s linear infinite}
+.orb::after{background:
+  radial-gradient(circle at 70% 70%, var(--sky) 0 14%, transparent 40%),
+  radial-gradient(circle at 25% 65%, var(--blush) 0 12%, transparent 38%),
+  radial-gradient(circle at 40% 25%, #fff 0 6%, transparent 30%);
+  mix-blend-mode:soft-light;animation:swirl 7s linear infinite reverse}
+.orb[data-mode="thinking"]::before{animation-duration:2.4s}
+.orb[data-mode="thinking"]::after{animation-duration:1.8s}
+.orb[data-mode="listening"]::before{filter:blur(calc(var(--s)*.07)) hue-rotate(-25deg)}
+@keyframes swirl{to{transform:rotate(360deg)}}
+.orb-wrap{position:relative;display:grid;place-items:center}
+.ripple{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--sky);opacity:0}
+.orb-wrap[data-mode="listening"] .ripple{animation:ripple 2.1s ease-out infinite}
+.orb-wrap[data-mode="listening"] .ripple:nth-child(2){animation-delay:.7s}
+.orb-wrap[data-mode="listening"] .ripple:nth-child(3){animation-delay:1.4s}
+@keyframes ripple{from{opacity:.6;transform:scale(1)}to{opacity:0;transform:scale(1.55)}}
+@media (prefers-reduced-motion: reduce){ .orb::before,.orb::after,.ripple{animation:none!important} }
+
+/* avatars */
+.av{border-radius:50%;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:rgba(0,0,0,.72);flex:none}
+
+/* welcome */
+#welcome .panel{text-align:center;align-items:center}
+@media (max-width:899px){
+  #welcome{grid-template-rows:1fr auto}
+  #welcome .stage{padding-top:12vh}
+}
+
+/* interview */
+#emmaLine{font-family:var(--serif);font-size:30px;line-height:1.22;min-height:3.7em}
+#heard{font-size:20px;color:var(--sec);min-height:4.4em;margin-top:20px}
+.hint{text-align:center;font-size:13px;color:var(--ter);margin:14px 0}
+.type-row{display:flex;gap:8px;margin-top:auto}
+.field{flex:1;padding:12px 16px;border-radius:20px;background:var(--fill);border:0;outline:none}
+@media (max-width:899px){
+  #interview{grid-template-rows:auto 1fr auto}
+  #interview .stage{order:2;padding:20px}
+  #interview .panel{display:contents}
+  #interview .line-box{order:1;padding:36px 28px 0}
+  #interview .bottom{order:3;padding:0 24px calc(16px + env(safe-area-inset-bottom))}
+}
+
+/* socials */
+.group{background:var(--fill);border-radius:22px;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;padding:12px 16px}
+.row + .row{border-top:.5px solid var(--hair);margin-left:16px;padding-left:0}
+.glyph{width:30px;height:30px;border-radius:8px;background:var(--fill2);display:grid;place-items:center;font:700 12px/1 var(--sans);flex:none}
+.row input{flex:1;border:0;background:none;outline:none;padding:4px 0}
+
+/* matching */
+#net{width:100%;height:100%;display:block}
+@media (max-width:899px){ #matching .stage{height:340px} }
+.talk{display:flex;gap:12px;padding:12px;background:var(--fill);border-radius:16px;animation:drop .45s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes drop{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.verdict{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.v-strong{background:rgba(52,199,89,.14);color:#2a9d4b} .v-maybe{background:rgba(255,149,0,.14);color:#c77400}
+.v-pass{background:var(--fill2);color:var(--sec)} .v-pick{background:rgba(110,107,242,.16);color:var(--iris)}
+.talk p{font-size:15px;margin-top:3px}
+
+/* introduction */
+.pair{position:absolute;inset:0;background:
+  radial-gradient(60% 70% at 15% 30%, var(--a) 0, transparent 70%),
+  radial-gradient(60% 70% at 85% 30%, var(--b) 0, transparent 70%),
+  radial-gradient(50% 50% at 50% 55%, var(--glow) 0, transparent 70%), var(--glow);
+  background-size:140% 140%;animation:drift 14s ease-in-out infinite alternate}
+@keyframes drift{from{background-position:0% 40%}to{background-position:100% 60%}}
+@media (max-width:899px){
+  #intro .stage{height:320px;-webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent)}
+}
+.faces{display:flex;position:relative;z-index:1}
+.faces .av{border:3px solid #fff;box-shadow:0 10px 30px rgba(0,0,0,.12);transition:transform .9s cubic-bezier(.2,.9,.2,1)}
+.faces .av + .av{margin-left:-18px}
+.faces.apart .av:first-child{transform:translateX(-60px)} .faces.apart .av:last-child{transform:translateX(60px)}
+.fact{padding:13px 16px} .fact + .fact{border-top:.5px solid var(--hair)}
+.fact b{display:block;font-weight:400;font-size:13px;color:var(--sec)}
+.follow{padding:6px 14px;border-radius:999px;border:1px solid var(--hair);font-weight:600;font-size:14px;text-decoration:none;color:var(--fg);white-space:nowrap}
+.follow.on{color:var(--sec)}
+
+/* room */
+.venn{position:relative;width:340px;height:220px;max-width:100%}
+.venn .c{position:absolute;top:12px;width:196px;height:196px;border-radius:50%;transition:left 1s cubic-bezier(.2,.9,.25,1),right 1s cubic-bezier(.2,.9,.25,1)}
+.venn .c.a{left:-30px} .venn .c.b{right:-30px}
+.venn.together .c.a{left:10px} .venn.together .c.b{right:10px}
+.venn .lobe{position:absolute;top:66px;width:92px;text-align:center;font-size:12px;color:var(--sec)}
+.venn .lobe b{display:block;color:var(--fg);margin-bottom:4px}
+.venn .lens{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6);opacity:0;text-align:center;transition:.8s .4s}
+.venn.together .lens{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.rare{display:block;width:100%;text-align:left;padding:16px;background:var(--bg);border-radius:20px;margin-top:10px}
+@media (max-width:899px){ .rare{background:var(--fill)} }
+.rare .serif{font-size:20px;line-height:1.25}
+.rare .op{font-size:15px;color:var(--sec);margin-top:8px}
+#room .stage{place-items:start center;overflow:auto}
+.overlap{width:100%;max-width:520px;padding:28px 24px 120px}
+@media (min-width:900px){ .overlap{padding:56px 40px} #overlapCta{display:none} }
+@media (max-width:899px){
+  #room.chatting .stage{display:none}
+  #room:not(.chatting) .panel{display:none}
+}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 0}
+.chat{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px 0}
+@media (min-width:900px){ #room .panel{justify-content:stretch;height:100dvh;padding-top:24px} }
+@media (max-width:899px){ #room .panel{height:100dvh;padding-top:8px} }
+.b{max-width:78%;padding:9px 14px;border-radius:19px;animation:drop .3s ease;white-space:pre-wrap}
+.b.me{align-self:flex-end;background:var(--fg);color:var(--bg)}
+.b.them{align-self:flex-start;background:var(--fill)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chip{flex:none;max-width:270px;text-align:left;padding:8px 12px;border-radius:14px;background:var(--fill2);font-size:15px}
+.composer{display:flex;gap:10px;align-items:center;padding-top:6px}
+.send{width:36px;height:36px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;flex:none}
+.send[disabled]{opacity:.3}
+
+/* sheets and overlays */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;place-items:end center;z-index:20}
+.scrim.on{display:grid;animation:fade .25s}
+.sheet{background:var(--bg);width:100%;max-width:480px;border-radius:32px 32px 0 0;padding:24px 24px calc(18px + env(safe-area-inset-bottom));animation:up .35s cubic-bezier(.2,.9,.3,1)}
+@media (min-width:900px){ .scrim{place-items:center} .sheet{border-radius:32px} }
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.overlay{position:fixed;inset:0;z-index:30;display:none;background:var(--bg)}
+.overlay.on{display:grid;animation:fade .4s}
+#find{background:#121214;color:#fff;transition:background .35s}
+#find.aligned{background:var(--c)} #find.aligned *{color:#000}
+.arrow{font-size:190px;line-height:1;transition:transform .25s}
+.banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:22px;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);box-shadow:0 10px 30px rgba(0,0,0,.15);width:min(420px,calc(100% - 24px))}
+.banner.on{display:flex;animation:up .4s}
+.err{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#ff3b30;color:#fff;padding:10px 16px;border-radius:14px;font-size:14px;z-index:50}
+</style>
+</head>
+<body>
+
+<!-- Welcome -->
+<section class="screen on" id="welcome">
+  <div class="stage"><div class="orb-wrap"><div class="orb" style="--s:min(56vw,300px)" data-mode="idle"></div></div></div>
+  <div class="panel">
+    <div style="flex:1" class="only-phone"></div>
+    <h1 class="serif" style="font-size:40px;margin-bottom:10px">Hi, I'm Emma.</h1>
+    <p class="sec" style="max-width:340px;margin:0 auto 34px">Tell me what you're building, and I'll introduce you to someone here.</p>
+    <button class="primary" id="startBtn">Start talking</button>
+    <p class="cap ter" style="margin-top:14px" id="micNote"></p>
+  </div>
+</section>
+
+<!-- Conversation with Emma -->
+<section class="screen" id="interview">
+  <div class="stage">
+    <div class="orb-wrap" id="talkOrbWrap" data-mode="idle" style="cursor:pointer" title="Tap when you're done">
+      <div class="ripple"></div><div class="ripple"></div><div class="ripple"></div>
+      <div class="orb" id="talkOrb" style="--s:min(46vw,260px)" data-mode="idle"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="line-box"><p id="emmaLine"></p><p id="heard"></p></div>
+    <div class="bottom">
+      <p class="hint" id="hint"></p>
+      <form class="type-row" id="typeForm">
+        <input class="field" id="typeInput" placeholder="Or type your answer" autocomplete="off">
+        <button class="send" id="typeSend" aria-label="Send">↑</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Handles -->
+<section class="screen" id="socials">
+  <div class="stage">
+    <div style="text-align:center">
+      <div class="orb-wrap" style="margin:0 auto 24px"><div class="orb" style="--s:120px" data-mode="thinking"></div></div>
+      <p class="sec only-desk">Emma is looking around the room.</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h2 class="serif" style="font-size:32px;margin-bottom:22px">Where can they follow you?</h2>
+    <div class="group" id="handleGroup"></div>
+    <p class="foot sec" style="margin:10px 16px 28px">Optional. These show on your introduction.</p>
+    <button class="primary" id="introduceBtn">Introduce me</button>
+  </div>
+</section>
+
+<!-- Your agent talking to everyone's agents -->
+<section class="screen" id="matching">
+  <div class="stage"><canvas id="net"></canvas></div>
+  <div class="panel" style="justify-content:flex-start">
+    <h2 class="serif" id="mTitle" style="font-size:28px">Your agent is talking to everyone's agents.</h2>
+    <p class="sec foot" id="mSub" style="margin:6px 0 18px">Starting…</p>
+    <div id="feed" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</section>
+
+<!-- Introduction -->
+<section class="screen" id="intro">
+  <div class="stage"><div class="pair" id="introPair"></div><div class="faces apart" id="faces"></div></div>
+  <div class="panel">
+    <h2 class="serif" style="font-size:42px" id="iName"></h2>
+    <p class="sec" id="iRole" style="margin-bottom:22px"></p>
+    <p class="serif" style="font-size:21px;line-height:1.45;margin-bottom:26px" id="iNote"></p>
+    <div class="group" id="iFacts" style="margin-bottom:14px"></div>
+    <div class="group" id="iSocials" style="margin-bottom:28px"></div>
+    <button class="primary" id="talkBtn"></button>
+    <button class="ghost foot" id="restartBtn">Start over</button>
+  </div>
+</section>
+
+<!-- The room: what you share + chat -->
+<section class="screen" id="room">
+  <div class="stage">
+    <div class="overlap">
+      <h2 class="serif" style="font-size:34px;margin-bottom:18px">What you share</h2>
+      <div style="display:grid;place-items:center"><div class="venn" id="venn"></div></div>
+      <p class="eyebrow" style="margin:22px 0 0">Rare things in common</p>
+      <div id="rareList"></div>
+      <div class="group" id="exchange" style="margin-top:16px;background:var(--bg)"></div>
+      <div style="position:fixed;left:0;right:0;bottom:0;padding:36px 24px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 45%)" id="overlapCta" class="only-phone">
+        <button class="primary" id="msgBtn"></button>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="bar">
+      <button class="icon-btn only-phone" id="backBtn" aria-label="Back">‹</button>
+      <div id="roomAv"></div>
+      <div style="flex:1"><div style="font-weight:600;font-size:15px" id="roomName"></div><div class="cap sec" id="presence">Here now</div></div>
+      <button class="pill" id="meetBtn">Meet?</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div id="suggest"></div>
+    <form class="composer" id="chatForm">
+      <input class="field" id="chatInput" placeholder="Message" autocomplete="off">
+      <button class="send" id="chatSend" aria-label="Send" disabled>↑</button>
+    </form>
+  </div>
+</section>
+
+<!-- Meet? -->
+<div class="scrim" id="meetScrim">
+  <div class="sheet">
+    <div class="faces" id="meetFaces" style="margin-bottom:14px"></div>
+    <h3 class="serif" style="font-size:30px;margin-bottom:10px" id="meetTitle"></h3>
+    <p class="sec">If you both say yes, Emma shows you where to find each other. If not, nobody is told.</p>
+    <p class="foot ter" style="margin:10px 0 24px">People usually underestimate how much the other person enjoyed talking to them.</p>
+    <button class="primary" id="yesBtn">Yes, let's meet</button>
+    <button class="ghost" id="noBtn">Not now</button>
+  </div>
+</div>
+
+<!-- Outcome -->
+<div class="overlay" id="outcome">
+  <div style="max-width:520px;width:100%;margin:0 auto;padding:48px 24px;display:flex;flex-direction:column" id="outcomeBody"></div>
+</div>
+
+<!-- Finding -->
+<div class="overlay" id="find">
+  <div style="max-width:520px;width:100%;margin:0 auto;padding:20px 28px;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:12px"><div id="findAv"></div>
+      <div style="flex:1"><div class="cap" style="opacity:.6">Finding</div><div style="font-weight:600" id="findName"></div></div>
+      <button class="icon-btn" id="findClose" style="background:rgba(255,255,255,.15);color:#fff">✕</button></div>
+    <div style="flex:1;display:grid;place-items:center"><div class="arrow" id="arrow">↑</div></div>
+    <div style="font:600 64px/1 var(--sans);font-variant-numeric:tabular-nums" id="findDist">–</div>
+    <div style="font-size:22px;opacity:.75;margin-top:6px" id="findDir">Turn slowly</div>
+    <div style="opacity:.5;margin-top:10px" id="findSpot"></div>
+    <div class="cap" style="opacity:.4;margin:6px 0 20px" id="findNote"></div>
+  </div>
+</div>
+
+<div class="banner" id="banner"></div>
+<div class="err" id="err"></div>
+
+<script>
+/* ---------------------------------------------------------------- utils */
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const first = p => (p?.name || "").split(" ")[0];
+const initials = p => (p?.name || "?").split(" ").slice(0, 2).map(w => w[0]).join("");
+const words = s => (s || "").toLowerCase().split(/[^a-z]+/).filter(Boolean);
+const av = (p, size) => `<div class="av" style="width:${size}px;height:${size}px;font-size:${size*.36}px;background:${esc(p?.color||"#B9A7FF")}">${esc(initials(p))}</div>`;
+const isDesk = () => matchMedia("(min-width: 900px)").matches;
+const demo = new URLSearchParams(location.search).has("demo");
+
+async function api(path, body, method) {
+  const r = await fetch(path, body === undefined ? {method: method || "GET"} :
+    {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(path + " " + r.status);
+  return r.json();
+}
+function oops(msg) { const e = $("#err"); e.textContent = msg; e.style.display = "block"; setTimeout(() => e.style.display = "none", 5000); }
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); window.scrollTo(0, 0); }
+
+/* ---------------------------------------------------------------- Emma's voice and ears
+   Full duplex like the iPhone app: while Emma speaks, recognition keeps running so you can talk over
+   her (two words that aren't hers stop her). Your turn ends on the words, not a fixed timer. */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const OPEN = new Set("and but so because or um uh like then with the a an to of for my i m is that".split(" "));
+const Voice = {
+  ctx: null, an: null, src: null, phase: "idle", heard: "", committed: "", lastText: 0, listenStart: 0,
+  echo: new Set(), barge: false, seg: 0, rec: null, onSpeak: null, onListen: null, pending: null,
+  fillers: [], fillerUntil: 0, level: 0, onHeard: () => {},
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.an = this.ctx.createAnalyser(); this.an.fftSize = 512; this.an.connect(this.ctx.destination);
+    this.data = new Float32Array(this.an.fftSize);
+    this.loadFillers(); this.tick();
+  },
+  async buffer(text) {
+    const r = await fetch("/speak", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({text})});
+    return this.ctx.decodeAudioData(await r.arrayBuffer());
+  },
+  play(buf) { this.stopAudio(); const s = this.ctx.createBufferSource(); s.buffer = buf; s.connect(this.an); s.start(); this.src = s; return s; },
+  stopAudio() { if (this.src) { try { this.src.onended = null; this.src.stop(); } catch {} this.src = null; } },
+  async say(text, barge = false) {
+    this.init();
+    let buf; try { buf = await this.buffer(text); } catch { return false; }
+    const wait = this.fillerUntil - performance.now(); if (wait > 0) await sleep(wait);
+    if (this.phase === "speaking") this.endSpeaking(false, true);
+    if (this.phase === "listening") this.finishListening();
+    this.phase = "speaking"; this.barge = barge && !!SR; this.echo = new Set(words(text));
+    this.heard = ""; this.committed = "";
+    if (this.barge) this.startRec();
+    const s = this.play(buf);
+    return new Promise(res => { this.onSpeak = res; s.onended = () => { if (this.src === s) this.endSpeaking(false, false); }; });
+  },
+  endSpeaking(byVoice, tapped) {
+    if (this.phase !== "speaking") return;
+    if (byVoice || tapped) this.stopAudio();
+    if (byVoice) { this.phase = "listening"; this.listenStart = this.lastText = performance.now(); }
+    else { this.phase = "idle"; if (this.barge) this.stopRec(); this.heard = ""; }
+    const r = this.onSpeak; this.onSpeak = null; r && r(byVoice || tapped);
+  },
+  stopSpeaking() { if (this.phase === "speaking") this.endSpeaking(false, true); this.stopAudio(); this.fillerUntil = 0; },
+  listen() {
+    if (this.pending != null) { const p = this.pending; this.pending = null; return Promise.resolve(p); }
+    if (this.phase !== "listening") {
+      this.phase = "listening"; this.heard = ""; this.committed = ""; this.startRec();
+      this.listenStart = this.lastText = performance.now();
+    }
+    return new Promise(res => this.onListen = res);
+  },
+  finishListening(text) {
+    if (this.phase !== "listening") return;
+    this.phase = "idle"; this.stopRec();
+    const t = (text ?? this.heard).trim();
+    if (this.onListen) { const r = this.onListen; this.onListen = null; r(t); } else this.pending = t;
+  },
+  startRec() {
+    this.stopRec(); if (!SR) return;
+    const r = new SR(); r.lang = "en-US"; r.continuous = true; r.interimResults = true;
+    const seg = ++this.seg;
+    r.onresult = e => {
+      if (seg !== this.seg) return;
+      let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      const full = [this.committed, t.trim()].filter(Boolean).join(" ");
+      if (full !== this.heard) { this.heard = full; this.lastText = performance.now(); this.onHeard(full); }
+    };
+    r.onend = () => {                       // the browser closed the segment: keep the words, open a new one
+      if (seg !== this.seg) return;
+      this.committed = this.heard;
+      if (this.phase !== "idle") setTimeout(() => { if (seg === this.seg && this.phase !== "idle") this.startRec(); }, 150);
+    };
+    r.onerror = () => {};
+    try { r.start(); } catch {}
+    this.rec = r;
+  },
+  stopRec() { this.seg++; if (this.rec) { try { this.rec.abort(); } catch {} this.rec = null; } },
+  async loadFillers() { for (const f of ["Mm-hm.", "Okay.", "Right."]) { try { this.fillers.push(await this.buffer(f)); } catch {} } },
+  playFiller() {
+    if (this.phase !== "idle" || !this.fillers.length) return;
+    const b = this.fillers[Math.floor(Math.random() * this.fillers.length)];
+    this.play(b); this.fillerUntil = performance.now() + b.duration * 1000;
+  },
+  tick() {
+    const now = performance.now();
+    if (this.src) {
+      this.an.getFloatTimeDomainData(this.data);
+      let s = 0; for (const v of this.data) s += v * v;
+      this.level = Math.min(1, Math.sqrt(s / this.data.length) * 5);
+    } else this.level *= .85;
+    if (this.phase === "speaking" && this.barge) {
+      if (words(this.heard).filter(w => !this.echo.has(w)).length >= 2) this.endSpeaking(true);
+    } else if (this.phase === "listening") {
+      const text = this.heard.trim(), since = now - this.lastText;
+      const last = words(text).pop();
+      const need = (text.endsWith(",") || OPEN.has(last)) ? 3400 : 1800;
+      if (text && since > need) this.finishListening();
+      else if (!text && now - this.listenStart > 14000) this.finishListening();
+      else if (now - this.listenStart > 90000) this.finishListening();
+      this.level = text && since < 400 ? .35 : this.level;
+    }
+    document.documentElement.style.setProperty("--lvl", this.level.toFixed(3));
+    const k = 1 + this.level * .2;
+    document.querySelectorAll(".screen.on .orb").forEach(o => o.style.setProperty("--k", k));
+    requestAnimationFrame(() => this.tick());
+  },
+};
+
+/* ---------------------------------------------------------------- state */
+const S = { id: null, result: null, mission: null, talks: [], total: 0, chosen: null, mode: "idle", answers: 0, seen: new Set() };
+function setMode(m) {
+  S.mode = m;
+  $("#talkOrb").dataset.mode = m; $("#talkOrbWrap").dataset.mode = m;
+  $("#hint").textContent = {listening: "Tap Emma when you're done", speaking: "Tap to skip", thinking: " ", idle: " "}[m];
+}
+Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; };
+
+/* ---------------------------------------------------------------- 1. talk to Emma */
+if (!SR) $("#micNote").textContent = "This browser can't hear you, so you'll type your answers.";
+$("#startBtn").onclick = () => { Voice.init(); Voice.ctx.resume(); demo ? rehearse() : interview(); };
+$("#talkOrbWrap").onclick = () => { if (S.mode === "listening") Voice.finishListening(); else if (S.mode === "speaking") Voice.stopSpeaking(); };
+$("#typeForm").onsubmit = e => {
+  e.preventDefault(); const t = $("#typeInput").value.trim(); if (!t) return;
+  $("#typeInput").value = "";
+  if (Voice.phase === "speaking") Voice.endSpeaking(true);
+  if (Voice.phase !== "listening") { Voice.phase = "listening"; }
+  Voice.finishListening(t);
+};
+
+async function interview() {
+  show("interview"); setMode("thinking");
+  try {
+    const s = await api("/start", {});
+    S.id = s.id;
+    let line = s.say;
+    while (true) {
+      $("#emmaLine").textContent = line; $("#heard").textContent = "";
+      setMode("speaking");
+      const cut = await Voice.say(line, true);
+      setMode("listening");
+      const said = await Voice.listen();
+      if (!said) { line = "Sorry, I didn't catch that. Say it again?"; continue; }
+      $("#heard").textContent = said;
+      setMode("thinking");
+      const filler = setTimeout(() => Voice.playFiller(), 900);
+      const t = await api("/turn", {id: S.id, text: said, interrupted: cut});
+      clearTimeout(filler);
+      if (t.done) { $("#emmaLine").textContent = t.say; showSocials(); setMode("speaking"); await Voice.say(t.say); setMode("idle"); return; }
+      line = t.say;
+    }
+  } catch (e) { oops("Can't reach the Roomie server."); show("welcome"); }
+}
+
+async function rehearse() {
+  show("matching");
+  const s = await api("/start", {}); S.id = s.id;
+  for (const t of ["I'm Kai, I left a bank job to build an agent that reads restaurant menus in any language.",
+                   "I need a designer, and travellers to test it.", "I can help with iOS and Swift.", "Back left, green beanie."])
+    await api("/turn", {id: S.id, text: t});
+  findMatch({});
+}
+
+/* ---------------------------------------------------------------- 2. handles */
+const SOCIALS = [["x", "X", "X", h => `https://x.com/${h}`], ["instagram", "Instagram", "IG", h => `https://instagram.com/${h}`],
+                 ["linkedin", "LinkedIn", "in", h => `https://www.linkedin.com/in/${h}`], ["github", "GitHub", "GH", h => `https://github.com/${h}`]];
+function showSocials() {
+  $("#handleGroup").innerHTML = SOCIALS.map(([k, label, g]) =>
+    `<label class="row"><span class="glyph">${g}</span><input data-k="${k}" placeholder="${label}" autocapitalize="off" autocorrect="off" value="${esc(localStorage.getItem("h." + k) || "")}"></label>`).join("");
+  show("socials");
+}
+$("#introduceBtn").onclick = () => {
+  const socials = {};
+  document.querySelectorAll("#handleGroup input").forEach(i => { socials[i.dataset.k] = i.value.trim(); try { localStorage.setItem("h." + i.dataset.k, i.value.trim()); } catch {} });
+  Voice.stopSpeaking(); findMatch(socials);
+};
+
+/* ---------------------------------------------------------------- 3. agents talking */
+function findMatch(socials) {
+  S.talks = []; S.total = 0; S.chosen = null; S.result = null;
+  show("matching"); Net.start();
+  (async () => {
+    while ($("#matching").classList.contains("on")) {
+      try { const r = await api("/scan?id=" + S.id); S.total = r.total; S.talks = r.talks; if (r.total && r.talks.length >= r.total) break; } catch {}
+      await sleep(700);
+    }
+  })();
+  api("/match", {id: S.id, socials}).then(m => { S.result = m; S.chosen = m.mission.person.id; S.seen.add(m.mission.id); })
+    .catch(() => { oops("Matching failed. Try again."); show("welcome"); });
+}
+
+const Net = {
+  revealed: [], converging: false, t0: 0, raf: 0,
+  start() {
+    this.revealed = []; this.converging = false; this.t0 = performance.now(); $("#feed").innerHTML = "";
+    cancelAnimationFrame(this.raf); this.draw(); this.pace();
+  },
+  async pace() {
+    while (!this.converging) {
+      const next = S.talks.find(t => !this.revealed.some(r => r.person.id === t.person.id));
+      if (next) { this.revealed.push(next); this.feed(); await sleep(550); continue; }
+      const elapsed = performance.now() - this.t0, allIn = S.total && this.revealed.length >= S.total;
+      if (S.chosen && (allIn || elapsed > 16000 || (!S.talks.length && elapsed > 5000))) {
+        if (!this.revealed.some(r => r.person.id === S.chosen)) this.revealed.push({person: S.result.mission.person, ask: "", reply: "", fit: 90});
+        this.converging = true; this.feed();
+        $("#mTitle").textContent = "Found your person.";
+        $("#mSub").textContent = `Out of ${this.revealed.length} conversations, one stood out.`;
+        await sleep(2300);
+        cancelAnimationFrame(this.raf); revealMatch(); return;
+      }
+      await sleep(150);
+    }
+  },
+  verdict(t) {
+    if (this.converging && t.person.id === S.chosen) return ["Your person", "v-pick"];
+    return t.fit >= 60 ? ["Strong fit", "v-strong"] : t.fit >= 35 ? ["Maybe", "v-maybe"] : ["Pass", "v-pass"];
+  },
+  feed() {
+    const n = Math.max(S.total, this.revealed.length, 8), short = this.revealed.filter(t => t.fit >= 35).length;
+    if (!this.converging) $("#mSub").textContent = `${this.revealed.length} of ${n} agents answered · ${short} shortlisted`;
+    const list = isDesk() ? this.revealed.slice(-6) : this.revealed.slice(-3);
+    $("#feed").innerHTML = list.reverse().map(t => { const [v, c] = this.verdict(t); return `
+      <div class="talk">${av(t.person, 30)}<div style="flex:1;min-width:0">
+        <div style="display:flex;gap:8px;align-items:center"><b style="font-size:14px;flex:1">${esc(first(t.person))}'s agent</b><span class="verdict ${c}">${v}</span></div>
+        ${t.ask ? `<p class="sec">Your agent: ${esc(t.ask)}</p><p>${esc(first(t.person))}: ${esc(t.reply)}</p>` : ""}
+      </div></div>`; }).join("");
+  },
+  draw() {
+    const cv = $("#net"), dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const c = {x: w / 2, y: h / 2}, r = Math.min(w, h) * .4, n = Math.max(S.total, this.revealed.length, 8);
+    const t = performance.now() / 1000, css = getComputedStyle(document.documentElement);
+    const pos = i => { const a = i / n * Math.PI * 2 - Math.PI / 2, k = i % 2 ? .86 : 1; return {x: c.x + Math.cos(a) * r * k, y: c.y + Math.sin(a) * r * k}; };
+    const dot = (a, b, ph, col, s) => { const x = a.x + (b.x - a.x) * ph, y = a.y + (b.y - a.y) * ph; g.globalAlpha = .9 * Math.sin(ph * Math.PI); g.fillStyle = col; g.beginPath(); g.arc(x, y, s, 0, 7); g.fill(); g.globalAlpha = 1; };
+    for (let i = 0; i < n; i++) {
+      const p = pos(i), tk = this.revealed[i];
+      g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(p.x, p.y);
+      if (tk) {
+        const chosen = this.converging && tk.person.id === S.chosen;
+        g.setLineDash([]); g.globalAlpha = this.converging ? (chosen ? .95 : .05) : tk.fit >= 60 ? .85 : tk.fit >= 35 ? .4 : .15;
+        g.strokeStyle = tk.person.color; g.lineWidth = chosen ? 3.5 : tk.fit >= 60 ? 2 : 1.2; g.stroke(); g.globalAlpha = 1;
+        if (chosen) for (let k = 0; k < 3; k++) { const ph = (t * .9 + k / 3) % 1; dot(c, p, ph, tk.person.color, 4); dot(p, c, ph, "#6E6BF2", 3); }
+        else if (!this.converging && i === this.revealed.length - 1) dot(p, c, (t * 1.6) % 1, tk.person.color, 3.5);
+      } else if (!this.converging) {
+        g.setLineDash([2, 5]); g.strokeStyle = css.getPropertyValue("--ter"); g.lineWidth = 1; g.stroke(); g.setLineDash([]);
+        dot(c, p, (t * .55 + i * .37) % 1, "#6E6BF2", 2.5);
+        const s = 13 * (1 + .06 * Math.sin(t * 3 + i)); g.fillStyle = css.getPropertyValue("--fill2"); g.beginPath(); g.arc(p.x, p.y, s, 0, 7); g.fill();
+      }
+    }
+    this.revealed.forEach((tk, i) => {
+      const p = pos(i), chosen = this.converging && tk.person.id === S.chosen, s = chosen ? 30 : 19;
+      g.globalAlpha = this.converging ? (chosen ? 1 : .15) : tk.fit >= 35 ? 1 : .45;
+      if (chosen) { g.shadowColor = tk.person.color; g.shadowBlur = 30; }
+      g.fillStyle = tk.person.color; g.beginPath(); g.arc(p.x, p.y, s, 0, 7); g.fill(); g.shadowBlur = 0;
+      if (chosen) { g.strokeStyle = "#fff"; g.lineWidth = 3; g.stroke(); }
+      g.fillStyle = "rgba(0,0,0,.72)"; g.font = `600 ${s * .72}px ${css.getPropertyValue("--serif")}`;
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(initials(tk.person), p.x, p.y + 1); g.globalAlpha = 1;
+    });
+    const orbR = 32 * (1 + .03 * Math.sin(t * 2.4));
+    const grad = g.createRadialGradient(c.x - 10, c.y - 12, 2, c.x, c.y, orbR);
+    grad.addColorStop(0, "#F4F0FF"); grad.addColorStop(.45, "#B9A7FF"); grad.addColorStop(.8, "#8FD3FF"); grad.addColorStop(1, "#6E6BF2");
+    g.shadowColor = "rgba(110,107,242,.4)"; g.shadowBlur = 24; g.fillStyle = grad; g.beginPath(); g.arc(c.x, c.y, orbR, 0, 7); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = css.getPropertyValue("--sec"); g.font = `600 11px ${css.getPropertyValue("--sans")}`; g.fillText("Your agent", c.x, c.y + orbR + 14);
+    this.raf = requestAnimationFrame(() => this.draw());
+  },
+};
+
+/* ---------------------------------------------------------------- 4. introduction */
+function revealMatch() {
+  const r = S.result, p = r.mission.person, me = r.me;
+  $("#introPair").style.cssText = `--a:${esc(me.color)};--b:${esc(p.color)}`;
+  $("#faces").innerHTML = av(me, 96) + av(p, 96); $("#faces").classList.add("apart");
+  $("#iName").textContent = `Meet ${first(p)}.`; $("#iRole").textContent = p.role;
+  $("#iNote").textContent = r.mission.intro;
+  $("#iFacts").innerHTML = [["Building", p.building], ["Looking for", p.needs], ["Good at", p.offers]]
+    .map(([k, v]) => `<div class="fact"><b>${k}</b>${esc(v)}</div>`).join("");
+  socialRows(p, "#iSocials");
+  $("#talkBtn").innerHTML = `Talk with ${esc(first(p))}<small>See what you share, then talk</small>`;
+  show("intro"); startInbox();
+  setTimeout(() => $("#faces").classList.remove("apart"), 80);
+  if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+  Voice.say(r.say);
+}
+function socialRows(p, sel) {
+  const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
+  const rows = SOCIALS.filter(([k]) => p.socials?.[k]).map(([k, label, g, url]) => {
+    const h = p.socials[k], key = k + ":" + h, on = followed.has(key);
+    return `<div class="row"><span class="glyph">${g}</span><div style="flex:1"><div>@${esc(h)}</div><div class="cap sec">${label}</div></div>
+      <a class="follow ${on ? "on" : ""}" data-key="${esc(key)}" href="${esc(url(encodeURIComponent(h)))}" target="_blank" rel="noopener">${on ? "✓ Following" : "+ Follow"}</a></div>`;
+  });
+  const el = $(sel); el.innerHTML = rows.join(""); el.style.display = rows.length ? "" : "none";
+  el.querySelectorAll(".follow").forEach(a => a.onclick = () => {
+    followed.add(a.dataset.key); try { localStorage.setItem("following", [...followed].join(",")); } catch {}
+    a.classList.add("on"); a.textContent = "✓ Following";
+  });
+}
+$("#restartBtn").onclick = () => location.reload();
+$("#talkBtn").onclick = () => openRoom(S.result.mission);
+
+/* ---------------------------------------------------------------- 5. the room */
+const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0, mission: null };
+function openRoom(m) {
+  Room.mission = m; Room.chat = []; Room.rung = 0; Room.decided = false; Room.meet = null;
+  const p = m.person, me = S.result?.me, o = m.overlap;
+  $("#venn").className = "venn";
+  $("#venn").innerHTML = `
+    <div class="c a" style="background:${esc(me?.color || "#8FD3FF")}55"></div><div class="c b" style="background:${esc(p.color)}55"></div>
+    <div class="lobe" style="left:16px"><b>You</b>${o.you_only.slice(0, 2).map(t => `<div>${esc(t)}</div>`).join("")}</div>
+    <div class="lobe" style="right:16px"><b>${esc(first(p))}</b>${o.them_only.slice(0, 2).map(t => `<div>${esc(t)}</div>`).join("")}</div>
+    <div class="lens"><div class="serif" style="font-size:44px;line-height:1">${o.rare.length}</div><div class="cap sec" style="font-weight:600">in<br>common</div></div>`;
+  setTimeout(() => $("#venn").classList.add("together"), 120);
+  $("#rareList").innerHTML = o.rare.map((r, i) => `<button class="rare" data-i="${i}"><div class="serif">${esc(r.text)}</div><div class="op">↳ “${esc(r.opener)}”</div></button>`).join("");
+  $("#rareList").querySelectorAll(".rare").forEach(b => b.onclick = () => startChat(o.rare[b.dataset.i].opener));
+  $("#exchange").innerHTML = `<div class="fact"><b>→ You could give ${esc(first(p))}</b>${esc(o.give)}</div><div class="fact"><b>← ${esc(first(p))} could give you</b>${esc(o.get)}</div>`;
+  $("#msgBtn").innerHTML = `Message ${esc(first(p))}<small>Or tap one of the openers above</small>`;
+  $("#roomAv").innerHTML = av(p, 32); $("#roomName").textContent = first(p);
+  $("#meetTitle").textContent = `Meet ${first(p)} in person?`;
+  $("#meetFaces").innerHTML = (me ? av(me, 44) : "") + av(p, 44);
+  $("#room").classList.remove("chatting"); renderChat(); show("room");
+  connect(m);
+}
+function startChat(text) {
+  $("#room").classList.add("chatting");
+  if (text) { $("#chatInput").value = text; $("#chatSend").disabled = false; }
+  $("#chatInput").focus();
+}
+$("#msgBtn").onclick = () => startChat("");
+$("#backBtn").onclick = () => $("#room").classList.remove("chatting");
+
+function connect(m) {
+  if (Room.ws) Room.ws.close();
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?mission=${m.id}&id=${S.id}`);
+  Room.ws = ws;
+  ws.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.t === "state") { Room.you = d.you; Room.chat = d.chat; Room.decided = d.decided; Room.meet = d.meet; presence(d.online); renderChat(); if (d.meet != null) outcome(d.meet); }
+    else if (d.t === "chat") { Room.typing = false; Room.chat.push({from: d.from, text: d.text}); renderChat(); if (d.from !== Room.you) followUps(); }
+    else if (d.t === "typing") { Room.typing = true; $("#presence").textContent = "typing…"; renderChat(); }
+    else if (d.t === "presence") presence(d.online);
+    else if (d.t === "meet") { Room.meet = d.yes; outcome(d.yes); }
+  };
+}
+function presence(on) { $("#presence").textContent = on ? "Here now" : "Not here yet"; }
+function renderChat() {
+  const p = Room.mission.person, el = $("#chat");
+  let html = "";
+  if (!Room.chat.length) html += `<p class="eyebrow" style="text-align:center;margin:20px 0 6px">Start with something you share</p>` +
+    Room.mission.overlap.rare.map((r, i) => `<button class="chip" style="max-width:none;margin-bottom:6px" data-op="${i}">${esc(r.opener)}</button>`).join("");
+  html += Room.chat.map(c => `<div class="b ${c.from === Room.you ? "me" : "them"}">${esc(c.text)}</div>`).join("");
+  if (Room.typing) html += `<div class="b them" style="opacity:.6">···</div>`;
+  if (Room.decided && Room.meet == null) html += `<p class="foot sec" style="text-align:center;margin-top:10px">You said yes. If ${esc(first(p))} does too, Emma shows you where to find each other.</p>`;
+  el.innerHTML = html; el.scrollTop = el.scrollHeight;
+  el.querySelectorAll("[data-op]").forEach(b => b.onclick = () => { $("#chatInput").value = Room.mission.overlap.rare[b.dataset.op].opener; $("#chatSend").disabled = false; $("#chatInput").focus(); });
+  if (!Room.typing) presence(true);
+  $("#meetBtn").textContent = Room.decided ? "Waiting…" : "Meet?"; $("#meetBtn").disabled = Room.decided;
+  renderSuggest();
+}
+function renderSuggest(ideas, loading) {
+  const lad = Room.mission.overlap.ladder, deeper = Room.chat.length >= 4 && Room.rung < lad.length;
+  ideas = ideas || Room.ideas || [];
+  if (!ideas.length && !loading && !deeper) { $("#suggest").innerHTML = ""; return; }
+  $("#suggest").innerHTML = `<div class="cap sec" style="font-weight:600;display:flex;gap:6px;align-items:center">
+      <span class="orb" style="--s:14px;box-shadow:none" data-mode="idle"></span>${loading ? "Thinking of a follow-up…" : "Ask a follow-up"}</div>
+    <div class="chips">${ideas.map(t => `<button class="chip" data-t="${esc(t)}">${esc(t)}</button>`).join("")}
+    ${deeper ? `<button class="chip" data-deep="1">↘ Go deeper: ${esc(lad[Room.rung])}</button>` : ""}</div>`;
+  $("#suggest").querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    $("#chatInput").value = b.dataset.deep ? lad[Room.rung++] : b.dataset.t; $("#chatSend").disabled = false; $("#chatInput").focus();
+  });
+}
+async function followUps() {
+  Room.ideas = []; renderSuggest([], true);
+  try { const r = await api("/suggest", {id: S.id, mission: Room.mission.id}); Room.ideas = r.ideas; } catch { Room.ideas = []; }
+  renderSuggest();
+}
+$("#chatInput").oninput = e => $("#chatSend").disabled = !e.target.value.trim();
+$("#chatForm").onsubmit = e => {
+  e.preventDefault(); const t = $("#chatInput").value.trim(); if (!t || !Room.ws) return;
+  Room.ws.send(JSON.stringify({t: "chat", text: t})); Room.chat.push({from: Room.you, text: t});
+  $("#chatInput").value = ""; $("#chatSend").disabled = true; Room.ideas = []; renderChat();
+};
+
+/* ---------------------------------------------------------------- 6. deciding, outcome, finding */
+$("#meetBtn").onclick = () => $("#meetScrim").classList.add("on");
+$("#meetScrim").onclick = e => { if (e.target.id === "meetScrim") $("#meetScrim").classList.remove("on"); };
+function decide(yes) { $("#meetScrim").classList.remove("on"); Room.decided = true; Room.ws.send(JSON.stringify({t: "decide", yes})); renderChat(); }
+$("#yesBtn").onclick = () => decide(true);
+$("#noBtn").onclick = () => decide(false);
+
+function outcome(yes) {
+  const p = Room.mission.person, me = S.result?.me;
+  $("#outcomeBody").innerHTML = yes ? `
+    <div class="faces" style="margin-bottom:22px">${me ? av(me, 84) : ""}${av(p, 84)}</div>
+    <h2 class="serif" style="font-size:40px;margin-bottom:22px">You both said yes.</h2>
+    <div class="group" style="padding:18px;margin-bottom:14px"><div class="foot sec" style="font-weight:600">Find ${esc(first(p))}</div><div style="font-size:20px">${esc(p.spot)}</div></div>
+    <div class="group" id="outSocials" style="margin-bottom:24px"></div>
+    <div style="margin-top:auto"><button class="primary" id="findBtn">Find ${esc(first(p))}</button><button class="ghost" id="doneBtn">Done</button></div>` : `
+    <h2 class="serif" style="font-size:40px;margin:30vh 0 12px">Not this time.</h2>
+    <p class="sec" style="font-size:20px">That's fine. Emma will keep looking for your person.</p>
+    <div style="margin-top:auto"><button class="primary" id="doneBtn">Done</button></div>`;
+  $("#outcome").classList.add("on");
+  if (yes) { socialRows(p, "#outSocials"); $("#findBtn").onclick = () => findOpen(p); Voice.say(`You both said yes. ${first(p)} is ${p.spot}`); }
+  $("#doneBtn").onclick = () => $("#outcome").classList.remove("on");
+}
+
+// The web can't do Ultra Wideband, so the arrow uses the compass toward an approximate bearing.
+const Find = { bearing: Math.random() * 360, heading: null, dist: 8 + Math.random() * 10 };
+async function findOpen(p) {
+  $("#find").style.setProperty("--c", p.color);
+  $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = first(p); $("#findSpot").textContent = p.spot;
+  $("#findNote").textContent = "Approximate on the web. The iPhone app points to the exact spot.";
+  $("#findDist").textContent = Find.dist.toFixed(1) + " m";
+  $("#find").classList.add("on");
+  try { if (DeviceOrientationEvent?.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {}
+  addEventListener("deviceorientation", e => {
+    const h = e.webkitCompassHeading ?? (e.alpha != null ? 360 - e.alpha : null); if (h == null) return;
+    let d = Find.bearing - h; while (d > 180) d -= 360; while (d < -180) d += 360;
+    $("#arrow").style.transform = `rotate(${d}deg)`;
+    const ok = Math.abs(d) < 16; $("#find").classList.toggle("aligned", ok);
+    $("#findDir").textContent = ok ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left";
+  });
+}
+$("#findClose").onclick = () => $("#find").classList.remove("on");
+
+/* ---------------------------------------------------------------- someone matched with you */
+let inboxOn = false;
+function startInbox() {
+  if (inboxOn) return; inboxOn = true;
+  (async () => { while (true) {
+    try {
+      const r = await api("/inbox?id=" + S.id);
+      for (const m of r.missions) if (!S.seen.has(m.id)) {
+        S.seen.add(m.id);
+        $("#banner").innerHTML = `${av(m.person, 40)}<div style="flex:1"><b style="font-size:15px">Emma introduced you to ${esc(first(m.person))}</b><div class="foot sec">Tap to see what you share</div></div>`;
+        $("#banner").classList.add("on"); $("#banner").onclick = () => { $("#banner").classList.remove("on"); openRoom(m); };
+        if (navigator.vibrate) navigator.vibrate(80);
+        Voice.say(`Psst. I just introduced you to ${first(m.person)}.`);
+      }
+    } catch {}
+    await sleep(4000);
+  } })();
+}
+</script>
+</body>
+</html>

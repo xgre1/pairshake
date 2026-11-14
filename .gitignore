@@ -1,0 +1,13 @@
+# Web version only: the iOS app is not in this repo
+app/
+
+.DS_Store
+__pycache__/
+
+# Local runtime state, logs and diagnostics
+server/room.json
+server/*.log
+server/*.jsonl
+
+# Self-signed TLS key for local testing
+server/certs/

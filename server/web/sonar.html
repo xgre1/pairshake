@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Roomie Sonar</title>
+<style>
+:root{--bg:#121214;--fg:#fff;--sec:rgba(255,255,255,.6);--ter:rgba(255,255,255,.35);--hit:#7CF2C4;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;--serif:ui-serif,"New York",Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font:17px/1.4 var(--sans);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+body{transition:background .35s}
+body.aligned{background:var(--hit)} body.aligned *{color:#000!important}
+button{font:inherit;border:0;cursor:pointer}
+main{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:calc(16px + env(safe-area-inset-top)) 28px calc(20px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--sec)}
+.dot{width:8px;height:8px;border-radius:50%;background:#555} .dot.on{background:#34c759}
+.mid{flex:1;display:grid;place-items:center}
+#arrow{font-size:190px;line-height:1;font-weight:700;transition:transform .2s ease-out,opacity .3s;opacity:.18}
+#arrow.live{opacity:1}
+#dist{font:600 72px/1 var(--sans);font-variant-numeric:tabular-nums}
+#dir{font-size:22px;color:var(--sec);margin-top:6px}
+#status{font-size:15px;color:var(--ter);margin-top:12px;min-height:2.8em}
+.btn{display:block;width:100%;padding:17px;border-radius:999px;background:#fff;color:#000;font-weight:600;margin-top:18px}
+.row{display:flex;gap:8px;margin-top:10px} .row .btn{margin-top:0;background:rgba(255,255,255,.14);color:#fff;font-size:15px;padding:12px}
+#dbg{font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--ter);white-space:pre;margin-top:10px;display:none}
+.perms{display:flex;gap:6px;margin-top:12px}
+.perm{flex:1;padding:8px 6px;border-radius:999px;font-size:13px;font-weight:600;background:rgba(255,255,255,.1);color:var(--sec)}
+.perm.ok{background:rgba(52,199,89,.18);color:#5be37e} .perm.ok::before{content:"✓ "}
+.perm.no{background:rgba(255,159,10,.2);color:#ffb340} .perm.no::after{content:" · tap"}
+#meter{height:4px;border-radius:2px;background:rgba(255,255,255,.12);margin-top:12px;overflow:hidden}
+#meter i{display:block;height:100%;width:0;background:var(--hit);transition:width .2s}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><span class="dot" id="peerDot"></span><span id="peerTxt">Connecting…</span><span style="flex:1"></span><span id="roleTxt"></span></div>
+  <div class="perms" id="perms">
+    <button class="perm" id="pMic">Microphone</button><button class="perm" id="pMotion">Motion</button><button class="perm" id="pLoc">Location</button>
+  </div>
+  <div class="mid"><div id="arrow">↑</div></div>
+  <div id="dist">–</div>
+  <div id="dir">Tap Start on both phones</div>
+  <div id="meter"><i id="meterBar"></i></div>
+  <div id="status"></div>
+  <button class="btn" id="start">Start</button>
+  <button class="btn" id="motionBtn" style="display:none">Allow motion access</button>
+  <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:14px;color:var(--sec)">Real distance (for testing)
+    <input id="truth" inputmode="decimal" placeholder="m" style="flex:1;min-width:0;padding:8px 12px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:#fff;font:inherit"></label>
+  <div class="row">
+    <button class="btn" id="rangeBtn">Measure distance</button>
+    <button class="btn" id="bandBtn">Quiet: on</button>
+    <button class="btn" id="dbgBtn">Details</button>
+  </div>
+  <div id="dbg"></div>
+</main>
+
+<script>
+/*DSP-START*/
+// Pure signal processing, no browser APIs, so it can be tested with synthetic signals.
+const DSP = {
+  C: 343,
+
+  fft(re, im, inverse) {                       // in-place radix-2
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = (inverse ? 2 : -2) * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+      for (let i = 0; i < n; i += len) {
+        let cr = 1, ci = 0;
+        for (let k = 0; k < len / 2; k++) {
+          const a = i + k, b = a + len / 2;
+          const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+          const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+        }
+      }
+    }
+    if (inverse) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+  },
+
+  /** Phone A sweeps up, phone B sweeps down, so each beep says whose it is. */
+  chirp(fs, up = true, lo = 14000, hi = 17500, dur = 0.05) {
+    const f0 = up ? lo : hi, f1 = up ? hi : lo;
+    const n = Math.round(dur * fs), out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const t = i / fs, w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1));
+      out[i] = 0.9 * w * Math.sin(2 * Math.PI * (f0 * t + (f1 - f0) * t * t / (2 * dur)));
+    }
+    return out;
+  },
+
+  /** Matched filter envelope: |analytic(x ⋆ template)|. Returns Float32Array, index = template start. */
+  correlate(x, tpl) {
+    let n = 1; while (n < x.length + tpl.length) n <<= 1;
+    const xr = new Float64Array(n), xi = new Float64Array(n), tr = new Float64Array(n), ti = new Float64Array(n);
+    xr.set(x); tr.set(tpl);
+    this.fft(xr, xi, false); this.fft(tr, ti, false);
+    for (let k = 0; k < n; k++) {                 // X · conj(T), keep positive frequencies only (analytic signal)
+      const r = xr[k] * tr[k] + xi[k] * ti[k], i = xi[k] * tr[k] - xr[k] * ti[k];
+      const g = k === 0 || k === n / 2 ? 1 : k < n / 2 ? 2 : 0;
+      xr[k] = r * g; xi[k] = i * g;
+    }
+    this.fft(xr, xi, true);
+    const out = new Float32Array(x.length);
+    for (let k = 0; k < x.length; k++) out[k] = Math.hypot(xr[k], xi[k]);
+    return out;
+  },
+
+  /** Own chirp = strongest peak; the other phone's = strongest peak 80 ms to 1.5 s away from it. */
+  twoPeaks(env, fs) {
+    let own = 0;
+    for (let k = 1; k < env.length; k++) if (env[k] > env[own]) own = k;
+    const minGap = Math.round(0.08 * fs), maxGap = Math.round(1.5 * fs);
+    let other = -1;
+    for (let k = 0; k < env.length; k++) {
+      const g = Math.abs(k - own);
+      if (g > minGap && g < maxGap && (other < 0 || env[k] > env[other])) other = k;
+    }
+    const sorted = Float32Array.from(env).sort(), noise = sorted[Math.floor(sorted.length / 2)] || 1e-9;
+    const refine = k => {                          // parabolic sub-sample peak
+      if (k <= 0 || k >= env.length - 1) return k;
+      const a = env[k - 1], b = env[k], c = env[k + 1], d = a - 2 * b + c;
+      return d === 0 ? k : k + 0.5 * (a - c) / d;
+    };
+    return { own: refine(own), other: other < 0 ? -1 : refine(other),
+             ownSnr: env[own] / noise, otherSnr: other < 0 ? 0 : env[other] / noise };
+  },
+
+  /**
+   * The beep's arrival in env[lo..hi): the strongest peak, then the EARLIEST strong peak just before it.
+   * A wall reflection can be louder than the direct sound but always arrives later; taking it reads too far.
+   */
+  firstPath(env, fs, lo = 0, hi = env.length) {
+    lo = Math.max(0, Math.floor(lo)); hi = Math.min(env.length, Math.ceil(hi));
+    if (hi - lo < 3) return null;
+    let m = lo;
+    for (let k = lo; k < hi; k++) if (env[k] > env[m]) m = k;
+    const step = Math.max(1, Math.floor(env.length / 4096)), sample = [];
+    for (let k = 0; k < env.length; k += step) sample.push(env[k]);
+    sample.sort((a, b) => a - b);
+    const noise = sample[Math.floor(sample.length / 2)] || 1e-9;
+    // A blocked direct path can be several times weaker than a reflection: accept an earlier peak down to
+    // a quarter of the strongest, as long as it clearly stands out from the noise.
+    let k0 = m;
+    const back = Math.round(0.015 * fs), thr = Math.max(0.25 * env[m], 8 * noise);
+    for (let k = Math.max(lo + 1, m - back); k < m; k++) {
+      if (env[k] > thr && env[k] >= env[k - 1] && env[k] >= env[k + 1]) { k0 = k; break; }
+    }
+    let k = k0;
+    if (k > 0 && k < env.length - 1) { const a = env[k - 1], b = env[k], c = env[k + 1], d = a - 2 * b + c; if (d !== 0) k += 0.5 * (a - c) / d; }
+    return { k, snr: env[k0] / noise, peakSnr: env[m] / noise };
+  },
+
+  /**
+   * Where to look for the other phone's beep: after mine if I started the round, before mine if I answered,
+   * and never inside my own beep's span (my loud beep leaks into the other template for about its length).
+   */
+  findOther(env, ownK, as, fs, dur) {
+    const gap = (dur + 0.03) * fs;
+    return as === "I" ? this.firstPath(env, fs, ownK + gap, ownK + 1.5 * fs) : this.firstPath(env, fs, ownK - 1.5 * fs, ownK - gap);
+  },
+
+  /** Distance (m) and initial bearing (radians from true north, clockwise) between two GPS fixes. */
+  geo(a, b) {
+    const R = 6371000, d = Math.PI / 180, f1 = a.lat * d, f2 = b.lat * d, df = (b.lat - a.lat) * d, dl = (b.lon - a.lon) * d;
+    const h = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2;
+    const dist = 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    const bearing = Math.atan2(Math.sin(dl) * Math.cos(f2), Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl));
+    return { dist, bearing };
+  },
+
+  /** BeepBeep: each phone's delta = t(responder chirp) - t(initiator chirp) in its own recording. */
+  distance(deltaInitiator, deltaResponder, speakerMic = 0.0) {
+    return this.C / 2 * (deltaInitiator - deltaResponder) + speakerMic;
+  },
+
+  /** Phone orientation (W3C alpha/beta/gamma, degrees) → rotation matrix, device frame → world (x east, y north, z up). */
+  rot(a, b, g) {
+    const d = Math.PI / 180, cZ = Math.cos(a * d), sZ = Math.sin(a * d), cX = Math.cos(b * d), sX = Math.sin(b * d),
+          cY = Math.cos(g * d), sY = Math.sin(g * d);
+    return [cZ * cY - sZ * sX * sY, -cX * sZ, cY * sZ * sX + cZ * sY,
+            cY * sZ + cZ * sX * sY, cZ * cX, sZ * sY - cZ * cY * sX,
+            -cX * sY, sX, cX * cY];
+  },
+  apply(m, v) { return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]]; },
+
+  interp(hist, key, t) {                         // hist sorted by t
+    let lo = 0, hi = hist.length - 1;
+    if (hi < 1 || t < hist[0].t || t > hist[hi].t) return null;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (hist[m].t <= t) lo = m; else hi = m; }
+    const A = hist[lo], B = hist[hi], f = (t - A.t) / ((B.t - A.t) || 1);
+    return A[key] + (B[key] - A[key]) * f;
+  },
+
+  solve3(M, v) {                                 // Cramer
+    const det = m => m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    const D = det(M); if (Math.abs(D) < 1e-12) return null;
+    const col = (i) => { const m = M.slice(); m[i] = v[0]; m[i + 3] = v[1]; m[i + 6] = v[2]; return det(m) / D; };
+    return [col(0), col(1), col(2)];
+  },
+
+  /**
+   * Direction from motion + Doppler (after Swadloon, Huang et al. 2014).
+   * sHist: [{t(ms), s}] closing distance toward the other phone, from the tone's phase (metres).
+   * aHist: [{t(ms), x, y, z}] phone acceleration in the world frame (m/s²).
+   * Model: s''(t) = a(t) · u, u = horizontal unit vector toward the other phone.
+   * rows() turns the newest `fresh` ms into least-squares sums (one set per candidate time lag). The sums are
+   * in the world frame, so a left-right sweep and a later forward-back sweep add up into one full answer.
+   */
+  LAGS: [-4, -3, -2, -1, 0, 1, 2, 3, 4],
+  rows(sHist, aHist, tEnd, fresh = 250, ctxMs = 1200, dt = 20) {
+    const N = Math.floor(ctxMs / dt), t0 = tEnd - ctxMs;
+    const s = [], ax = [], ay = [];
+    for (let i = 0; i < N; i++) {
+      const t = t0 + i * dt;
+      s.push(this.interp(sHist, "s", t)); ax.push(this.interp(aHist, "x", t)); ay.push(this.interp(aHist, "y", t));
+    }
+    if (s.some(v => v == null) || ax.some(v => v == null)) return null;
+    const smooth = arr => arr.map((_, i) => { let k = 0, sum = 0; for (let j = i - 2; j <= i + 2; j++) if (j >= 0 && j < arr.length) { sum += arr[j]; k++; } return sum / k; });
+    const ss = smooth(s), sx = smooth(ax), sy = smooth(ay);
+    const h = 3, H = h * dt / 1000, first = Math.max(h + 4, N - h - Math.round(fresh / dt));
+    let motion = 0, cnt = 0;
+    const out = this.LAGS.map(L => ({ L, mxx: 0, mxy: 0, myy: 0, vx: 0, vy: 0, yy: 0, ys: 0, n: 0 }));
+    for (let i = first; i < N - h; i++) {
+      const y = (ss[i + h] - 2 * ss[i] + ss[i - h]) / (H * H);
+      motion += sx[i] * sx[i] + sy[i] * sy[i]; cnt++;
+      for (const o of out) {
+        const j = i + o.L; if (j < 0 || j >= N) continue;
+        const a0 = sx[j], a1 = sy[j];
+        o.mxx += a0 * a0; o.mxy += a0 * a1; o.myy += a1 * a1; o.vx += a0 * y; o.vy += a1 * y; o.yy += y * y; o.ys += y; o.n++;
+      }
+    }
+    return { lags: out, motion: Math.sqrt(motion / Math.max(1, cnt)) };
+  },
+  addRows(acc, r, decay = 1) {
+    if (!acc) return r.lags.map(o => ({ ...o }));
+    acc.forEach((o, i) => { for (const k of ["mxx", "mxy", "myy", "vx", "vy", "yy", "ys", "n"]) o[k] = o[k] * decay + r.lags[i][k]; });
+    return acc;
+  },
+  solve(acc) {
+    let best = null;
+    for (const o of acc || []) {
+      const det = o.mxx * o.myy - o.mxy * o.mxy; if (o.n < 10 || det <= 1e-9) continue;
+      const ux = (o.vx * o.myy - o.vy * o.mxy) / det, uy = (o.vy * o.mxx - o.vx * o.mxy) / det;
+      const res = Math.max(0, o.yy - 2 * (ux * o.vx + uy * o.vy) + ux * ux * o.mxx + 2 * ux * uy * o.mxy + uy * uy * o.myy);
+      const tot = o.yy - o.ys * o.ys / o.n, r2 = tot > 0 ? 1 - res / tot : 0;
+      const score = r2 - 0.01 * Math.abs(o.L);   // ties (circular motion) go to the smallest lag
+      if (!best || score > best.score) {
+        // angular uncertainty: residual variance × inverse normal matrix, projected across the bearing
+        const s2 = res / Math.max(1, o.n - 2), mag = Math.hypot(ux, uy) || 1e-9, px = -uy / mag, py = ux / mag;
+        const varPerp = s2 * (px * px * o.myy - 2 * px * py * o.mxy + py * py * o.mxx) / det;
+        best = { bearing: Math.atan2(ux, uy), mag, r2, score, lag: o.L * 20, sigma: Math.atan(Math.sqrt(Math.max(0, varPerp)) / mag) };
+      }
+    }
+    return best;
+  },
+  /** One-shot convenience over a whole window (used by tests). */
+  direction(sHist, aHist, tEnd, win = 2400) {
+    const r = this.rows(sHist, aHist, tEnd, win - 200, win); if (!r) return null;
+    const b = this.solve(r.lags); return b && { ...b, horiz: b.mag, motion: r.motion };
+  },
+};
+/*DSP-END*/
+
+if (typeof window !== "undefined") {
+const $ = s => document.querySelector(s);
+const room = new URLSearchParams(location.search).get("room") || "test";
+// Each phone sings its own note (direction) and beeps its own sweep (distance).
+// "quiet" sits above what most people can hear but phone speakers and mics are weaker up there.
+const BANDS = {
+  // Probes showed these phones barely pass anything above 20 kHz: tones sit just under it, beeps lower
+  // with a clear gap so a loud beep can't disturb the tone's phase.
+  quiet:  { tone: { a: 18800, b: 18400 }, lo: 15800, hi: 17300, dur: 0.30 },
+  normal: { tone: { a: 18600, b: 19400 }, lo: 14000, hi: 17500, dur: 0.12 },
+};
+const VERSION = "v11";
+let band = new URLSearchParams(location.search).get("band") === "normal" ? "normal" : "quiet";
+let role = null, peer = false, ws, ctx, fs, chirpBuf, tplMine, tplOther, osc, oscGain, lastFail = "";
+let myToneF = null, peerToneF = null, lowReports = 0, toneOn = false, toneOnSince = 0, lastPeerMoving = 0;
+const TONE_LEVEL = 0.33;   // tones adapt: if the other phone can't hear mine, I go lower
+let micStream, micSrc, proc, procMute;      // held globally: Safari stops an unreferenced ScriptProcessor
+let audioCalls = 0, lastAudio = 0;
+let running = false, dbgOn = false;
+
+/* ---------- recording: ring buffer for ranging, phase tracker for direction */
+const RING = 1 << 17;
+let ring, wr = 0;
+const sHist = [], aHist = [];
+const DM = { f: 0, ph: 0, dph: 0, nph: 0, ndph: 0, I: 0, Q: 0, nI: 0, nQ: 0, cnt: 0, B: 240, last: null, acc: 0, amp: 0, noise: 1e-9 };
+
+function onAudio(e) {
+  const x = e.inputBuffer.getChannelData(0), n = x.length, tNow = performance.now();
+  audioCalls++; lastAudio = tNow;
+  for (let i = 0; i < n; i++) {
+    const v = x[i];
+    ring[wr] = v; wr = (wr + 1) & (RING - 1);
+    DM.I += v * Math.cos(DM.ph); DM.Q -= v * Math.sin(DM.ph);
+    DM.nI += v * Math.cos(DM.nph); DM.nQ -= v * Math.sin(DM.nph);
+    DM.ph += DM.dph; if (DM.ph > 6.283185307179586) DM.ph -= 6.283185307179586;
+    DM.nph += DM.ndph; if (DM.nph > 6.283185307179586) DM.nph -= 6.283185307179586;
+    if (++DM.cnt === DM.B) {
+      const I = DM.I / DM.B, Q = DM.Q / DM.B, phase = Math.atan2(Q, I);
+      if (DM.last !== null) { let d = phase - DM.last; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; DM.acc += d; }
+      DM.last = phase;
+      DM.amp = 0.9 * DM.amp + 0.1 * Math.hypot(I, Q);
+      DM.noise = 0.9 * DM.noise + 0.1 * Math.hypot(DM.nI / DM.B, DM.nQ / DM.B);
+      const t = tNow - (n - 1 - i) / fs * 1000;
+      sHist.push({ t, s: DSP.C * DM.acc / (2 * Math.PI * DM.f) });   // closing distance (m)
+      if (sHist.length > 1500) sHist.splice(0, 300);
+      DM.I = DM.Q = DM.nI = DM.nQ = 0; DM.cnt = 0;
+    }
+  }
+}
+
+/* ---------- motion in the world frame */
+let ori = null, gSign = 0, gVotes = 0, motionState = "unknown", micState = "unknown", locState = "unknown";
+addEventListener("deviceorientation", e => { if (e.alpha != null) ori = [e.alpha, e.beta, e.gamma]; });
+addEventListener("devicemotion", e => {
+  if (!ori || !e.acceleration || e.acceleration.x == null) return;
+  const R = DSP.rot(...ori);
+  if (e.accelerationIncludingGravity && gVotes < 200) {    // some browsers flip the sign: the spec says gravity reads +9.8 up
+    const g = DSP.apply(R, [e.accelerationIncludingGravity.x - e.acceleration.x, e.accelerationIncludingGravity.y - e.acceleration.y,
+                            e.accelerationIncludingGravity.z - e.acceleration.z]);
+    gVotes++; gSign += Math.sign(g[2]);
+  }
+  const k = gSign < 0 ? -1 : 1;
+  const a = DSP.apply(R, [k * e.acceleration.x, k * e.acceleration.y, k * e.acceleration.z]);
+  aHist.push({ t: performance.now(), x: a[0], y: a[1], z: a[2] });
+  if (aHist.length > 1000) aHist.splice(0, 200);
+});
+
+/* ---------- direction: every 250 ms add the newest data to running sums, solve, keep a world-locked bearing */
+let bearing = null, sigma = null, lastFit = null, stats = null, lastMotion = 0;
+setInterval(() => {
+  if (!running || !peer) return;
+  const snr = DM.amp / (DM.noise || 1e-9);
+  $("#meterBar").style.width = Math.min(100, snr * 8) + "%";
+  const r = DSP.rows(sHist, aHist, performance.now() - 120);
+  if (!r) return;
+  lastMotion = r.motion;
+  if (r.motion > 0.5) {                         // sweeping: tell the other phone so nobody beeps meanwhile
+    if (performance.now() - lastSweepMine > 500 && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "sweep" }));
+    lastSweepMine = performance.now();
+  }
+  if (r.motion > 0.3) {                         // moving at all: the other phone should sing for me
+    if (performance.now() - lastMovingSent > 600 && ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: "moving" })); lastMovingSent = performance.now(); }
+    lastMovingMine = performance.now();
+  }
+  const beepInWindow = performance.now() - lastBeepAt < 1400;
+  if (snr > 3 && r.motion > 0.5 && !beepInWindow) stats = DSP.addRows(stats, r, 0.96);   // learn only while swept, never across a beep
+  else if (stats) stats = DSP.addRows(stats, { lags: r.lags.map(o => ({ ...o, mxx: 0, mxy: 0, myy: 0, vx: 0, vy: 0, yy: 0, ys: 0, n: 0 })) }, 0.995);
+  const f = DSP.solve(stats);
+  lastFit = f;
+  if (f && f.r2 > 0.35 && f.mag > 0.3 && f.mag < 3 && f.sigma < 0.6) {
+    if (bearing == null) bearing = f.bearing;
+    else {                                     // gentle smoothing so the arrow doesn't twitch
+      const x = 0.7 * Math.sin(bearing) + 0.3 * Math.sin(f.bearing), y = 0.7 * Math.cos(bearing) + 0.3 * Math.cos(f.bearing);
+      bearing = Math.atan2(x, y);
+    }
+    sigma = f.sigma;
+  }
+  status();
+}, 250);
+
+function heading() {                         // where the top of the phone points, in the same world frame
+  if (!ori) return null;
+  const f = DSP.apply(DSP.rot(...ori), [0, 1, 0]);
+  return Math.atan2(f[0], f[1]);
+}
+function frame() {
+  const far = farInfo();
+  if (far && far.far && compass != null) {
+    let d = far.bearing * 180 / Math.PI - compass; while (d > 180) d -= 360; while (d < -180) d += 360;
+    $("#arrow").style.transform = `rotate(${d}deg)`; $("#arrow").classList.add("live"); $("#arrow").style.opacity = 1;
+    const ahead = Math.abs(d) < 16; document.body.classList.toggle("aligned", ahead);
+    $("#dist").textContent = far.dist >= 1000 ? (far.dist / 1000).toFixed(1) + " km" : "≈" + Math.round(far.dist) + " m";
+    $("#dir").textContent = (ahead ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left") + ` · GPS ±${Math.round(far.err)} m`;
+    requestAnimationFrame(frame);
+    return;
+  }
+  showDistance();
+  const h = heading();
+  if (bearing != null && h != null) {
+    let d = (bearing - h) * 180 / Math.PI; while (d > 180) d -= 360; while (d < -180) d += 360;
+    $("#arrow").style.transform = `rotate(${d}deg)`; $("#arrow").classList.add("live");
+    $("#arrow").style.opacity = sigma == null ? 1 : Math.max(0.35, 1 - sigma * 1.2);
+    const ahead = Math.abs(d) < 16; document.body.classList.toggle("aligned", ahead);
+    const pm = (sigma == null ? "" : ` · ±${Math.round(sigma * 180 / Math.PI)}°`) + " · sound";
+    $("#dir").textContent = (ahead ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left") + pm;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- distance: BeepBeep two-way ranging */
+const deltas = {};
+let ranging = false, distance = null;
+function playChirp(delay) {
+  lastBeepAt = performance.now() + delay * 1000;
+  const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = 0.9;
+  s.buffer = chirpBuf; s.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime + delay);
+}
+function snapshot() {                          // last RING samples, oldest first
+  const out = new Float32Array(RING);
+  out.set(ring.subarray(wr)); out.set(ring.subarray(0, wr), RING - wr);
+  return out;
+}
+function analyze(id, as) {
+  if (performance.now() - lastAudio > 600) {          // recording isn't running: never measure old audio
+    (deltas[id] = deltas[id] || {})[as] = null; deltas[id]["why" + as] = "stalled";
+    ws.send(JSON.stringify({ t: "delta", id, as, delta: null, why: "stalled" })); finishRange(id); return;
+  }
+  const snap = snapshot();
+  const own = DSP.firstPath(DSP.correlate(snap, tplMine), fs);
+  let other = null, delta = null, why = "";
+  if (!own || own.snr <= 12) why = "own";
+  else {
+    other = DSP.findOther(DSP.correlate(snap, tplOther), own.k, as, fs, BANDS[band].dur);
+    if (other && other.snr > 8) delta = as === "I" ? (other.k - own.k) / fs : (own.k - other.k) / fs;
+    else why = "other";
+  }
+  (deltas[id] = deltas[id] || {})[as] = delta;
+  deltas[id].peaks = { own, other };
+  deltas[id]["why" + as] = why;
+  deltas[id]["snr" + as] = other ? other.snr : 0;
+  ws.send(JSON.stringify({ t: "delta", id, as, delta, why, snr: other ? other.snr : 0 }));
+  finishRange(id);
+}
+/* Distance shown = median of the last 5 accepted readings. A sudden jump is only believed when the
+   next reading agrees with it. */
+const accepted = []; let pendingJump = null;
+let lastAccepted = 0, lastSweepMine = 0, lastSweepPeer = 0, lastBeepAt = 0, lastMovingSent = 0, lastMovingMine = 0;
+function acceptDistance(D, weak) {
+  if (!(D > -0.3 && D < 45)) return false;
+  D = Math.max(0, D);
+  const med = median(accepted);
+  // A weak beep (far away, noisy room) only counts if it agrees with what we already believe:
+  // the last sound readings, or GPS when it's available.
+  if (weak) {
+    const g = farInfo();
+    const okSound = accepted.length && Math.abs(D - med) < Math.max(1.5, 0.25 * med);
+    const okGps = g && Math.abs(D - g.dist) < g.err + 5;
+    if (!okSound && !okGps) return false;
+  }
+  if (accepted.length >= 2 && Math.abs(D - med) > Math.max(1.2, 0.35 * med)) {
+    if (pendingJump != null && Math.abs(D - pendingJump) < 0.8) { accepted.length = 0; accepted.push(pendingJump); pendingJump = null; }
+    else { pendingJump = D; return false; }
+  } else pendingJump = null;
+  accepted.push(D); if (accepted.length > 3) accepted.shift();
+  lastAccepted = performance.now();
+  return true;
+}
+const median = a => { if (!a.length) return NaN; const b = [...a].sort((x, y) => x - y); return b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2; };
+function finishRange(id) {
+  const d = deltas[id]; if (!d || d.I === undefined || d.R === undefined) return;
+  ranging = false;
+  if (d.I == null || d.R == null) {
+    const mine = role === "a" ? d.whyI : d.whyR, theirs = role === "a" ? d.whyR : d.whyI;
+    lastFail = mine === "stalled" || theirs === "stalled" ? "Distance: a phone's microphone stopped. Reload that phone."
+             : mine === "own" ? "Distance: this phone can't hear its own beep (it may be filtering out its own sound)."
+             : theirs === "own" ? "Distance: the other phone can't hear its own beep."
+             : "Distance: a phone can't hear the other's beep. Turn both volumes up, or try Quiet: off.";
+    status(); return;
+  }
+  const D = DSP.distance(d.I, d.R);
+  d.raw = D;
+  setTimeout(() => probe("range"), 0);
+  lastFail = D > -0.3 && D < 45 ? "" : `Distance: got a reading that makes no sense (${D.toFixed(1)} m), ignored.`;
+  const weak = Math.min(d.snrI || 0, d.snrR || 0) < 14;
+  d.weak = weak;
+  if (acceptDistance(D, weak)) {
+    distance = median(accepted);
+    base = { d: distance, s: sHist.length ? sHist[sHist.length - 1].s : null, t: performance.now() };
+  }
+  status();
+}
+function startRange(manual) {
+  if (!peer || ranging) return;
+  // don't beep while either phone is being swept for direction: the beep would spoil that measurement
+  if (!manual && performance.now() - Math.max(lastSweepMine, lastSweepPeer) < 900) return;
+  ranging = true;
+  const id = Math.random().toString(36).slice(2, 8);
+  ws.send(JSON.stringify({ t: "range", id }));
+  playChirp(0.05);
+  lastBeepAt = performance.now() + 1000;        // the answering beep lands within about a second
+  setTimeout(() => analyze(id, "I"), 1550);
+  setTimeout(() => { ranging = false; }, 2600);
+}
+
+/* Between beeps, the tone's phase tracks how far you've moved toward the other phone (mm-level),
+   so the number moves as you walk; each beep re-anchors it. */
+let base = null;
+function liveDistance() {
+  if (!base) return distance;
+  const snr = DM.amp / (DM.noise || 1e-9), last = sHist[sHist.length - 1];
+  if (base.s == null || !last || snr < 3 || performance.now() - base.t > 8000) return base.d;
+  return Math.max(0, base.d - (last.s - base.s));
+}
+function showDistance() {
+  const d = liveDistance();
+  $("#dist").textContent = d == null ? "–" : d < 10 ? d.toFixed(1) + " m" : Math.round(d) + " m";
+}
+
+/* ---------- far away: GPS + compass (like Find My before Precision Finding takes over) */
+let myFix = null, peerFix = null, compass = null, gpsErr = "";
+let gpsWatch = null;
+function startGps() {
+  if (!navigator.geolocation) { gpsErr = "no GPS in this browser"; return; }
+  if (gpsWatch != null) navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch = navigator.geolocation.watchPosition(p => {
+    myFix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, t: Date.now() };
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "gps", ...myFix }));
+    locState = "granted"; perms();
+  }, e => { gpsErr = e.message || "location denied"; if (e.code === 1) locState = "denied"; perms(); }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+}
+// true-north heading: iOS gives webkitCompassHeading; Android gives an absolute orientation event
+addEventListener("deviceorientation", e => { if (e.webkitCompassHeading != null) compass = e.webkitCompassHeading; });
+addEventListener("deviceorientationabsolute", e => { if (e.alpha != null) compass = (360 - e.alpha) % 360; });
+
+function farInfo() {
+  if (!myFix || !peerFix || Date.now() - peerFix.t > 20000) return null;
+  const g = DSP.geo(myFix, peerFix), err = myFix.acc + peerFix.acc;
+  const soundAlive = performance.now() - lastAccepted < 5000;
+  // Sound wins while it's producing readings, unless GPS clearly says you're beyond its range.
+  const far = soundAlive ? g.dist > Math.max(40, err) : g.dist > Math.max(15, Math.min(err, 30));
+  return { ...g, err, far };
+}
+
+/* ---------- auto-update: when a newer version of this page is deployed, reload (while not mid-measurement) */
+setInterval(async () => {
+  try {
+    const html = await (await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" })).text();
+    const v = (html.match(/const VERSION = "([^"]+)"/) || [])[1];
+    if (v && v !== VERSION && !ranging) location.reload();
+  } catch {}
+}, 10000);
+
+/* ---------- network */
+function connect() {
+  ws = new WebSocket(`wss://${location.host}/ws?room=${encodeURIComponent(room)}`);
+  ws.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.t === "hello") { role = d.role; peer = d.peer; $("#roleTxt").textContent = "Phone " + role.toUpperCase() + " · " + VERSION; setTone(); }
+    else if (d.t === "peer") peer = d.on;
+    else if (d.t === "range" && running) { lastBeepAt = performance.now(); playChirp(0.40); setTimeout(() => analyze(d.id, "R"), 1050); }
+    else if (d.t === "band") setBand(d.band, false);
+    else if (d.t === "sweep") { lastSweepPeer = performance.now(); lastPeerMoving = performance.now(); }
+    else if (d.t === "moving") lastPeerMoving = performance.now();
+    else if (d.t === "heard") onHeard(d.snr);
+    else if (d.t === "tonef") listenTo(d.f);
+    else if (d.t === "gps") peerFix = { lat: d.lat, lon: d.lon, acc: d.acc, t: Date.now() };
+    else if (d.t === "delta") { const x = (deltas[d.id] = deltas[d.id] || {}); x[d.as] = d.delta; x["why" + d.as] = d.why; x["snr" + d.as] = d.snr; finishRange(d.id); }
+    $("#peerDot").classList.toggle("on", peer);
+    $("#peerTxt").textContent = peer ? "Other phone connected" : "Waiting for the other phone";
+  };
+  ws.onclose = () => { $("#peerTxt").textContent = "Disconnected. Reload."; $("#peerDot").classList.remove("on"); };
+}
+connect();
+
+function setTone() {
+  if (!role) return;
+  const B = BANDS[band];
+  myToneF = B.tone[role]; peerToneF = B.tone[role === "a" ? "b" : "a"]; lowReports = 0;
+  DM.f = peerToneF;                                      // listen for the other phone's note
+  if (fs) {
+    DM.dph = 2 * Math.PI * DM.f / fs; DM.ndph = 2 * Math.PI * (DM.f - 450) / fs;
+    DM.last = null; DM.amp = 0; sHist.length = 0; stats = null;
+    tplMine = DSP.chirp(fs, role !== "b", B.lo, B.hi, B.dur); tplOther = DSP.chirp(fs, role === "b", B.lo, B.hi, B.dur);
+    chirpBuf = ctx.createBuffer(1, tplMine.length, fs); chirpBuf.copyToChannel(tplMine, 0);
+    if (osc) osc.frequency.setValueAtTime(myToneF, ctx.currentTime);
+  }
+  $("#bandBtn").textContent = band === "quiet" ? "Quiet: on" : "Quiet: off";
+}
+function listenTo(f) {                                   // the other phone moved its note
+  peerToneF = f; DM.f = f;
+  if (fs) { DM.dph = 2 * Math.PI * f / fs; DM.ndph = 2 * Math.PI * (f - 450) / fs; DM.last = null; DM.amp = 0; sHist.length = 0; stats = null; base = null; }
+}
+// once a second tell the other phone how well I hear its note; lower my own note if it can't hear me
+setInterval(() => {
+  if (running && peer && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "heard", snr: DM.amp / (DM.noise || 1e-9) }));
+}, 1000);
+// The note only plays while the other person is moving their phone (that's when it's needed), with soft fades.
+function setToneOn(on) {
+  if (!oscGain || on === toneOn) return;
+  toneOn = on; if (on) toneOnSince = performance.now();
+  const t = ctx.currentTime; oscGain.gain.cancelScheduledValues(t); oscGain.gain.setValueAtTime(oscGain.gain.value, t);
+  oscGain.gain.linearRampToValueAtTime(on ? TONE_LEVEL : 0, t + (on ? 0.15 : 0.4));
+}
+setInterval(() => { if (running) setToneOn(performance.now() - lastPeerMoving < 2500); }, 200);
+function onHeard(snr) {
+  if (!osc || myToneF == null) return;
+  if (!toneOn || performance.now() - toneOnSince < 1200) { lowReports = 0; return; }   // silence isn't "can't hear"
+  lowReports = snr < 3 ? lowReports + 1 : 0;
+  if (lowReports >= 4 && myToneF > 17800) {
+    myToneF = Math.max(17800, myToneF - 300); lowReports = 0;
+    osc.frequency.setValueAtTime(myToneF, ctx.currentTime);
+    ws.send(JSON.stringify({ t: "tonef", f: myToneF }));
+  }
+}
+function setBand(b, tell) {
+  band = b; setTone(); accepted.length = 0; distance = null; base = null; $("#dist").textContent = "–";
+  if (tell && ws) ws.send(JSON.stringify({ t: "band", band }));
+}
+
+/* ---------- probes: once a second, and on events, send the numbers behind what's on screen */
+let trackSettings = null;
+function probe(kind = "tick", extra = {}) {
+  if (!ws || ws.readyState !== 1) return;
+  const last = Object.entries(deltas).slice(-1)[0];
+  const L = last && last[1], pk = L && L.peaks;
+  const r = x => x == null || !isFinite(x) ? null : Math.round(x * 1000) / 1000;
+  ws.send(JSON.stringify({ t: "probe", kind, v: VERSION, ...extra,
+    band, peer, running, fs, ua: kind === "start" ? navigator.userAgent : undefined,
+    tone: { emit: myToneF, on: toneOn, listen: DM.f, amp: r(DM.amp), noise: r(DM.noise), snr: r(DM.amp / (DM.noise || 1e-9)), sLen: sHist.length },
+    motion: { events: aHist.length, last: aHist.length ? Math.round(performance.now() - aHist[aHist.length - 1].t) : null,
+              ori: ori && ori.map(v => Math.round(v)), perm: motionState, gSign, rms: r(lastMotion) },
+    fit: lastFit && { r2: r(lastFit.r2), mag: r(lastFit.mag), sigma: r(lastFit.sigma), lag: lastFit.lag, bearing: r(lastFit.bearing) },
+    arrow: { bearing: r(bearing), sigma: r(sigma), heading: r(heading()) },
+    mode: farInfo()?.far ? "gps" : "sound",
+    range: L && { id: last[0], I: r(L.I), R: r(L.R), whyI: L.whyI, whyR: L.whyR, raw: r(L.raw), snrI: r(L.snrI), snrR: r(L.snrR), weak: L.weak,
+                  own: pk && pk.own && { k: r(pk.own.k), snr: r(pk.own.snr), peak: r(pk.own.peakSnr) },
+                  other: pk && pk.other && { k: r(pk.other.k), snr: r(pk.other.snr), peak: r(pk.other.peakSnr) } },
+    distance: r(distance), live: r(liveDistance()), accepted: accepted.map(r),
+    gps: { me: myFix && { acc: r(myFix.acc), age: Date.now() - myFix.t }, peer: peerFix && { acc: r(peerFix.acc), age: Date.now() - peerFix.t },
+           far: (() => { const f = farInfo(); return f && { dist: r(f.dist), bearing: r(f.bearing), err: r(f.err), far: f.far }; })(), compass: r(compass), err: gpsErr || null }, fail: lastFail || null, status: $("#status").textContent,
+    truth: parseFloat($("#truth").value) || null, perms: { mic: micState, motion: motionState, loc: locState }, audio: { calls: audioCalls, stale: Math.round(performance.now() - lastAudio), state: ctx && ctx.state } }));
+}
+setInterval(() => { if (running) probe(); }, 1000);
+// watchdog: if the microphone stops feeding us, try to wake the audio up and say so
+let audioWarn = "";
+setInterval(async () => {
+  if (!running) return;
+  const stale = performance.now() - lastAudio;
+  if (stale > 1500) {
+    audioWarn = `Microphone stopped (${ctx.state}). Trying to restart it…`;
+    try { await ctx.resume(); } catch {}
+    if (micStream && micStream.getAudioTracks()[0]?.readyState === "ended") audioWarn = "Microphone was turned off by the phone. Reload the page.";
+    probe("audio-stall", { stale: Math.round(stale), state: ctx.state, track: micStream?.getAudioTracks()[0]?.readyState });
+  } else audioWarn = "";
+}, 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ctx) ctx.resume(); });
+addEventListener("error", e => probe("error", { msg: String(e.message), line: e.lineno }));
+addEventListener("unhandledrejection", e => probe("error", { msg: String(e.reason) }));
+
+/* ---------- start (needs a tap: audio, mic and motion permissions) */
+// iOS only grants motion access inside the tap itself: ask for both at once, before anything is awaited.
+let motionAsk = null;
+function askMotion() {
+  const asks = [];
+  if (typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) asks.push(DeviceMotionEvent.requestPermission().catch(() => "denied"));
+  if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) asks.push(DeviceOrientationEvent.requestPermission().catch(() => "denied"));
+  motionAsk = Promise.all(asks).then(r => r.every(x => x === "granted") ? "granted" : r.length ? "denied" : "granted");
+  return motionAsk;
+}
+$("#start").onclick = async () => {
+  const ask = askMotion();
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    micState = "granted";
+    try { trackSettings = stream.getAudioTracks()[0].getSettings(); } catch {}
+    await ctx.resume();
+    fs = ctx.sampleRate; ring = new Float32Array(RING);
+    micStream = stream; micSrc = ctx.createMediaStreamSource(stream); proc = ctx.createScriptProcessor(4096, 1, 1); procMute = ctx.createGain();
+    procMute.gain.value = 0; micSrc.connect(proc); proc.connect(procMute); procMute.connect(ctx.destination); proc.onaudioprocess = onAudio;
+    osc = ctx.createOscillator(); oscGain = ctx.createGain();
+    osc.frequency.value = myToneF || BANDS[band].tone[role || "a"];
+    oscGain.gain.setValueAtTime(0, ctx.currentTime);   // silent until the other phone needs it
+    osc.connect(oscGain); oscGain.connect(ctx.destination); osc.start();
+    setTone();
+    running = true; $("#start").style.display = "none"; frame();
+    startGps();
+    motionState = await ask; perms(); status();
+    probe("start", { track: trackSettings, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency });
+    let lastAuto = 0;
+    setInterval(() => {
+      if (role !== "a" || !peer || !running) return;
+      const someoneMoving = performance.now() - Math.max(lastMovingMine, lastPeerMoving) < 3000;
+      if (performance.now() - lastAuto < (someoneMoving ? 1500 : 4000)) return;
+      lastAuto = performance.now(); startRange();
+    }, 250);
+  } catch (err) {
+    micState = /denied|not allowed|permission/i.test(err.message) ? "denied" : micState; perms();
+    status("Couldn't start: " + err.message + ". Open this page over https and allow the microphone."); probe("error", { msg: "start: " + err.message });
+  }
+};
+$("#rangeBtn").onclick = () => startRange(true);
+// Permission buttons: green = allowed, orange = tap to ask again. If the system won't ask again, say where to switch it on.
+function perms() {
+  const set = (id, st) => { const b = $(id); b.classList.toggle("ok", st === "granted"); b.classList.toggle("no", st === "denied" || st === "unknown"); };
+  set("#pMic", micState); set("#pMotion", motionState === "granted" && aHist.length ? "granted" : motionState); set("#pLoc", locState);
+}
+setInterval(perms, 1000);
+const HELP = {
+  mic: "If no prompt appears: Settings > Apps > Safari > Microphone > Allow, then reload.",
+  motion: "If no prompt appears: Settings > Apps > Safari > Motion & Orientation Access on, then reload.",
+  loc: "If no prompt appears: Settings > Privacy & Security > Location Services > Safari Websites > While Using the App, with Precise Location on, then reload.",
+};
+$("#pMic").onclick = () => { if (micState !== "granted") { if (!running) $("#start").click(); else status(HELP.mic); } };
+$("#pMotion").onclick = async () => { motionState = await askMotion(); perms(); if (motionState !== "granted") status(HELP.motion); probe("motion-permission"); };
+$("#pLoc").onclick = () => {
+  if (!navigator.geolocation) return status("This browser has no location.");
+  navigator.geolocation.getCurrentPosition(() => { locState = "granted"; gpsErr = ""; startGps(); perms(); },
+    e => { if (e.code === 1) { locState = "denied"; status(HELP.loc); } perms(); }, { enableHighAccuracy: true, timeout: 15000 });
+};
+$("#motionBtn").onclick = async () => { motionState = await askMotion(); status(); probe("motion-permission"); };
+$("#bandBtn").onclick = () => setBand(band === "quiet" ? "normal" : "quiet", true);
+$("#dbgBtn").onclick = () => { dbgOn = !dbgOn; $("#dbg").style.display = dbgOn ? "block" : "none"; status(); };
+
+function status(msg) {
+  if (msg) $("#status").textContent = msg;
+  else if (audioWarn) $("#status").textContent = audioWarn;
+  else if (lastFail) $("#status").textContent = lastFail;
+  else if (farInfo()?.far) $("#status").textContent = compass == null
+      ? "Far away: using GPS. The compass isn't available yet, move the phone in a figure 8."
+      : "Far away: using GPS. Walk where the arrow points; close up it switches to sound for precision.";
+  else if (running && (!ori || !aHist.length)) {
+    $("#status").textContent = motionState === "denied"
+      ? "Motion access is off, so the arrow can't move. Tap Allow motion access. If nothing pops up: Settings > Apps > Safari > Motion & Orientation Access, then reload."
+      : "No motion data yet. Tap Allow motion access.";
+  }
+  else if (!peer) $("#status").textContent = "Open this same page on the other phone.";
+  else if (DM.amp / (DM.noise || 1e-9) < 3) $("#status").textContent = "Can't hear the other phone's tone yet. Turn its volume up.";
+  else if (bearing == null) {
+    // which axes have been swept so far (eigenvalues of the motion matrix)
+    const o = stats && stats[4], tr = o ? o.mxx + o.myy : 0, det = o ? o.mxx * o.myy - o.mxy * o.mxy : 0;
+    const l2 = tr ? tr / 2 - Math.sqrt(Math.max(0, tr * tr / 4 - det)) : 0;
+    $("#status").textContent = !tr ? "Hold your phone flat. Sweep it left and right a few times, then forward and back."
+      : l2 < 0.15 * tr ? "Good. Now sweep it forward and back (the other direction)."
+      : "Keep sweeping, almost there.";
+  }
+  else $("#status").textContent = "Sweep again (left-right, then forward-back) any time to update the arrow.";
+  $("#motionBtn").style.display = running && (!ori || !aHist.length) ? "block" : "none";
+  if (dbgOn) {
+    const f = lastFit, p = Object.values(deltas).slice(-1)[0]?.peaks;
+    $("#dbg").textContent = [
+      `band ${band} · fs ${fs} · listen ${DM.f} Hz · tone snr ${(DM.amp / (DM.noise || 1e-9)).toFixed(1)}`,
+      f ? `fit r2 ${f.r2.toFixed(2)} |u| ${f.mag.toFixed(2)} ±${(f.sigma * 180 / Math.PI).toFixed(0)}° lag ${f.lag}ms motion ${lastMotion.toFixed(2)}` : `fit – motion ${lastMotion.toFixed(2)}`,
+      `bearing ${bearing == null ? "–" : (bearing * 180 / Math.PI).toFixed(0) + "°"} · gravity sign ${gSign < 0 ? "-1" : "+1"} · motion events ${aHist.length} · orientation ${ori ? ori.map(v => Math.round(v)).join("/") : "none"} · permission ${motionState}`,
+      p ? `beep own snr ${p.own ? p.own.snr.toFixed(0) : "–"} other snr ${p.other ? p.other.snr.toFixed(0) : "–"}` : "beep –",
+      `distance ${distance == null ? "–" : distance.toFixed(2) + " m"} · last raw ${(() => { const r = Object.values(deltas).slice(-1)[0]?.raw; return r == null ? "–" : r.toFixed(2); })()} · readings ${accepted.map(v => v.toFixed(1)).join(" ")}`,
+    ].join("\n");
+  }
+}
+}
+</script>
+</body>
+</html>
