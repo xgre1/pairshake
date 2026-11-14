@@ -158,7 +158,10 @@ class EmmaHands {
     if (!el || !this.canvas) return;
     // on a computer the hands fill the whole window behind the page; on a phone they sit in el
     // (unless el asks to keep them inline: the home page of someone Emma already knows)
-    const full = matchMedia('(min-width: 900px)').matches && !el.dataset.inline;
+    const wide = matchMedia('(min-width: 900px)').matches, full = wide && !el.dataset.inline;
+    // el can frame the hands closer on a computer ("width,height" in meters, data-fit-wide)
+    const fit = !full && wide && el.dataset.fitWide ? el.dataset.fitWide.split(',').map(Number) : null;
+    if (String(fit) !== String(this.fit)) { this.fit = fit; this.size = ''; }
     const host = full ? document.body : el;
     this.canvas.classList.toggle('hands-full', full);
     if (this.canvas.parentNode !== host) host.prepend(this.canvas);
@@ -178,7 +181,7 @@ class EmmaHands {
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / h;
       // fit the space the hands move in: [width, height] in meters around (0, -0.035)
-      const [W, H] = this.canvas.classList.contains('hands-full') ? [0.64, 0.5] : [0.48, 0.38];
+      const [W, H] = this.canvas.classList.contains('hands-full') ? [0.64, 0.5] : this.fit || [0.48, 0.38];
       // (a little margin for the camera's drift)
       this.dist = 1.06 * Math.max(H, W / this.camera.aspect) / 2 / Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
       this.camera.updateProjectionMatrix();

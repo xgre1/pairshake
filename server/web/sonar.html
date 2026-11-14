@@ -446,7 +446,7 @@ const BANDS = {
   quiet:  { tone: { a: 19000, b: 18200 }, lo: 15800, hi: 17200, dur: 0.30 },   // overwritten by the room's code
   normal: { tone: { a: 18600, b: 19400 }, lo: 14000, hi: 17500, dur: 0.12 },
 };
-const VERSION = "mix34";
+const VERSION = "mix37";
 /* Many pairs in one hall: the server gives each room a code. Beeps: two bands, so two pairs can beep at the
    same time; pairs sharing a band take turns (want → turn → done). Notes: three pairs of pitches, each pair
    800 Hz apart (a phone's own note is ~40 dB louder at its mic), every pitch 400 Hz from any other pair's. */
@@ -717,7 +717,7 @@ function drive(d) {
   const now = performance.now(), dt = Math.min(0.05, lastDrive ? (now - lastDrive) / 1000 : 0); lastDrive = now;
   const yaw = G.yaw ?? 0, target = d + yaw;
   if (worldShown == null || spinT) { worldShown = (shownRot ?? d) + yaw; worldVel = 0; }
-  const K = 160, Cd = 2 * Math.sqrt(K);
+  const K = 240, Cd = 2 * Math.sqrt(K);
   worldVel += (K * wrap180(target - worldShown) - Cd * worldVel) * dt;
   worldShown += worldVel * dt;
   const shown = worldShown - yaw;
@@ -736,6 +736,13 @@ function point(d, opacity, label, spread = 20) {
 }
 const fmtD = d => d >= 1000 ? (d / 1000).toFixed(1) + " km" : d < 10 ? d.toFixed(1) + " m" : Math.round(d) + " m";
 let mode = "none", distSrc = null;
+// The shown distance glides to a new value (at least 2.5 m/s, faster the further off) instead of jumping.
+let shownD = null, shownDAt = 0;
+function easeD(target, t) {
+  if (shownD == null || t - shownDAt > 3000) shownD = target;
+  else { const diff = target - shownD, step = Math.max(2.5, 2 * Math.abs(diff)) * Math.min(0.5, (t - shownDAt) / 1000); shownD += Math.max(-step, Math.min(step, diff)); }
+  shownDAt = t; return shownD;
+}
 function activity(soundD) {
   const now = performance.now(), sweeping = lastMotion > 0.35;
   let txt = "", busy = false, pct = 0, searching = false;
@@ -777,8 +784,8 @@ function frame() {
   // 9-13 m by GPS, pointing at an empty spot), so it stays off until we could have walked past 15 m.
   const closeBySound = soundRecent && KF.d + 1.5 * (now - lastAccepted) / 1000 < 30;
   const gpsUsable = g && compass != null && g.dist > 0.7 * g.err && !closeBySound;
-  if (soundD != null) { $("#dist").textContent = fmtD(soundD); distSrc = "sound"; }
-  else if (soundRecent) { $("#dist").textContent = "~" + fmtD(KF.d); distSrc = "sound"; }
+  if (soundD != null) { $("#dist").textContent = fmtD(easeD(soundD, now)); distSrc = "sound"; }
+  else if (soundRecent) { $("#dist").textContent = "~" + fmtD(easeD(KF.d, now)); distSrc = "sound"; }
   else if (g) { $("#dist").textContent = "≈" + fmtD(g.dist); distSrc = "gps"; }
   else { $("#dist").textContent = "–"; distSrc = null; }
   // shown uncertainty: the fit's own ± understated it (said ±3° when wrong), so never less than the fit quality allows
@@ -889,40 +896,50 @@ let lastAccepted = 0, lastSweepMine = 0, lastSweepPeer = 0, lastBeepAt = 0, last
    to how much it's trusted; between readings the number keeps moving at the measured speed. A reading far
    outside what's possible is ignored, unless the next one agrees with it (then you really moved).
    (Was: median of the last 3 readings and jumps only believed twice, so the screen lagged 1-2 readings.) */
-const KF = { d: null, v: 0, p00: 1, p01: 0, p11: 1, t: 0, odd: null };
-function kfPredict(t) { return KF.d == null ? null : Math.max(0, KF.d + KF.v * Math.min(1.5, (t - KF.t) / 1000)); }
-function kfStep(t) {                                   // move the estimate and its uncertainty to time t
-  const dt = Math.max(0, Math.min(3, (t - KF.t) / 1000)), q = 1.5;   // walking can change speed ~1.2 m/s² 
-  KF.d += KF.v * dt;
-  const p00 = KF.p00 + dt * (2 * KF.p01 + dt * KF.p11) + q * dt ** 3 / 3, p01 = KF.p01 + dt * KF.p11 + q * dt ** 2 / 2, p11 = KF.p11 + q * dt;
-  KF.p00 = p00; KF.p01 = p01; KF.p11 = p11; KF.t = t;
+const KF = { d: null, v: 0, t: 0, all: [] };
+/* Distance tracker. Every reading of the last 6 s (trusted or not) votes; the straight line (speed ≤ 1.8 m/s,
+   what people walk) that passes through the most of them, newer ones counting more, is the answer: its value
+   now is the distance, its slope how fast it changes. A stray echo can't bend it (it isn't on the line), a
+   steady walk is followed without lag (all its readings are), and when the line is wrong for a while the
+   readings that keep agreeing simply outvote it. The newest reading is "used" when it's on the line.
+   History: mix34 took its speed from single readings and ran 1 m → 23 m; a stricter one-line-at-a-time
+   version then rejected a whole real approach for 12 s after its speed was briefly off (simulated). */
+const VMAX = 1.8;
+function kfPredict(t) {
+  if (KF.d == null) return null;
+  return Math.max(0, KF.d + KF.v * Math.min(1.5, Math.max(0, (t - KF.t) / 1000)));
 }
-// tMeas: when the beeps went out. The reading describes that moment, not when the analysis finished
-// (~1 s later); the tracker then carries it forward to now at the measured speed.
+function bestLine(pts) {
+  const tN = pts[pts.length - 1].t, tol = p => 0.5 + 0.08 * p.D;
+  let best = null;
+  const tryLine = (t0, d0, v) => {
+    if (Math.abs(v) > VMAX) return;
+    let score = 0; const ins = [];
+    for (const p of pts) if (Math.abs(p.D - (d0 + v * (p.t - t0) / 1000)) <= tol(p)) { score += p.w * Math.exp(-(tN - p.t) / 6000); ins.push(p); }
+    if (!best || score > best.score + 1e-9) best = { score, ins };
+  };
+  for (const p of pts) tryLine(p.t, p.D, 0);
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++)
+    if (pts[j].t - pts[i].t >= 700) tryLine(pts[i].t, pts[i].D, (pts[j].D - pts[i].D) / ((pts[j].t - pts[i].t) / 1000));
+  // least squares through the line's readings (speed only if they span ≥ 1 s), valued at the newest of them
+  const ins = best.ins, t1 = ins[ins.length - 1].t;
+  let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const p of ins) { const x = (p.t - t1) / 1000; n++; sx += x; sy += p.D; sxx += x * x; sxy += x * p.D; }
+  const den = n * sxx - sx * sx, span = (t1 - ins[0].t) / 1000;
+  const v = span >= 1 && den > 1e-6 ? Math.max(-VMAX, Math.min(VMAX, (n * sxy - sx * sy) / den)) : 0;
+  return { d: (sy - v * sx) / n, v, t: t1, ins };
+}
+// tMeas: when the beeps went out. The reading describes that moment, not when the analysis finished.
 function acceptDistance(D, weak, tMeas) {
   if (!(D > -0.3 && D < 45)) return false;
   D = Math.max(0, D);
-  const now = performance.now(), t = Math.min(now, Math.max(tMeas ?? now, KF.t)), R = weak ? 0.4 ** 2 : 0.06 ** 2;
-  if (KF.d == null || t - KF.t > 12000) { Object.assign(KF, { d: D, v: 0, p00: R, p01: 0, p11: 1, t, odd: null }); }
-  else {
-    kfStep(t);
-    const y = D - KF.d, S = KF.p00 + R;
-    if (Math.abs(y) > Math.max(0.6, 3 * Math.sqrt(S))) {
-      // Can't be right... unless the next reading says the same thing.
-      // believe the jump when the next reading agrees AND it's walkable in the time (≤3 m/s); a bigger jump
-      // needs three readings in a row (probes: 0.5 m → 24 m in a second, from a misheard beep)
-      const walkable = Math.abs(D - KF.d) <= 3 * (t - KF.t) / 1000 + 1;
-      const agree = KF.odd && t - KF.odd.t < 4000 && Math.abs(D - KF.odd.D) < 0.6;
-      if (agree && (walkable || KF.odd.n >= 2)) Object.assign(KF, { d: D, v: 0, p00: R, p01: 0, p11: 1, odd: null });
-      else { KF.odd = agree ? { D, t, n: KF.odd.n + 1 } : { D, t, n: 1 }; return false; }
-    } else {
-      if (weak && Math.abs(y) > 1.5) return false;     // a faint beep only counts when it agrees
-      const k0 = KF.p00 / S, k1 = KF.p01 / S;
-      KF.d += k0 * y; KF.v = Math.max(-3, Math.min(3, KF.v + k1 * y));
-      const p00 = (1 - k0) * KF.p00, p01 = (1 - k0) * KF.p01, p11 = KF.p11 - k1 * KF.p01;
-      KF.p00 = p00; KF.p01 = p01; KF.p11 = p11; KF.odd = null;
-    }
-  }
+  const now = performance.now(), t = Math.min(now, Math.max(tMeas ?? now, KF.t));
+  if (KF.d == null || t - KF.t > 12000) KF.all = [];
+  const me = { t, D, w: weak ? 0.5 : 1 };
+  KF.all.push(me); KF.all = KF.all.filter(p => t - p.t <= 8000).slice(-10);
+  const L = bestLine(KF.all);
+  Object.assign(KF, { d: L.d, v: L.v, t: L.t });
+  if (!L.ins.includes(me)) return false;               // not on the line: an echo, most likely
   accepted.push(D); if (accepted.length > 3) accepted.shift();
   lastAccepted = now;
   return true;
@@ -1055,7 +1072,10 @@ function gpsFix(pos) {
   let m = G.me;
   if (!m) m = G.me = { lat: c.latitude, lon: c.longitude, v: acc * acc, t: now, hold: null };
   else {
-    const dt = Math.max(0, (now - m.t) / 1000), v = m.v + 9 * dt;            // walking can move you ~3 m a second
+    // Steps move the position between fixes (see onStep), so here it only has to allow for slow drift.
+    // (Was +9 m²/s "you may be walking": every fix was then half-believed, so the position lagged while
+    // walking and wandered while standing. Without motion data, keep the old allowance.)
+    const dt = Math.max(0, (now - m.t) / 1000), v = Math.max(4, m.v + (aHist.length ? 0.3 : 9) * dt);
     const p = enu(m, c.latitude, c.longitude), jump = Math.hypot(p.x, p.y);
     const agrees = m.hold && Math.hypot(...Object.values(enu(m.hold, c.latitude, c.longitude))) < acc;
     if (jump > 3 * Math.sqrt(v + acc * acc) && !agrees) { m.hold = { lat: c.latitude, lon: c.longitude }; m.v = v; m.t = now; G.held++; return; }
@@ -1068,7 +1088,7 @@ function gpsFix(pos) {
 function shareFix() {
   const m = G.me; if (!m || !ws || ws.readyState !== 1) return;
   sendAt = Date.now();
-  ws.send(JSON.stringify({ t: "gps", lat: m.lat, lon: m.lon, acc: Math.sqrt(m.v + 9 * (Date.now() - m.t) / 1000) }));
+  ws.send(JSON.stringify({ t: "gps", lat: m.lat, lon: m.lon, acc: Math.sqrt(m.v + (aHist.length ? 0.3 : 9) * (Date.now() - m.t) / 1000) }));
 }
 setInterval(() => { if (Date.now() - sendAt > 4000) shareFix(); }, 1000);
 function startGps() {
@@ -1145,6 +1165,13 @@ function onStep() {
   if (compass != null) { const c = compass * RAD; W.tru.x += STRIDE * Math.sin(c); W.tru.y += STRIDE * Math.cos(c); }
   W.steps++;
   if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "step", x: W.tru.x, y: W.tru.y }));
+  // my GPS position takes the step too (it used to wait for the next fixes to catch up, so far away the
+  // arrow was only right after standing still); each step adds a little doubt, GPS keeps correcting
+  if (G.me && compass != null) {
+    const c = compass * RAD, q = fromEnu(G.me, STRIDE * Math.sin(c), STRIDE * Math.cos(c));
+    G.me.lat = q.lat; G.me.lon = q.lon; G.me.v += 1; if (G.me.hold) G.me.hold = null;
+    if (Date.now() - sendAt > 900) shareFix();
+  }
 }
 function peerTrueNow() { const p = W.peerSteps[W.peerSteps.length - 1]; return p ? { x: p.x, y: p.y, n: W.peerSteps.length } : { x: 0, y: 0, n: 0 }; }
 function walkSnap() { return { t: performance.now(), rel: { ...W.rel }, tru: { ...W.tru }, peer: peerTrueNow() }; }
@@ -1199,7 +1226,7 @@ function farInfo() {
   const m = G.me;
   if (!m || !peerFix || Date.now() - peerFix.t > 30000) return null;
   const p = enu(m, peerFix.lat, peerFix.lon), dist = Math.hypot(p.x, p.y);
-  const myV = m.v + 9 * (Date.now() - m.t) / 1000, peerV = peerFix.acc * peerFix.acc + 9 * (Date.now() - peerFix.t) / 1000;
+  const myV = m.v + (aHist.length ? 0.3 : 9) * (Date.now() - m.t) / 1000, peerV = peerFix.acc * peerFix.acc + 2 * (Date.now() - peerFix.t) / 1000;
   const err = Math.sqrt(myV + peerV);
   const soundAlive = performance.now() - lastAccepted < 8000;
   // Sound said close within the last minute: GPS (30 m off indoors, probes) can't call it "far". Being "far"
@@ -1345,7 +1372,7 @@ function probe(kind = "tick", extra = {}) {
     range: L && { id: last[0], I: r(L.I), R: r(L.R), whyI: L.whyI, whyR: L.whyR, raw: r(L.raw), snrI: r(L.snrI), snrR: r(L.snrR), weak: L.weak,
                   own: pk && pk.own && { k: r(pk.own.k), snr: r(pk.own.snr), peak: r(pk.own.peakSnr) },
                   other: pk && pk.other && { k: r(pk.other.k), snr: r(pk.other.snr), peak: r(pk.other.peakSnr) } },
-    distance: r(distance), live: r(liveDistance()), accepted: accepted.map(r), kf: KF.d == null ? null : { d: r(KF.d), v: r(KF.v), sd: r(Math.sqrt(KF.p00)) },
+    distance: r(distance), live: r(liveDistance()), accepted: accepted.map(r), kf: KF.d == null ? null : { d: r(KF.d), v: r(KF.v), n: KF.all.length },
     gps: { me: G.me && { acc: r(Math.sqrt(G.me.v)), age: Date.now() - G.me.t }, peer: peerFix && { acc: r(peerFix.acc), age: Date.now() - peerFix.t },
            far: (() => { const f = farInfo(); return f && { dist: r(f.dist), bearing: r(f.bearing), err: r(f.err), far: f.far }; })(), compass: r(compass), err: gpsErr || null }, fail: lastFail || null, status: $("#status").textContent,
     truth: parseFloat($("#truth").value) || null, perms: { mic: micState, motion: motionState, loc: locState }, audio: { calls: audioCalls, stale: Math.round(performance.now() - lastAudio), state: ctx && ctx.state } }));

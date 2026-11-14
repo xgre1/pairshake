@@ -125,10 +125,12 @@ stats = {"spoke": 0, "intros": 0, "met": 0}
 
 def save():
     try:
-        with open(STATE_FILE, "w") as f:
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "w") as f:
             json.dump({"users": users, "missions": missions, "stats": stats}, f)
-    except OSError:
-        pass
+        os.replace(tmp, STATE_FILE)                    # never leave a half-written room.json
+    except (OSError, TypeError, ValueError) as e:
+        print("save error:", e, flush=True)
 
 
 def load():
@@ -158,9 +160,13 @@ def person(pid):
             "socials": u.get("socials", {})}
 
 
-def candidates(exclude):
-    out = [person(s["id"]) for s in SEED]
-    out += [person(uid) for uid, u in users.items() if uid != exclude and u.get("profile")]
+def candidates(exclude, app=False, seeds=True):
+    """Who an attendee can meet. The iPhone app and the web page are separate rooms: people on the app only
+    meet each other (so their phones can find each other by Ultra Wideband), people on the web only meet
+    each other. Emma's demo attendees are in both."""
+    out = [person(s["id"]) for s in SEED] if seeds else []
+    out += [person(uid) for uid, u in users.items()
+            if uid != exclude and u.get("profile") and bool(u.get("app")) == app]
     return out
 
 
@@ -187,7 +193,18 @@ async def ask_llm(prompt, timeout=40):
 
 
 def convo(u):
-    return "\n".join(f"{'Emma' if r == 'emma' else 'Attendee'}: {t}" for r, t in u["transcript"])
+    lines = [f"{'Emma' if r == 'emma' else 'Attendee'}: {t}" for r, t in u["transcript"]]
+    mem = u.get("memory")
+    if mem:          # someone who came back: what they told Emma last time stays true unless they change it
+        known = {k: mem.get(k, "") for k in ("name", "role", "building", "needs", "offers")}
+        lines.insert(0, "(What Emma remembers from their last chat, still true unless they change it: "
+                        + json.dumps(known, ensure_ascii=False) + ")")
+    return "\n".join(lines)
+
+
+def met(uid):
+    """Everyone this person has already been introduced to, either way round."""
+    return {m["b"] if m["a"] == uid else m["a"] for m in missions.values() if uid in (m["a"], m["b"])}
 
 
 INTERVIEW = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens: warm, perceptive, a little
@@ -197,7 +214,7 @@ know one attendee BY VOICE so you can introduce them to the one person here they
 You need four things: (1) their name and what they're building, (2) what they need most right now,
 (3) what they could help someone else with in ten minutes, (4) where they are in the room and
 something to spot them by (clothes, a laptop sticker, anything).
-
+{returning}
 Rules for what you say next:
 - This is spoken aloud. One short reaction (a few words, specific to what they said, never generic
   praise) then exactly ONE question. Under 25 words total. No lists, no emojis, no stage directions.
@@ -213,6 +230,14 @@ Conversation so far:
 
 Reply with JSON only: {{"say": "...", "done": true|false}}"""
 
+RETURNING = """
+This attendee is BACK: you met before, and the first line of the conversation is what you remember about
+them. Treat everything you remember as already answered and never ask for it again. Their answer to "what's
+changed" updates it; anything they don't change stays as it was. Then ask only about what is still open,
+which is usually just where they are in the room today (that changes every time).
+"""
+RETURN_OPENER = "Welcome back, {first}. I remember what you told me last time. What's changed?"
+
 MATCH = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens (36 hours, teams of 1-5,
 build an agent that does real work). Below is your voice chat with one attendee, then everyone else in the room.
 
@@ -223,7 +248,8 @@ People in the room (JSON):
 {room}
 
 Do three things.
-1. Write the attendee's profile from the chat, in short plain sentences.
+1. Write the attendee's profile from the chat, in short plain sentences (if the chat starts with what Emma
+   remembers, keep everything they didn't change).
 2. Pick the ONE person they should meet. Prefer complementary needs (one needs what the other offers,
    ideally both ways) over similar topics. Be concrete.
 3. Map their OVERLAP, the thing that gets two strangers talking. Research says RARE shared traits bond
@@ -275,6 +301,7 @@ Reply with JSON only:
 # Voice
 
 voice = None
+hearing = None              # Emma's Parakeet speech-to-text, for the web page
 audio_cache = {}
 
 
@@ -290,10 +317,24 @@ async def speak_wav(text):
 # HTTP
 
 async def h_start(req):
+    try:
+        d = await req.json()
+    except Exception:
+        d = {}
+    u = users.get(str(d.get("id") or ""))
+    if u and u.get("profile"):      # back again: Emma remembers them and only asks what's changed
+        u["memory"] = dict(u["profile"])
+        say = RETURN_OPENER.format(first=(u.get("name") or "there").split()[0])
+        u.update(transcript=[("emma", say)], turns=0)
+        scans.pop(u["id"], None)
+        pending.pop(u["id"], None)
+        save()
+        return web.json_response({"id": u["id"], "say": say, "code": u["code"]})
     uid = uuid.uuid4().hex[:10]
     users[uid] = {"id": uid, "name": None, "transcript": [("emma", OPENER)], "profile": None,
                   "socials": {}, "code": f"{random.randint(1000, 9999)}",
-                  "color": random.choice(PALETTE), "match": None, "inbox": [], "turns": 0}
+                  "color": random.choice(PALETTE), "match": None, "inbox": [], "turns": 0,
+                  "app": "RoomieApp" in req.headers.get("User-Agent", "")}      # the iPhone app (WKWebView)
     save()
     return web.json_response({"id": uid, "say": OPENER, "code": users[uid]["code"]})
 
@@ -315,7 +356,8 @@ async def h_turn(req):
     else:
         try:
             todo = "; ".join(TOPICS)
-            out = await ask_llm(INTERVIEW.format(convo=convo(u), todo=todo))
+            out = await ask_llm(INTERVIEW.format(convo=convo(u), todo=todo,
+                                                 returning=RETURNING if u.get("memory") else ""))
         except Exception as e:
             print("interview error:", e, flush=True)
             out = {"say": "Sorry, say that once more?", "done": False}
@@ -342,7 +384,7 @@ async def h_match(req):
     except Exception as e:
         print("match error:", e, flush=True)
         return web.json_response({"error": str(e)}, status=502)
-    u["profile"] = r.get("me") or {}
+    u["profile"] = r.get("me") or u.get("profile") or {}
     u["name"] = u["profile"].get("name") or u.get("name")
     them = person(r.get("match_id")) or room[0]
     mid = uuid.uuid4().hex[:8]
@@ -383,7 +425,9 @@ Reply with JSON only: {{"ask": "...", "reply": "...", "fit": 0}}"""
 def start_scan(u):
     if u["id"] in scans:
         return
-    room = candidates(u["id"])[:14]
+    seen = met(u["id"])
+    room = candidates(u["id"], bool(u.get("app")))
+    room = ([p for p in room if p["id"] not in seen] or room)[:14]     # people they haven't met yet
     state = {"talks": [], "total": len(room)}
     scans[u["id"]] = state
 
@@ -411,6 +455,38 @@ async def h_scan(req):
     return web.json_response({"talks": st["talks"], "total": st["total"]})
 
 
+async def h_again(req):
+    """From the home page: find someone new with what Emma already remembers, no new chat."""
+    d = await req.json()
+    u = users.get(d.get("id"))
+    if not u or not u.get("profile"):
+        raise web.HTTPNotFound()
+    scans.pop(u["id"], None)
+    pending[u["id"]] = asyncio.ensure_future(run_match(u))
+    start_scan(u)
+    return web.json_response({"ok": True})
+
+
+async def h_me(req):
+    """Home page: what Emma remembers about you, and everyone she has introduced you to."""
+    u = users.get(req.query.get("id"))
+    if not u:
+        raise web.HTTPNotFound()
+    contacts = []
+    for mid, m in missions.items():
+        if u["id"] not in (m["a"], m["b"]):
+            continue
+        mf = mission_for(mid, u["id"])
+        if not mf["person"]:
+            continue
+        chat = m.get("chat") or []
+        contacts.append({**mf, "you": "a" if m["a"] == u["id"] else "b", "chat": chat[-30:],
+                         "at": max([m.get("created", 0)] + [c.get("at", 0) for c in chat])})
+    contacts.sort(key=lambda c: -c["at"])
+    return web.json_response({"me": person(u["id"]) if u.get("profile") else None,
+                              "socials": u.get("socials", {}), "contacts": contacts})
+
+
 def _int(v, default):
     try:
         return int(float(v))
@@ -419,7 +495,14 @@ def _int(v, default):
 
 
 async def run_match(u):
-    room = candidates(u["id"])
+    app = bool(u.get("app"))
+    # on the app: another app user if there is one (the first one in gets a demo attendee for now,
+    # and is introduced to the next app user through their inbox)
+    # and always someone new: people they've already met are left out (unless they've met everyone)
+    seen = met(u["id"])
+    new = lambda ps: [p for p in ps if p["id"] not in seen]
+    room = (app and new(candidates(u["id"], True, seeds=False))) or new(candidates(u["id"], app)) \
+        or candidates(u["id"], app)
     room_json = json.dumps([{k: p[k] for k in ("id", "name", "role", "building", "needs", "offers")}
                             for p in room], ensure_ascii=False)
     return await ask_llm(MATCH.format(convo=convo(u), room=room_json), timeout=60), room
@@ -444,7 +527,8 @@ def mission_for(mid, viewer):
     m = missions[mid]
     mine = m["a"] == viewer
     other = m["b"] if mine else m["a"]
-    return {"id": mid, "intro": m["intro_a"] if mine else m["intro_b"], "overlap": overlap_for(m["overlap"], mine),
+    return {"id": mid, "intro": m["intro_a"] if mine else m["intro_b"],
+            "overlap": overlap_for(m.get("overlap") or clean_overlap({}), mine),
             "person": person(other), "outcome": m.get("outcome")}
 
 
@@ -458,14 +542,14 @@ async def agent_talk(mid):
     m = missions[mid]
     if m.get("talk"):
         return m["talk"]
-    t = m.get("talk_task")
+    t = talk_tasks.get(mid)                   # kept off the mission so save() never meets a Task
     if not t:
-        t = m["talk_task"] = asyncio.ensure_future(
+        t = talk_tasks[mid] = asyncio.ensure_future(
             ask_llm(AGENT_TALK.format(a=card(person(m["a"])), b=card(person(m["b"]))), timeout=60))
     try:
         r = await t
     except Exception:
-        m.pop("talk_task", None)
+        talk_tasks.pop(mid, None)
         raise
     turns = [{"who": "b" if x.get("who") == "b" else "a", "text": str(x.get("text", ""))[:240]}
              for x in (r.get("turns") or [])[:10] if x.get("text")]
@@ -473,9 +557,12 @@ async def agent_talk(mid):
                  "why_a": str(r.get("why_a", "")), "why_b": str(r.get("why_b", "")), "ask": str(r.get("ask", ""))}
     if m["talk"]["ask"]:
         m.setdefault("overlap", {})["agent_ask"] = m["talk"]["ask"]   # the humans can open with what the agents found
-    m.pop("talk_task", None)
+    talk_tasks.pop(mid, None)
     save()
     return m["talk"]
+
+
+talk_tasks = {}   # mission id -> running agent-to-agent talk
 
 
 async def h_talk(req):
@@ -517,7 +604,9 @@ def room_for(mid):
     if mid not in rooms:
         m = missions[mid]
         seed = next((p for p in SEED if p["id"] == m["b"]), None)
-        rooms[mid] = {"chat": [], "decide": {}, "conns": {}, "bot": seed, "meet": None}
+        # the chat and the yes/no live on the mission, so they are saved and still there next time
+        rooms[mid] = {"chat": m.setdefault("chat", []), "decide": m.setdefault("decide", {}), "conns": {},
+                      "bot": seed, "meet": m.get("outcome"), "ni": {}, "gps": {}}
     return rooms[mid]
 
 
@@ -543,10 +632,11 @@ async def decide(mid, role, yes):
     R["decide"][role] = bool(yes)
     if not yes or len(R["decide"]) == 2:
         R["meet"] = all(R["decide"].values()) and len(R["decide"]) == 2
+        missions[mid]["outcome"] = R["meet"]
         if R["meet"]:
             stats["met"] += 1
-            save()
         await broadcast(R, {"t": "meet", "yes": R["meet"]})
+    save()
 
 
 async def h_ws(req):
@@ -560,6 +650,10 @@ async def h_ws(req):
     await ws.prepare(req)
     R["conns"][role] = ws
     await ws.send_json(snapshot(R, role))
+    if R.get("ni", {}).get(other(role)):       # the other phone's token, in case it was sent before we joined
+        await ws.send_json({"t": "ni", "token": R["ni"][other(role)]})
+    if R.get("gps", {}).get(other(role)):      # the other person's last known location
+        await ws.send_json(R["gps"][other(role)])
     await broadcast(R, {"t": "presence", "online": True}, skip=role)
     try:
         async for msg in ws:
@@ -570,12 +664,22 @@ async def h_ws(req):
             if t == "chat":
                 text = str(d.get("text", "")).strip()[:500]
                 if text:
-                    R["chat"].append({"from": role, "text": text})
+                    R["chat"].append({"from": role, "text": text, "at": time.time()})
+                    save()
                     await broadcast(R, {"t": "chat", "from": role, "text": text}, skip=role)
                     if R["bot"]:
                         asyncio.ensure_future(bot_reply(mid))
             elif t == "ni":            # Nearby Interaction token: relayed so the two iPhones can find each other
-                await broadcast(R, {"t": "ni", "token": str(d.get("token", ""))[:4000]}, skip=role)
+                tok = str(d.get("token", ""))[:4000]
+                R.setdefault("ni", {})[role] = tok
+                await broadcast(R, {"t": "ni", "token": tok}, skip=role)
+            elif t == "gps":           # web finding: share each person's filtered location with the other
+                try:
+                    g = {"t": "gps", "lat": float(d["lat"]), "lon": float(d["lon"]), "acc": float(d.get("acc", 30))}
+                except (KeyError, TypeError, ValueError):
+                    continue
+                R.setdefault("gps", {})[role] = g
+                await broadcast(R, g, skip=role)
             elif t == "decide":
                 yes = bool(d.get("yes"))
                 if R["bot"] and yes:
@@ -663,12 +767,26 @@ async def bot_reply(mid):
                                            chat=chat))
         text = str(out.get("text", "")).strip()
         if text:
-            R["chat"].append({"from": "b", "text": text})
+            R["chat"].append({"from": "b", "text": text, "at": time.time()})
+            save()
             await broadcast(R, {"t": "chat", "from": "b", "text": text})
     except Exception as e:
         print("chat error:", e, flush=True)
     finally:
         R["replying"] = False
+
+
+async def h_hear(req):
+    """The web page's ears: 16 kHz mono int16 PCM in, Parakeet's text out. The browser's own recogniser
+    is much less accurate, so the page sends its audio here (it falls back to the browser if this fails)."""
+    if hearing is None:
+        raise web.HTTPServiceUnavailable(text="no speech model")
+    pcm = await req.read()
+    if len(pcm) < 3200:                                  # under 0.1 s: nothing said
+        return web.json_response({"text": ""})
+    pcm = pcm[: 16000 * 2 * 90]                          # at most 90 s
+    text = await asyncio.wrap_future(hearing.transcribe(pcm))
+    return web.json_response({"text": text})
 
 
 async def h_speak(req):
@@ -686,7 +804,13 @@ async def h_room(req):
 
 
 async def on_start(app):
-    global voice
+    global voice, hearing
+    try:
+        from engine.stt import Hearing
+        hearing = await asyncio.to_thread(Hearing)
+        print("ears ready (Parakeet)", flush=True)
+    except Exception as e:                              # needs Emma's venv (mlx); the page then uses the browser's
+        print(f"no Parakeet ({e}); the web page will use the browser's speech recognition", flush=True)
     print("loading Emma's voice…", flush=True)
     voice = await asyncio.to_thread(Voice)
     print(f"voice ready ({voice.engine}, {voice.load_ms:.0f} ms)", flush=True)
@@ -696,7 +820,8 @@ async def on_start(app):
 
 def main():
     load()
-    app = web.Application()
+    app = web.Application(client_max_size=8 * 1024 * 1024)
+    app.router.add_post("/hear", h_hear)
     app.router.add_post("/start", h_start)
     app.router.add_post("/turn", h_turn)
     app.router.add_post("/match", h_match)
@@ -704,11 +829,14 @@ def main():
     app.router.add_get("/talk", h_talk)
     app.router.add_get("/ws", h_ws)
     app.router.add_get("/scan", h_scan)
+    app.router.add_post("/again", h_again)
+    app.router.add_get("/me", h_me)
     app.router.add_post("/suggest", h_suggest)
     app.router.add_post("/speak", h_speak)
     app.router.add_get("/room", h_room)
     web_index = os.path.join(HERE, "web", "index.html")      # the web app: same flow, phone and computer layouts
     app.router.add_get("/", lambda req: web.FileResponse(web_index, headers={"Cache-Control": "no-store"}))
+    app.router.add_static("/hands/", os.path.join(HERE, "web", "hands"))   # Emma's hands: three.js + Handkit (MIT)
     app.on_startup.append(on_start)
     web.run_app(app, host="0.0.0.0", port=PORT)
 
