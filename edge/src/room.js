@@ -252,16 +252,18 @@ export class PairShake extends DurableObject {
     return { events: list.slice(0, 40), mine: u?.event || null, error };
   }
 
-  /** The event they're in, and who else is there: online = has its room open now (the page asks every 8 s;
-      kept in memory only, nothing written). */
+  /** An event's page: who joined it (?event=<Luma id>, or the event they're in), and who has its room open now
+      (the page asks every 8 s; kept in memory only, nothing written). Anyone can look before joining. */
   eventRoom(q) {
     const u = this.user(q.get("id")) || notFound();
-    if (!u.event) return { event: null, people: [], count: 0, online: 0 };
-    this.eventSeen.set(u.id, now());
-    const all = this.inEvent(u.event.id), on = x => now() - (this.eventSeen.get(x.id) || 0) < 30;
+    const eid = str(q.get("event")) || u.event?.id;
+    if (!eid) return { event: null, people: [], count: 0, online: 0 };
+    const joined = u.event?.id === eid;
+    if (joined) this.eventSeen.set(u.id, now());
+    const all = this.inEvent(eid), on = x => now() - (this.eventSeen.get(x.id) || 0) < 30;
     const people = all.filter(x => x.id !== u.id).sort((a, b) => on(b) - on(a)).slice(0, 100).map(x => ({ ...(x.profile ? this.person(x.id)
       : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" }), online: on(x), ready: !!x.profile }));
-    return { event: u.event, people, count: all.length, online: people.filter(p => p.online).length };
+    return { event: joined ? u.event : null, joined, people, count: all.length, online: people.filter(p => p.online).length };
   }
 
   /** Join an event (Luma's id and link, checked with Luma), or leave it ({leave: true}). */
