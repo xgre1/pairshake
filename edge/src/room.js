@@ -12,6 +12,7 @@ import * as M from "./matching.js";
 import * as P from "./prompts.js";
 import { ask, QUICK, MAIN } from "./llm.js";
 import { speak } from "./voice.js";
+import * as Events from "./events.js";
 import { readTraits, DIMENSIONS, vector } from "./traits.js";
 import SEED_TRAITS from "./seed_traits.json";
 
@@ -199,13 +200,58 @@ export class PairShake extends DurableObject {
   }
 
   /** Who an attendee can meet. The iPhone app and the web page are separate rooms (so phones can find each
-      other by Ultra Wideband); Emma's demo attendees are in both. */
+      other by Ultra Wideband), and so is each event: someone who joined an event only meets people in it (and
+      people in no event only each other). Emma's demo attendees are in all of them. */
   candidates(exclude, app = false, seeds = true) {
     const out = seeds ? SEED.map(s => this.person(s.id)) : [];
+    const ev = this.users[exclude]?.event?.id || null;
     for (const [uid, u] of Object.entries(this.users)) {
-      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
+      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused && (u.event?.id || null) === ev) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
     }
     return out;
+  }
+
+  // ---- events (Luma) ------------------------------------------------------------------------------------------
+  // Each Luma event is its own room: join one and Emma only introduces you to people who joined it too.
+
+  /** Everyone who joined this event, newest first (test attendees left out). */
+  inEvent(eid) {
+    return Object.values(this.users).filter(u => u.event?.id === eid && !u.test).sort((a, b) => (b.event.at || 0) - (a.event.at || 0));
+  }
+
+  /** The events for a search, or near where they are, each with how many PairShake people joined it. Events
+      people here joined come first. */
+  async events(q) {
+    const u = this.user(q.get("id"));
+    const lat = parseFloat(q.get("lat")), lon = parseFloat(q.get("lon"));
+    let list = [], error = null;
+    try { list = await Events.find(q.get("q") || "", lat, lon); }
+    catch (e) { console.log("luma error:", String(e)); error = "Luma isn't answering. Try again in a minute."; }
+    const here = {};
+    for (const x of Object.values(this.users)) if (x.event?.id && !x.test) here[x.event.id] = (here[x.event.id] || 0) + 1;
+    list = list.map(e => ({ ...e, here: here[e.id] || 0 }));
+    list.sort((a, b) => (b.here > 0) - (a.here > 0));
+    return { events: list.slice(0, 40), mine: u?.event || null, error };
+  }
+
+  /** The event they're in, and who else is there. */
+  eventRoom(q) {
+    const u = this.user(q.get("id")) || notFound();
+    if (!u.event) return { event: null, people: [], count: 0 };
+    const all = this.inEvent(u.event.id);
+    const people = all.filter(x => x.id !== u.id).slice(0, 100).map(x => x.profile ? this.person(x.id)
+      : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" });
+    return { event: u.event, people, count: all.length };
+  }
+
+  /** Join an event (Luma's id and link, checked with Luma), or leave it ({leave: true}). */
+  async joinEvent(d) {
+    const u = this.user(d.id) || notFound();
+    if (d.leave) { delete u.event; this.save(); return { event: null, people: [], count: 0 }; }
+    const ev = await Events.lookup(d.event);
+    if (!ev) throw new HttpError(400, "Couldn't find that event on Luma.");
+    if (u.event?.id !== ev.id) { u.event = { ...ev, at: now() }; this.save(); }
+    return this.eventRoom(new URLSearchParams({ id: u.id }));
   }
 
   newUser(app) {
@@ -661,7 +707,7 @@ export class PairShake extends DurableObject {
     return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
              photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
              via: u.linkedin ? "LinkedIn" : u.google ? "Google" : "", login: u.linkedin?.email || u.google?.email || u.email || "",
-             paused: !!u.paused,
+             paused: !!u.paused, event: u.event || null,
              traits: u.traits ? { v: u.traits.v, c: u.traits.c, type: u.traits.type, summary: u.traits.summary } : null,
              dims: u.traits ? DIMENSIONS : undefined };
   }
@@ -1084,6 +1130,8 @@ export class PairShake extends DurableObject {
           case "/scan": return json(this.scan(q));
           case "/me": return json(this.me(q));
           case "/networks": return json(this.networksOf(q));
+          case "/events": return json(await this.events(q));
+          case "/event": return json(this.eventRoom(q));
           case "/inbox": return json(this.inbox(q));
           case "/talk": return json(await this.talk(q));
           case "/room": return json({ stats: this.stats, people: SEED.length + Object.values(this.users).filter(u => u.profile).length, intros: Object.keys(this.missions).length });
@@ -1107,6 +1155,7 @@ export class PairShake extends DurableObject {
           case "/account": return await this.account(d, app);
           case "/internal/login": return json(this.login(d, app));          // only from auth.js: index.js never forwards /internal
           case "/profile": return json(this.profile(d));
+          case "/event": return json(await this.joinEvent(d));
           case "/feedback": return json(this.feedback(d));
           case "/suggest": return json(await this.suggest(d));
           case "/speak": return await this.speakLine(d, req.headers.get("cf-connecting-ip") || "?");

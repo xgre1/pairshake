@@ -34,6 +34,16 @@ A `mission` is `{id, intro, overlap, person, outcome}`. `overlap` holds `rare` (
 | GET | `/me` | `?id` | `{me, socials, contacts, email, name}`. What Emma remembers and everyone you've met. |
 | GET | `/room` | | `{stats, people, intros}`. Numbers for the room. |
 
+## Events (Luma)
+
+Each Luma event is its own room: someone who joined an event is only matched with people who joined it too (people in no event only with each other). The demo attendees are in every room.
+
+| Method | Path | Body or query | Returns |
+| --- | --- | --- | --- |
+| GET | `/events` | `?q&id&lat&lon` | `{events, mine, error}`. Luma's events for `q` (a search word, or a Luma link), or near `lat,lon` when `q` is empty (where Cloudflare places the caller when not given). Each event is `{id, name, start, end, tz, city, cover, url, guests, here}`; `here` counts PairShake people who joined it. |
+| GET | `/event` | `?id` | `{event, people, count}`. The event they joined and who else is in it. |
+| POST | `/event` | `{id, event}` or `{id, leave: true}` | `{event, people, count}`. Joins the event (checked with Luma; 400 if Luma doesn't know it) or leaves it. |
+
 ## Account and profile
 
 | Method | Path | Body | Returns |

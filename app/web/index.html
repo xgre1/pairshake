@@ -541,6 +541,7 @@ html.camfind body>*:not(#find){visibility:hidden}
   body.known #welcomeHands .hands-canvas{transform:translateY(9%)}   /* her resting hands sit above the frame's middle */
   body.known #home{display:contents}
   body.known #wTitle{order:1;text-align:left!important;font-size:40px!important;line-height:1.1;margin:0 0 28px!important}
+  body.known #evPill{order:1;align-self:flex-start;margin:-12px 0 28px}
   body.known .memcard{order:2}
   body.known #wFoot{order:3;position:static;margin:0;padding:16px 0 0!important;background:none}
   body.known #peopleBox{order:4;margin-top:40px}
@@ -607,6 +608,33 @@ body:not(.in-app) .app-only{display:none!important}
 .gpt-paste .pill{position:absolute;right:10px;bottom:10px}
 .gpt-paste.has .pill{display:none}
 #gptSpot{flex:none;font-size:16px;padding:12px 16px;background:var(--fill2);color:var(--fg)}
+
+/* Events (Luma): the pill on the first page, the search, and the event's own room */
+.ev-pill{display:inline-flex;align-items:center;gap:8px;align-self:center;max-width:calc(100% - 2*var(--gut));margin:14px auto 0;padding:6px 12px 6px 6px;
+  border-radius:999px;font-size:15px;font-weight:600;letter-spacing:-.015em;color:var(--fg)}
+body :is(.ev-pill){background:var(--glass);box-shadow:var(--glass-rim),var(--glass-drop);-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
+.ev-pill:active{transform:scale(.96)} .ev-pill{transition:transform .15s}
+.ev-pill .ev-dot{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--fill2) center/cover;color:var(--sec)}
+.ev-pill .ev-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-pill .ev-n{color:var(--sec);font-weight:500;white-space:nowrap}
+.ev-pill svg.ch{width:6px;height:11px;color:var(--ter);flex:none}
+#events,#event{padding-top:0}
+#events .chev,#event .chev{display:block}
+body[data-screen="events"],#events,#events .topbar,body[data-screen="event"],#event,#event .topbar{background:var(--gbg)}
+html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){background:var(--gbg)}
+.ev-search{padding:0 var(--gut) 4px;position:sticky;top:calc(54px + var(--safeT));z-index:3;background:var(--gbg)}
+.ev-search .field{width:100%;background:var(--gcell);-webkit-appearance:none;appearance:none;font:inherit;color:var(--fg)}
+.evrow .ev-img{width:52px;height:52px;border-radius:12px;flex:none;background:var(--fill2) center/cover}
+.evrow .who{flex:1;min-width:0}
+.evrow .who .semi{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
+.evrow .who .foot{margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evrow .yes{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--fg)}
+#evList .row + .row::before,#erPeople .row + .row::before{left:82px} #erPeople .row + .row::before{left:70px}
+.ev-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px var(--gut) 4px}
+.ev-cover{width:100%;aspect-ratio:1;max-width:220px;border-radius:24px;background:var(--fill2) center/cover;box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.ev-hero h1{font-size:30px;line-height:1.12;margin-top:20px;text-wrap:balance}
+.ev-hero p{margin-top:8px}
+#erPeople .row{min-height:56px}
 </style>
 <script type="importmap">{ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -642,6 +670,8 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.28,0.22"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
   <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center">Introduce yourself.</h1>
   <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">Your AI already knows you. Ask it.</p>
+  <!-- the event they're at (a Luma event): Emma only introduces them to people who joined it too -->
+  <button class="ev-pill" id="evPill"></button>
   <!-- only for someone Emma already knows -->
   <div id="home">
     <div id="nets"></div>
@@ -697,6 +727,29 @@ body:not(.in-app) .app-only{display:none!important}
   <h1 class="serif tab-h">People</h1>
   <div class="tab-list"><div class="group" id="tpList"></div></div>
   <p class="tab-empty" id="tpEmpty">Nobody yet. Ask Emma to find you someone on the first tab.</p>
+</section>
+<!-- Choose your event: Luma's events near you, a search, or a pasted Luma link -->
+<section class="screen" id="events">
+  <div class="topbar"><button class="chev" id="evBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Choose your event</div></div>
+  <div class="ev-search"><input class="field" id="evQ" type="search" placeholder="Search Luma, or paste an event link" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  <div class="sbody">
+    <p class="s-h" id="evHead">Near you</p>
+    <div class="group" id="evList"></div>
+    <p class="tab-empty" id="evEmpty" hidden></p>
+  </div>
+</section>
+
+<!-- An event's room: who else joined it. Emma only introduces you to them. -->
+<section class="screen" id="event">
+  <div class="topbar"><button class="chev" id="erBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="spacer"></div></div>
+  <div class="ev-hero"><div class="ev-cover" id="erCover"></div><h1 class="serif" id="erName"></h1><p class="sec" id="erWhen"></p></div>
+  <div class="sbody">
+    <p class="s-h" id="erHead"></p>
+    <div class="group" id="erPeople"></div>
+    <p class="tab-empty" id="erEmpty" style="padding-top:12px">Nobody else yet. When others join this event, they show up here.</p>
+    <div class="group s-gap"><button class="row" id="erLuma"><span class="s-l">Open on Luma</span></button><button class="row" id="erChange"><span class="s-l">Change event</span></button><button class="row s-danger" id="erLeave">Leave this event</button></div>
+  </div>
+  <div class="dock"><button class="primary" id="erFind">Find someone here<small>Only people at this event</small></button></div>
 </section>
 <nav id="tabbar">
   <button data-i="0"><svg viewBox="0 0 26 26"><path d="M4 11.5 13 4l9 7.5V21a1 1 0 0 1-1 1h-5v-6h-6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</button>
@@ -1939,6 +1992,7 @@ async function loadMe() {
     if (!r.ok) return false;
     const d = await r.json();
     S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused; S.traits = d.traits || null; S.dims = d.dims || null;
+    S.event = d.event || null; Ev.pill();
     document.body.classList.toggle("linked", !!d.linkedin);
     if (S.signed && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
       $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}.`;
@@ -2020,6 +2074,99 @@ $("#againBtn").onclick = async () => {
   try { await api("/again", {id: S.id}); } catch { return oops("Can't reach the PairShake server."); }
   findMatch(S.socials);
 };
+/* Events: each Luma event is its own room. Choose yours (Luma's events near you, a search, or a pasted link),
+   join it, and Emma only introduces you to people who joined it too. Its room lists who's there. */
+const Ev = {
+  list: [], q: "", seq: 0, t: null, poll: null, from: "welcome",
+  CH: `<svg class="ch" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  when(e) {
+    if (!e?.start) return "";
+    const o = {weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit"};
+    try { return new Date(e.start).toLocaleString(undefined, {...o, timeZone: e.tz || undefined}); } catch { return new Date(e.start).toLocaleString(undefined, o); }
+  },
+  sub(e) { return [this.when(e), e.city].filter(Boolean).join(" · "); },
+  img: e => e?.cover ? `background-image:url(${esc(e.cover)})` : "",
+  pill() {
+    const e = S.event, el = $("#evPill");
+    el.innerHTML = e
+      ? `<span class="ev-dot" style="${this.img(e)}"></span><span class="ev-t">${esc(e.name)}</span>${this.CH}`
+      : `<span class="ev-dot"><svg width="13" height="13" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="ev-t">Choose your event</span>${this.CH}`;
+  },
+  // the search: nearby when empty; typing searches after a moment; a Luma link finds that one event
+  open(from) {
+    this.from = from || document.body.dataset.screen || "welcome";
+    show("events");
+    if (!this.list.length || this.q !== $("#evQ").value.trim()) this.search($("#evQ").value);
+    else this.render();
+  },
+  async search(q) {
+    q = String(q || "").trim(); this.q = q;
+    const n = ++this.seq;
+    $("#evHead").textContent = q ? "Results" : "Near you";
+    if (!this.list.length) { $("#evEmpty").hidden = false; $("#evEmpty").textContent = "Looking on Luma…"; $("#evList").style.display = "none"; }
+    let r;
+    try { r = await api("/events?" + new URLSearchParams({q, id: S.id || ""})); } catch { r = {events: [], error: "Can't reach the PairShake server."}; }
+    if (n !== this.seq) return;                                       // a newer search is on its way
+    this.list = r.events || []; this.error = r.error;
+    if (r.mine !== undefined && S.id) { S.event = r.mine; this.pill(); }
+    this.render();
+  },
+  render() {
+    const box = $("#evList"), mine = S.event?.id;
+    box.innerHTML = this.list.map((e, i) => `<button class="row evrow" data-i="${i}"><div class="ev-img" style="${this.img(e)}"></div>
+      <div class="who"><div class="semi">${esc(e.name)}</div><div class="foot sec">${esc(this.sub(e))}</div></div>` +
+      (e.id === mine ? `<span class="yes">Joined</span>` : e.here ? `<span class="yes">${e.here} here</span>` : "") + `<span class="s-chev">${CHEV}</span></button>`).join("");
+    box.style.display = this.list.length ? "" : "none";
+    $("#evEmpty").hidden = !!this.list.length;
+    $("#evEmpty").textContent = this.error || (this.q ? `Nothing on Luma for “${this.q}”. Try another word, or paste the event's link.` : "No events near you on Luma right now. Search for yours.");
+    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => this.join(this.list[b.dataset.i]));
+  },
+  async join(e) {
+    buzz(8);
+    try { const r = await api("/event", {id: S.id, event: e}); S.event = r.event; this.room(r); }
+    catch { return oops("Couldn't join that event. Try again."); }
+    this.pill(); show("event"); this.watch();
+  },
+  // the event's room
+  async enter() {
+    if (!S.event) return this.open();
+    this.room({event: S.event, people: this.people || [], count: this.count || 1});
+    show("event"); this.watch(); this.refresh();
+  },
+  async refresh() {
+    try { const r = await api("/event?id=" + encodeURIComponent(S.id)); if (!r.event) { S.event = null; this.pill(); return Tabs.back(); } S.event = r.event; this.room(r); } catch {}
+  },
+  watch() {                                                           // others join while you look: every 8 seconds
+    clearInterval(this.poll);
+    this.poll = setInterval(() => document.body.dataset.screen === "event" ? this.refresh() : clearInterval(this.poll), 8000);
+  },
+  room(r) {
+    const e = r.event; if (!e) return;
+    this.people = r.people || []; this.count = r.count || 1;
+    $("#erCover").style.cssText = this.img(e); $("#erName").textContent = e.name; $("#erWhen").textContent = this.sub(e);
+    const others = this.people.length;
+    $("#erHead").textContent = others ? `${others} ${others === 1 ? "other person" : "others"} here` : "Who's here";
+    $("#erPeople").innerHTML = this.people.map(p => `<div class="row">${av(p, 40)}<div class="who" style="flex:1;min-width:0"><div class="semi">${esc(p.name)}</div>` +
+      `<div class="foot sec" style="margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.role || p.building || "Just joined")}</div></div></div>`).join("");
+    $("#erPeople").style.display = others ? "" : "none"; $("#erEmpty").style.display = others ? "none" : "";
+    $("#erLuma").style.display = e.url ? "" : "none";
+    const known = !!S.me;
+    $("#erFind").innerHTML = known ? `Find someone here<small>Only people at this event</small>` : `Introduce yourself<small>Then Emma finds you someone here</small>`;
+  },
+};
+Ev.pill();
+$("#evPill").onclick = () => { buzz(8); S.event ? Ev.enter() : Ev.open(); };
+$("#evBack").onclick = () => Tabs.back();
+$("#erBack").onclick = () => Tabs.back();
+$("#evQ").oninput = () => { clearTimeout(Ev.t); Ev.t = setTimeout(() => Ev.search($("#evQ").value), 350); };
+$("#evQ").onkeydown = e => { if (e.key === "Enter") { clearTimeout(Ev.t); Ev.search($("#evQ").value); $("#evQ").blur(); } };
+$("#erChange").onclick = () => Ev.open("event");
+$("#erLuma").onclick = () => window.open("https://lu.ma/" + encodeURIComponent(S.event.url), "_blank");
+$("#erLeave").onclick = async () => {
+  try { await api("/event", {id: S.id, leave: true}); } catch { return oops("Can't reach the PairShake server."); }
+  S.event = null; Ev.pill(); clearInterval(Ev.poll); Ev.render(); Tabs.back();
+};
+$("#erFind").onclick = () => S.me ? $("#againBtn").onclick() : Tabs.back();
 /* Update: back to the first page, to tell Emma again with ChatGPT or by voice. What she remembers stays
    until the new answer replaces it (what isn't mentioned stays as it was); the X goes back home. */
 const retell = () => {
