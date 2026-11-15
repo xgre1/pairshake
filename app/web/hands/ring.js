@@ -60,9 +60,13 @@ class Hand {
     if (blend && this.src) { this.from.set(this.cur); this.at = performance.now(); } else this.at = -1e9;
     this.src = { clip, h, t0, loop, freeze };
   }
-  update(now, calm = true) {
+  // speed: how fast a looping clip plays (1 = as baked); a loop keeps its own clock so a change of speed
+  // never jumps. Handshakes and thumbs-ups always play at full speed.
+  update(now, calm = true, speed = 1) {
     const s = this.src; if (!s) return;
     let t = (now - s.t0) / 1000;
+    if (s.loop) { s.tc = s.tc == null ? t : s.tc + Math.max(0, now - (this.lastNow ?? now)) / 1000 * speed; t = s.tc; }
+    this.lastNow = now;
     if (s.freeze != null) t = Math.min(t, s.freeze);
     const n = s.clip.n;
     let f = t * 20;
@@ -182,7 +186,7 @@ export const Ring = {
   start() {
     if (!this.ok) return;
     const now = performance.now();
-    this.t0 = now; this.busyUntil = 0; this.fin = null; clearTimeout(this.back);
+    this.t0 = now; this.busyUntil = 0; this.fin = null; this.pace = 1; clearTimeout(this.back);
     this.hands.forEach((h, i) => h.play(this.loopClip, i, now, { loop: true, blend: false }));
     this.me.play(this.centerClip, 0, now, { loop: true, blend: false });
     // every hand fades in, one after another around the ring, whether or not an agent sits there
@@ -251,8 +255,10 @@ export const Ring = {
     // the finale: the others fade out over a second, the camera comes down over two
     const fk = this.fin ? smooth((now - this.fin.at) / 1000 / 2.0) : 0, fade = this.fin ? smooth((now - this.fin.at) / 1000 / 1.0) : 0;
     const ghost = GHOST();
+    // how lively the ring is: Ring.pace (1 while your agent is talking to others, low while it waits), eased
+    this.speed = (this.speed ?? 1) + ((this.pace ?? 1) - (this.speed ?? 1)) * (1 - Math.exp(-dt / 0.8));
     this.hands.forEach((h, i) => {
-      h.update(now, !this.greets.includes(h.src?.clip));
+      h.update(now, !this.greets.includes(h.src?.clip), this.speed);
       const st = this.state[i];
       let a = now < st.born ? 0 : st.a;
       if (this.fin) a = this.fin.s !== i ? a * (1 - fade) : 1;
@@ -263,7 +269,7 @@ export const Ring = {
       mat.opacity = st.shown; mat.transparent = st.shown < 0.995;
       h.root.visible = st.shown > 0.04;
     });
-    this.me.update(now, this.me.src?.clip === this.centerClip);
+    this.me.update(now, this.me.src?.clip === this.centerClip, this.speed);
     // your hand stands a little taller and bigger than the agents' while it waits in the middle,
     // and comes down to their size to shake hands (the handshakes are baked at that size)
     const waiting = this.me.src?.clip === this.centerClip ? 1 : 0;

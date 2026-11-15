@@ -2757,7 +2757,9 @@ const LiveRing = {
     clearInterval(this.t);
     this.t = setInterval(() => {
       if (document.body.dataset.screen !== "live") return clearInterval(this.t);
-      if (Nets.busy && Ring.greet(this.i)) this.i = (this.i + 1 + Math.floor(Math.random() * 2)) % Ring.hands.length;
+      Ring.pace = Nets.busy ? 0.7 : 0.25;          // waiting for other agents: the hands barely move
+      // looking: one handshake, then a breath before the next
+      if (Nets.busy && performance.now() > (Ring.busyUntil || 0) + 1400 && Ring.greet(this.i)) this.i = (this.i + 1 + Math.floor(Math.random() * 2)) % Ring.hands.length;
     }, 300);
     return true;
   },
