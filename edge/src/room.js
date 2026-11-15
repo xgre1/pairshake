@@ -86,7 +86,8 @@ export class PairShake extends DurableObject {
     this.written = new Map(); // "u:<id>", "m:<id>", "meta:stats" -> the JSON last written to D1
     this.pending = new Map(); // user id -> the match being worked out
     this.enriching = new Set(); // user ids whose persona and traits are being written
-    this.networks = {};         // network id -> {id, code, name, owner, created, members: [user ids]}  (D1: meta "networks")
+    this.networks = {};
+    this.eventSeen = new Map(); // user id -> when they last had their Luma event's room open (memory only)         // network id -> {id, code, name, owner, created, members: [user ids]}  (D1: meta "networks")
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
     this.judged = {};         // pair -> what the judge said about the two (matching.js judge); kept until a profile changes
@@ -211,7 +212,8 @@ export class PairShake extends DurableObject {
       return this.networks[net].members.filter(id => id !== exclude && this.users[id]?.live?.network === net &&
         this.users[id].profile && !this.users[id].test && !this.users[id].paused).map(id => this.person(id));
     }
-    const out = seeds ? SEED.map(s => this.person(s.id)) : [];
+    // real people only for now: Emma's made-up attendees are never offered (seeds is kept for the callers)
+    const out = [];
     const ev = this.users[exclude]?.event?.id || null;
     for (const [uid, u] of Object.entries(this.users)) {
       if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused && (u.event?.id || null) === ev) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
@@ -250,14 +252,16 @@ export class PairShake extends DurableObject {
     return { events: list.slice(0, 40), mine: u?.event || null, error };
   }
 
-  /** The event they're in, and who else is there. */
+  /** The event they're in, and who else is there: online = has its room open now (the page asks every 8 s;
+      kept in memory only, nothing written). */
   eventRoom(q) {
     const u = this.user(q.get("id")) || notFound();
-    if (!u.event) return { event: null, people: [], count: 0 };
-    const all = this.inEvent(u.event.id);
-    const people = all.filter(x => x.id !== u.id).slice(0, 100).map(x => x.profile ? this.person(x.id)
-      : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" });
-    return { event: u.event, people, count: all.length };
+    if (!u.event) return { event: null, people: [], count: 0, online: 0 };
+    this.eventSeen.set(u.id, now());
+    const all = this.inEvent(u.event.id), on = x => now() - (this.eventSeen.get(x.id) || 0) < 30;
+    const people = all.filter(x => x.id !== u.id).sort((a, b) => on(b) - on(a)).slice(0, 100).map(x => ({ ...(x.profile ? this.person(x.id)
+      : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" }), online: on(x), ready: !!x.profile }));
+    return { event: u.event, people, count: all.length, online: people.filter(p => p.online).length };
   }
 
   /** Join an event (Luma's id and link, checked with Luma), or leave it ({leave: true}). */
@@ -599,6 +603,7 @@ export class PairShake extends DurableObject {
     const u = this.user(d.id) || notFound();
     u.socials = {};
     for (const [k, v] of Object.entries(isObj(d.socials) ? d.socials : {})) if (str(v)) u.socials[k.slice(0, 20)] = str(v).replace(/^@+/, "").slice(0, 100);
+    if (d.wait) return this.settle(u);
     delete u.cancelled;
     const task = this.pending.get(u.id) || this.runMatch(u);
     this.pending.delete(u.id);
@@ -607,6 +612,7 @@ export class PairShake extends DurableObject {
       [r, room] = await task;
     } catch (e) {
       console.log("match error:", String(e));
+      if (/nobody else in the room/.test(String(e.message || e))) throw new HttpError(422, "Nobody new to meet here yet.");
       throw new HttpError(502, String(e.message || e));
     }
     if (u.cancelled) { delete u.cancelled; return json({ cancelled: true }, 409); }    // they stopped looking meanwhile
@@ -702,6 +708,29 @@ export class PairShake extends DurableObject {
   private(p) {
     const avoid = this.users[p.id]?.profile?.avoid;
     return avoid ? { ...p, avoid } : p;
+  }
+
+  /** In a room (a Luma event or a network): write their card from what they told Emma and stop there. Nobody is
+      introduced; they start finding from the room when they want ({wait: true} on /match). */
+  async settle(u) {
+    u.cancelled = true; this.pending.delete(u.id); this.scans.delete(u.id);     // the match begun on the way here is dropped
+    let me;
+    try { me = await M.profile(this.convo(u), prompt => ask(this.env, prompt, { timeout: 15 })); }
+    catch (e) {
+      console.log("profile error:", String(e));
+      me = Object.fromEntries(Object.entries(u.known || {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]));
+    }
+    if (u.memory) {
+      const said = Object.fromEntries(Object.entries(me).filter(([, v]) => v && !(Array.isArray(v) && !v.length)));
+      me = { ...u.memory, ...said };
+    }
+    delete me.id;
+    u.profile = { ...(u.profile || {}), ...me };
+    u.name = u.profile.name || u.name;
+    u.memory = { ...u.profile };
+    if (!u.traits) this.writePersona(u, this.sourceText(u));
+    this.save();
+    return { me: this.person(u.id) };
   }
 
   /** Who they meet (matching.js): their profile, the agents' verdicts, the pair, then the spark. */
@@ -1261,7 +1290,7 @@ export class PairShake extends DurableObject {
           case "/event": return json(this.eventRoom(q));
           case "/inbox": return json(this.inbox(q));
           case "/talk": return json(await this.talk(q));
-          case "/room": return json({ stats: this.stats, people: SEED.length + Object.values(this.users).filter(u => u.profile).length, intros: Object.keys(this.missions).length });
+          case "/room": return json({ stats: this.stats, people: Object.values(this.users).filter(u => u.profile && !u.test).length, intros: Object.keys(this.missions).length });
           case "/admin/export": return json(this.exportAll());
         }
       } else if (req.method === "POST") {
