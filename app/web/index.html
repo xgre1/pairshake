@@ -360,6 +360,18 @@ body.known #wSub{display:none}
 :is(#gateHands,#welcomeHands) .hands-canvas{transform:translateY(14%)}
 .hands-canvas.hands-full{position:fixed;inset:0;width:100vw;height:100dvh;z-index:0;pointer-events:none}
 .screen{z-index:1}
+/* In a Luma event, its cover (blurred, dimmed in dark mode and washed out in light, so text stays readable)
+   replaces the plain background of the home, the event's room and the search for someone. */
+#evBg{display:none;position:fixed;inset:-60px;z-index:0;background:var(--bg) center/cover no-repeat;filter:blur(36px) saturate(1.4);transform:scale(1.15);pointer-events:none}
+#evBg::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.55)}
+@media (prefers-color-scheme: dark){ #evBg::after{background:rgba(0,0,0,.5)} }
+body.in-event:is([data-screen="welcome"],[data-screen="event"],[data-screen="matching"]) #evBg{display:block}
+html:has(body.in-event:is([data-screen="welcome"],[data-screen="event"],[data-screen="matching"])),
+body.in-event:is([data-screen="welcome"],[data-screen="event"],[data-screen="matching"]),
+body.in-event #welcome,body.in-event #event,body.in-event #event .topbar,body.in-event #matching{background:transparent!important}
+body.in-event.known #wFoot,body.in-event #event .dock{background:none!important}
+body.in-event #event .group{background:color-mix(in srgb,var(--gcell) 62%,transparent)!important;-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%)}
+body.in-event[data-screen="event"] #tabbar,body.in-event[data-screen="welcome"] #tabbar{background:color-mix(in srgb,var(--bg) 55%,transparent)}
 #heard{font-size:20px;line-height:1.25;color:var(--sec);padding:0 28px;height:3.75em;overflow:hidden;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
 .hint{text-align:center;font-size:13px;color:var(--ter);padding:20px 0;min-height:56px}
@@ -750,6 +762,8 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 </head>
 <body data-screen="gate">
 <div id="stageSlot"></div>
+<!-- in a Luma event: its cover, blurred, is the background of the home, its room and the search for someone -->
+<div id="evBg" aria-hidden="true"></div>
 
 <!-- The way in: sign in with LinkedIn or Google. Nothing else is reachable until then (no tabs, no screens). -->
 <section class="screen on" id="gate">
@@ -2265,6 +2279,8 @@ const Ev = {
   pill() {
     const e = S.event, el = $("#evPill");
     el.hidden = !e;
+    document.body.classList.toggle("in-event", !!e?.cover);             // the event's cover becomes the background
+    $("#evBg").style.backgroundImage = e?.cover ? `url(${JSON.stringify(e.cover)})` : "";
     el.innerHTML = e
       ? `<span class="ev-dot" style="${this.img(e)}"></span><span class="ev-t">${esc(e.name)}</span>${this.CH}`
       : `<span class="ev-dot"><svg width="13" height="13" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="ev-t">Choose your event</span>${this.CH}`;
