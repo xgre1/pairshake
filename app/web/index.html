@@ -350,6 +350,18 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .sbody .row.you-fact{flex-direction:column;align-items:stretch;gap:2px;padding:11px 16px 12px}
 .you-fact .k{font-size:13px;color:var(--sec);letter-spacing:-.006em}
 #aView .primary{margin-top:30px} #aView .s-f{text-align:center}
+/* You, before Emma knows you: one card for who you are, one row of AIs, one card of key points */
+.a-me{display:flex;align-items:center;gap:14px;padding:14px 16px}
+.a-me .n{font:600 19px/1.2 var(--sans);letter-spacing:-.02em} .a-me .e{font-size:14px;color:var(--sec);margin-top:2px}
+.a-ais{display:flex;gap:6px;padding:6px}
+.a-ai{flex:1;padding:12px 4px;border-radius:12px;font:600 15px/1.2 var(--sans);letter-spacing:-.015em;background:var(--fg);color:var(--bg);transition:transform .15s}
+.a-ai[data-ai="claude"]{background:#D97757;color:#fff} .a-ai[data-ai="gemini"]{background:#1A73E8;color:#fff}
+.a-ai:active{transform:scale(.96)}
+.a-form .a-f{display:block;position:relative;padding:11px 16px 0}
+.a-form .a-f + .a-f::before{content:"";position:absolute;top:0;left:16px;right:0;border-top:.5px solid var(--sep)}
+.a-form .a-f span{display:block;font-size:13px;color:var(--sec);letter-spacing:-.006em}
+.sbody .a-form textarea{padding:3px 0 11px}
+#aCreate{margin-top:22px}
 /* every tab starts the same way: its name, large, right under the status bar (the screen already pads for the notch) */
 .tab-h{font-size:34px;line-height:1.1;padding:6px var(--gut) 10px;display:flex;align-items:center;justify-content:space-between}
 .tab-list{padding:0 var(--gut)} .tab-list .row + .row::before{left:70px}
@@ -615,12 +627,20 @@ body:not(.in-app) .app-only{display:none!important}
 <section class="screen" id="about">
   <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
   <h1 class="serif tab-h" id="aHead">You<button class="gbtn" id="aEdit">Edit</button></h1>
-  <p class="tab-empty" id="aEmpty" style="padding-bottom:8px">Emma doesn't know you yet. Fill this in yourself, or tell her on the first tab.</p>
+  <p class="tab-empty" id="aEmpty" hidden></p>
   <div class="sbody" id="aView"></div>
   <div class="sbody" id="aBody">
-    <div id="aFields"></div>
+    <!-- before Emma knows you: who you are, then your AI writes it, or you write the key points -->
+    <div id="aStart">
+      <div class="group a-me" id="aMe"></div>
+      <p class="s-h">Let your AI write it</p>
+      <div class="group a-ais"><button class="a-ai" data-ai="chatgpt">ChatGPT</button><button class="a-ai" data-ai="claude">Claude</button><button class="a-ai" data-ai="gemini">Gemini</button></div>
+      <p class="s-f">Copies one question and opens it. Paste the answer back here.</p>
+      <p class="s-h">Or write the key points</p>
+    </div>
+    <div class="group a-form" id="aFields"></div>
     <p class="s-f" id="aSaved">Saved as you type.</p>
-    <button class="primary" id="aCreate" style="margin-top:18px" disabled>Save<small>Emma uses it to find you someone</small></button>
+    <button class="primary" id="aCreate" disabled>Save</button>
   </div>
 </section>
 
@@ -1886,18 +1906,22 @@ const About = {
   HINTS: {name: "Your name", needs: "A designer, a cofounder, testers…",     // (one line each: a hint can't grow the box)
           building: "What you're working on right now", offers: "What you could help others with",
           role: "Your job or what you study", line: "Who you are, in one line", spot: "Back left, green jumper"},
+  KEY: ["needs", "building", "offers"],          // before Emma knows you, only the points that pick your match
   editing: false, fresh: false,
   open(edit = false) {
     const me = S.me, fresh = !me;               // fresh: nothing yet, so the page is a form to fill in
     this.editing = fresh || edit; this.fresh = fresh;
-    $("#aEmpty").style.display = fresh ? "" : "none";
+    $("#aEmpty").style.display = "none"; $("#aStart").style.display = fresh ? "" : "none";
     $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.editing ? "Done" : "Edit";
     $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
     if (me && !this.editing) this.view();
+    if (fresh) $("#aMe").innerHTML = `${av({name: S.name || "?", color: "#B9A7FF", photo: S.photo}, 52)}` +
+      `<div><div class="n">${esc(S.name || "You")}</div><div class="e">Emma doesn't know you yet</div></div>`;
     if (this.editing) {
-      const v = me || {name: S.name || ""};
-      $("#aFields").innerHTML = this.FIELDS.map(([k, label]) =>
-        `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="${fresh ? this.HINTS[k] : "Not said yet"}">${esc(v[k] || "")}</textarea></div>`).join("");
+      const v = me || {};
+      const list = fresh ? this.FIELDS.filter(([k]) => this.KEY.includes(k) || (k === "name" && !S.name)) : this.FIELDS;
+      $("#aFields").innerHTML = list.map(([k, label]) =>
+        `<label class="a-f"><span>${label}</span><textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="${fresh ? this.HINTS[k] : "Not said yet"}">${esc(v[k] || "")}</textarea></label>`).join("");
       $("#aSaved").textContent = "Saved as you type."; $("#aSaved").style.display = fresh ? "none" : "";
       $("#aCreate").style.display = fresh ? "" : "none";
     }
@@ -1908,10 +1932,10 @@ const About = {
     if (fresh) this.ready();
   },
   fields() { const o = {}; $("#aFields").querySelectorAll("textarea").forEach(t => o[t.dataset.k] = t.value.trim()); return o; },
-  // Save needs a name and at least what they're working on or looking for
-  ready() { const f = this.fields(); $("#aCreate").disabled = !(f.name && (f.needs || f.building || f.offers || f.role)); },
+  // Save needs a name (LinkedIn's, or typed) and at least what they're working on or looking for
+  ready() { const f = this.fields(); $("#aCreate").disabled = !((f.name || S.name) && (f.needs || f.building || f.offers || f.role)); },
   async create() {
-    const about = this.fields(), name = about.name; delete about.name;
+    const about = this.fields(), name = about.name || S.name || ""; delete about.name;
     $("#aCreate").disabled = true;
     try {
       const r = await api("/profile", {id: S.id || kept(ID_KEY), about, name});      // (S.id is only set once there's a profile)
@@ -1962,6 +1986,7 @@ $("#aBack").onclick = async () => { await About.leave(); goHome(); };
 document.addEventListener("screen", () => { if (document.body.dataset.screen !== "about") About.leave(); });   // (leaving by the tab bar)
 $("#aEdit").onclick = async () => { const edit = !About.editing; await About.leave(); About.open(edit); };
 $("#aCreate").onclick = () => About.create();
+document.querySelectorAll(".a-ai").forEach(b => b.onclick = () => askAI(b.dataset.ai));    // the same as the first page's
 $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("pairshake.outcomes", null);
   location.reload();
