@@ -151,7 +151,8 @@ body.known #wSub{display:none}
 #live.off .lv-state{background:rgba(255,255,255,.2)} #live.off .lv-state i{animation:none;opacity:.5}
 .lv-name{font-size:34px;line-height:1.1;margin-top:14px}
 .lv-sub{opacity:.75;margin-top:8px;font-size:16px}
-.lv-people{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px;min-height:56px}
+.lv-people{display:none!important}   /* nobody's face here: who is in the room is the server's business */
+.lv-radar canvas{width:260px;height:260px;margin:-20px}
 .lv-people .av{border:2px solid rgba(255,255,255,.8);animation:rise .5s var(--smooth)}
 .lv-people .av.away{opacity:.45}
 .lv-foot{padding-bottom:calc(16px + var(--safeB))} #live .lv-foot .primary{background:#fff;color:#000;box-shadow:none} #live .lv-foot .primary[disabled]{opacity:.45}
@@ -1084,7 +1085,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <div class="lv-bg" id="lvBg"></div>
   <button class="xbtn lv-x" id="lvClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
-  <div class="lv-radar" id="lvRadar"><span></span><span></span><span></span><div class="lv-me" id="lvMe"></div></div>
+  <div class="lv-radar" id="lvRadar"><canvas id="lvDots" aria-hidden="true"></canvas><div id="lvMe" hidden></div></div>
   <p class="lv-state" id="lvState"><i></i>Live</p>
   <h2 class="serif lv-name" id="lvName"></h2>
   <p class="lv-sub" id="lvSub"></p>
@@ -2715,6 +2716,30 @@ const endsIn = t => {
   const s = Math.max(0, t - Date.now() / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
   return h >= 48 ? `${Math.floor(h / 24)} days` : h ? `${h}h ${m}m` : `${Math.max(1, m)} min`;
 };
+/* While you're live in a network: the finding screen's ring of plain dots, slowly turning (faster while your agent
+   is looking). No faces. */
+const LiveDots = {
+  raf: 0, dots: null, last: 0,
+  start() {
+    const c = $("#lvDots"); if (!c || this.raf) return;
+    const dpr = Math.min(3, devicePixelRatio || 1), g = c.getContext("2d"); c.width = c.height = 260 * dpr;
+    this.dots ||= Array.from({length: 90}, () => ({a: Math.random() * 6.283, r: 84 + Math.random() * 28, w: .06 + Math.random() * .05, z: Math.random(), ph: Math.random() * 6.283}));
+    this.last = performance.now();
+    const tick = now => {
+      if (document.body.dataset.screen !== "live") { this.raf = 0; return; }
+      const dt = Math.min(.05, (now - this.last) / 1000), t = now / 1000, k = Nets.busy ? 4 : 1; this.last = now;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, 260, 260); g.fillStyle = "#fff";
+      for (const d of this.dots) {
+        d.a += d.w * k * dt; const r = d.r + 3 * Math.sin(t * .9 + d.ph);
+        g.globalAlpha = .32 + .6 * d.z + .08 * Math.sin(t * 1.1 + d.ph);
+        g.beginPath(); g.arc(130 + r * Math.cos(d.a), 130 + r * Math.sin(d.a), 2.7 + d.z * .5, 0, 6.283); g.fill();
+      }
+      g.globalAlpha = 1;
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  },
+};
 const Nets = {
   list: [], cur: null, stream: null, hours: 6, photo: "", poll: 0,
   link: code => `${(APP?.server || location.origin).replace(/\/$/, "")}/join/${code}`,
@@ -2814,7 +2839,7 @@ const Nets = {
     $("#lvBg").style.backgroundImage = netCover(n);
     $("#lvMe").innerHTML = av({name: S.me?.name || S.name || "You", color: S.me?.color || "#B9A7FF", photo: S.photo || S.me?.photo}, 96);
     $("#lvName").textContent = n.name; $("#lvPeople").innerHTML = "";
-    this.paint(n); show("live"); Tabs.sync();
+    this.paint(n); show("live"); Tabs.sync(); LiveDots.start();
     clearInterval(this.poll); this.poll = setInterval(() => this.refresh(), 4000);
     if (!n.you_live) await this.toggle();                         // in it means live in it: no extra tap
     try { await loadMe(); } catch {}                              // who you've met already (S.contacts)
@@ -2834,19 +2859,15 @@ const Nets = {
       const box = $("#lvPeople"), have = new Set([...box.children].map(e => e.dataset.id));
       for (const p of r.people) if (!have.has(p.id)) box.insertAdjacentHTML("beforeend", av(p, 52).replace('class="av', `data-id="${esc(p.id)}" class="av${p.live ? "" : " away"}`));
       const total = r.people.length, ready = r.people.filter(p => p.live && p.ready).length;
-      const met = new Set((S.contacts || []).map(c => c.person?.id));
-      const fresh = r.people.filter(p => p.live && p.ready && !met.has(p.id)).length;
-      this.ready = r.ready && fresh > 0;
-      if (r.network.you_live) $("#lvSub").textContent = ready ? `${ready} ${ready === 1 ? "person" : "people"} live here \u00b7 ends in ${endsIn(r.network.expires)}`
-        : `Discoverable here \u00b7 ends in ${endsIn(r.network.expires)}`;
+      this.ready = r.ready && ready > 0; this.readyN = ready;       // (whether someone here is new to you is the server's call)
+      if (r.network.you_live && !this.busy) $("#lvSub").textContent = ready ? `${ready} ${ready === 1 ? "person" : "people"} live here · ends in ${endsIn(r.network.expires)}`
+        : "Waiting for people to join…";
       if (!r.ready) $("#lvSub").textContent = "Introduce yourself first, so your agent knows who to look for";
-      if (r.ready && !fresh) $("#lvSub").textContent = ready ? "You've met everyone here. Waiting for someone new" : "Looking for people\u2026";
-      // in a network it looks by itself: someone new is here and nothing is on, it starts (not twice in 15 s)
-      const others = r.people.filter(p => p.id !== this.me()), online = others.filter(p => p.live).length;
-      $("#lvFind").disabled = !this.ready;
-      $("#lvFindSub").textContent = !r.ready ? "Introduce yourself first" : this.ready ? `${online} ${online === 1 ? "person" : "people"} here now`
-        : others.length ? "Nobody new to meet yet" : "Waiting for people to join";
-      if (this.ready && !this.busy && !Meet.m && Date.now() - this.tried > 15000) { this.tried = Date.now(); this.match(); }
+      if (!this.busy && this.none && this.none.n === ready) $("#lvSub").textContent = "You've met everyone here. Waiting for someone new";
+      // in a network it looks by itself, whenever someone is here and nothing is on. After "nobody new" it looks again
+      // when the room changes, or after a minute (each search is the agents' talks, which cost)
+      const wait = this.none && this.none.n === ready ? 60000 : 15000;
+      if (this.ready && !this.busy && !Meet.m && Date.now() - this.tried > wait) { this.tried = Date.now(); this.match(); }
       if (!total && !box.querySelector(".lv-wait")) box.innerHTML = `<p class="lv-wait" style="opacity:.7">Waiting for people to join</p>`;
       if (total) box.querySelector(".lv-wait")?.remove();
     } catch (e) {
@@ -2858,19 +2879,26 @@ const Nets = {
   async match() {
     if (!this.ready || this.busy || Meet.m) return;              // (not while a card or a finding is on)
     this.busy = true; clearInterval(this.poll);
-    const sub = $("#lvSub"); let done = false;
+    const sub = $("#lvSub"); let scanning = true;
     try {
       await api("/again", {id: this.me()});
-      sub.textContent = "Looking at the people here\u2026";        // (the agents' talks aren't shown)
-      $("#lvFind").disabled = true;
+      sub.textContent = "Your agent is looking…";
+      (async () => { while (scanning) {                              // how the agents' talks go, without names
+        try {
+          const s = await api("/scan?id=" + encodeURIComponent(this.me())), yes = (s.talks || []).filter(t => !t.no).length;
+          if (scanning && s.total) sub.textContent = `Your agent is talking to ${s.total} ${s.total === 1 ? "agent" : "agents"}` + (yes ? ` · ${yes} said yes` : "");
+        } catch {}
+        await sleep(1200);
+      } })();
       const m = await api("/match", {id: this.me(), socials: S.socials || {}});
-      done = true; S.seen.add(m.mission.id);
-      if (document.body.dataset.screen === "live") introduce(m.mission, m.me);     // the two faces come together (no voice in a crowd)
+      scanning = false; this.none = null; S.seen.add(m.mission.id);
+      if (document.body.dataset.screen === "live") introduce(m.mission, m.me);     // the card: no name, ten seconds to say Let's go
     } catch (e) {
-      done = true; sub.textContent = e.status === 422 ? "Nobody new to meet here yet" : "No one this time. Try again in a moment";
-      $("#lvFind").disabled = !this.ready;
+      scanning = false;
+      if (e.status === 422) this.none = {n: this.readyN};
+      sub.textContent = e.status === 422 ? "You've met everyone here. Waiting for someone new" : "No one this time. Looking again in a moment";
       if (document.body.dataset.screen === "live") this.poll = setInterval(() => this.refresh(), 4000);
-    } finally { this.busy = false; }
+    } finally { scanning = false; this.busy = false; }
   },
   async toggle() {
     const n = this.cur; if (!n) return;
@@ -3685,7 +3713,7 @@ const Meet = {
     this.close(); $("#meet").classList.remove("on");
     if (!again) return;
     const s = document.body.dataset.screen;
-    if (s === "live" && Nets.cur) Nets.match();
+    if (s === "live" && Nets.cur) Nets.tried = Date.now();          // the network looks again by itself in a few seconds
     else if (s === "matching") api("/again", {id: S.id}).then(() => findMatch(S.socials || {}), () => matchBack(S.mfrom));
   },
   reveal() {                     // close enough (or I found them): who it is, and how to start
