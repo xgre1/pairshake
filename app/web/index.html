@@ -2724,20 +2724,14 @@ const Nets = {
     const sub = $("#lvSub"); let done = false;
     try {
       await api("/again", {id: this.me()});
-      (async () => {                                   // what the agents are doing, without names (it's a mystery)
-        while (!done) {
-          try {
-            const r = await api("/scan?id=" + this.me()), yes = r.talks.filter(t => !t.no).length;
-            if (r.total && !done) sub.textContent = `Your agent is talking to ${r.total} agent${r.total > 1 ? "s" : ""}` + (yes ? ` \u00b7 ${yes} said yes` : "\u2026");
-          } catch {}
-          await sleep(800);
-        }
-      })();
+      sub.textContent = "Looking at the people here\u2026";        // (the agents' talks aren't shown)
+      $("#lvFind").disabled = true;
       const m = await api("/match", {id: this.me(), socials: S.socials || {}});
       done = true; S.seen.add(m.mission.id);
       if (document.body.dataset.screen === "live") Hunt.open(m.mission);
-    } catch {
-      done = true; sub.textContent = "No one this time. Still looking\u2026";
+    } catch (e) {
+      done = true; sub.textContent = e.status === 422 ? "Nobody new to meet here yet" : "No one this time. Try again in a moment";
+      $("#lvFind").disabled = !this.ready;
       if (document.body.dataset.screen === "live") this.poll = setInterval(() => this.refresh(), 4000);
     } finally { this.busy = false; }
   },
