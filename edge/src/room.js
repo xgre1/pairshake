@@ -350,6 +350,12 @@ export class PairShake extends DurableObject {
     for (const m of Object.values(this.missions)) if (m.a === uid || m.b === uid) out.add(m.a === uid ? m.b : m.a);
     return out;
   }
+  /** The people they both said yes to (went to find in person): never introduced to them again. */
+  metInPerson(uid) {
+    const out = new Set();
+    for (const m of Object.values(this.missions)) if (m.outcome === true && (m.a === uid || m.b === uid)) out.add(m.a === uid ? m.b : m.a);
+    return out;
+  }
 
   /** What Emma says to someone who comes back: something of theirs, brought up by her. */
   async welcomeBack(u) {
@@ -813,12 +819,13 @@ export class PairShake extends DurableObject {
     let p, s, talks = {}, t1 = t0, t2 = t0, me, room, judged = 0, byJudge = false, from = null;
     try {
       const app = !!u.app;
-      // on the app: another app user if there is one; always someone new (unless they've met everyone)
-      const seen = this.met(u.id);
+      // on the app: another app user if there is one; always someone new (unless they've met everyone: then someone
+      // whose card timed out before, but never someone they both said yes to)
+      const seen = this.met(u.id), together = this.metInPerson(u.id);
       const fresh = ps => ps.filter(x => !seen.has(x.id));
       room = (app && fresh(this.candidates(u.id, true, false))) || [];
       if (!room.length) room = fresh(this.candidates(u.id, app));
-      if (!room.length) room = this.candidates(u.id, app);
+      if (!room.length) room = this.candidates(u.id, app).filter(x => !together.has(x.id));
       if (!room.length) throw new Error("nobody else in the room");
       const convo = this.convo(u), kept = this.profiles.get(u.id), heard = M.hash(JSON.stringify(u.transcript || []));
       if (u.profile && u.from === heard) { me = { ...u.profile }; from = heard; }   // nothing new said since their card was written: the card as it is now (with what they changed by hand)
