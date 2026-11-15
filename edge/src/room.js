@@ -273,7 +273,7 @@ export class PairShake extends DurableObject {
     if (joined) this.eventSeen.set(u.id, now());
     const all = this.inEvent(eid), on = x => now() - (this.eventSeen.get(x.id) || 0) < 30;
     const people = all.filter(x => x.id !== u.id).sort((a, b) => on(b) - on(a)).slice(0, 100).map(x => ({ ...(x.profile ? this.person(x.id)
-      : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" }), online: on(x), ready: !!x.profile }));
+      : { id: x.id, name: x.name || "Someone", role: "", color: x.color, photo: x.photo || "" }), online: on(x), ready: !!x.profile && !x.paused }));   // (ready: someone Find can introduce)
     return { event: joined ? u.event : null, joined, people, count: all.length, online: people.filter(p => p.online).length };
   }
 
@@ -491,7 +491,7 @@ export class PairShake extends DurableObject {
     const people = n.members.filter(id => id !== u.id && this.users[id]).map(id => {
       const p = this.person(id) || {};
       return { id, name: p.name, color: p.color, photo: p.photo || "", role: p.role || "", live: this.users[id].live?.network === n.id,
-               ready: !!this.users[id].profile };
+               ready: !!this.users[id].profile && !this.users[id].paused && !this.users[id].test };
     }).sort((a, b) => b.live - a.live);
     return { network: this.networkCard(n, u.id), people, ready: !!u.profile };
   }
@@ -1193,7 +1193,7 @@ export class PairShake extends DurableObject {
     server.send(JSON.stringify(this.snapshot(mid, role)));
     const o = other(role);
     if (m.ni?.[o]) server.send(JSON.stringify({ t: "ni", token: m.ni[o] }));   // the other phone's token, if sent before
-    if (R.gps[o]) server.send(JSON.stringify(R.gps[o]));                       // the other person's last known location
+    if (R.gps[o] && m.outcome === true) server.send(JSON.stringify(R.gps[o]));  // the other person's last known location (only once both said yes)
     this.broadcast(mid, { t: "presence", online: true }, role);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -1218,6 +1218,7 @@ export class PairShake extends DurableObject {
       this.save();
       this.broadcast(mid, { t: "ni", token }, role);
     } else if (d.t === "gps") {        // web finding: share each person's filtered location with the other
+      if (m.outcome !== true) return;  // only once both said yes: a location sent into any other introduction goes nowhere
       const lat = parseFloat(d.lat), lon = parseFloat(d.lon), acc = d.acc == null ? 30 : parseFloat(d.acc);
       if (![lat, lon, acc].every(Number.isFinite)) return;
       R.gps[role] = { t: "gps", lat, lon, acc };
