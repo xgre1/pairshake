@@ -169,9 +169,10 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:#000}
 /* live (looking in a network): Emma's hands thinking, one line on what your agent is doing, and X. Nothing else. */
 #live{color:var(--fg);background:var(--bg)}
 body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)}
-#live .lv-bg,#live .lv-state,#live .lv-name,#live .lv-radar,#live #lvLeave{display:none!important}
-#live .lv-foot{padding:0 0 calc(16px + var(--safeB))} #live .lv-row{margin:0}
-#live .lv-foot #lvShare{background:var(--glass);color:var(--fg);box-shadow:var(--glass-rim),var(--glass-drop)}   /* only Invite people, under the line */
+#live .lv-bg,#live .lv-state,#live .lv-name,#live .lv-radar{display:none!important}
+#live .lv-foot{padding:0 0 calc(10px + var(--safeB))} #live .lv-row{margin:0;flex-direction:column;align-items:center;gap:4px}   /* Invite people (its maker only), then Leave */
+#live #lvLeave{color:var(--sec);padding:12px 24px}
+#live .lv-foot #lvShare{background:var(--glass);color:var(--fg);box-shadow:var(--glass-rim),var(--glass-drop)}
 #lvHands{margin-top:-16vh}   /* (her hands sit low in their frame: lifted, so the two of them and the line are in the middle) */
 #live .lv-sub{font-size:19px;line-height:1.4;opacity:.8;text-wrap:balance;padding:0 12px;margin-top:4px;min-height:54px}
 .netlive.off .nl-radar span{animation:none} .netlive.off .nl-radar i{background:currentColor;opacity:.5;box-shadow:none}
@@ -725,6 +726,7 @@ body:not(.in-app) .app-only{display:none!important}
 #acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
 .acct-err{color:#FF3B30;min-height:18px}
 .sheet h3{text-wrap:balance}
+#netScrim .sheet:has(#netChoose:not([hidden])){height:auto}   /* Join: just its two choices, no empty space under them */
 #gptScrim .sheet{height:auto;max-height:calc(100dvh - var(--safeT) - 16px);overflow-y:auto;gap:14px}
 #gptScrim .acct-err{min-height:0;margin:-6px 0}
 .gpt-open{background:var(--fill2);color:var(--fg);text-decoration:none}
@@ -2897,6 +2899,7 @@ const Nets = {
     $("#live").classList.toggle("off", !on);
     $("#lvState").lastChild.textContent = "You're live";
     $("#lvSub").textContent = "Your agent is looking around\u2026";
+    $("#lvShare").style.display = n.mine && !n.luma ? "" : "none";    // the invite is its maker's (a Luma event has none)
   },
   async refresh() {
     if (document.body.dataset.screen !== "live" || !this.cur) { clearInterval(this.poll); return; }
