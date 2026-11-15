@@ -195,7 +195,7 @@ export class PairShake extends DurableObject {
   candidates(exclude, app = false, seeds = true) {
     const out = seeds ? SEED.map(s => this.person(s.id)) : [];
     for (const [uid, u] of Object.entries(this.users)) {
-      if (uid !== exclude && u.profile && !!u.app === app && !u.test) out.push(this.person(uid));
+      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
     }
     return out;
   }
@@ -560,7 +560,7 @@ export class PairShake extends DurableObject {
     return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
              photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
              via: u.linkedin ? "LinkedIn" : u.google ? "Google" : "", login: u.linkedin?.email || u.google?.email || u.email || "",
-             persona: u.persona || null };
+             persona: u.persona || null, paused: !!u.paused };
   }
 
   missionFor(mid, viewer) {
@@ -739,6 +739,7 @@ export class PairShake extends DurableObject {
   /** Settings: your name and where people can follow you; and what Emma remembers, edited by hand. */
   profile(d) {
     const u = this.user(d.id) || notFound();
+    if (typeof d.paused === "boolean") { if (d.paused) u.paused = true; else delete u.paused; }   // Settings > Pause introductions
     if (isObj(d.socials)) {
       u.socials = {};
       for (const [k, v] of Object.entries(d.socials)) if (["x", "instagram", "linkedin", "github"].includes(k) && str(v)) u.socials[k] = str(v).replace(/^@+/, "").slice(0, 100);
@@ -758,7 +759,18 @@ export class PairShake extends DurableObject {
     if (name) { u.name = name; if (u.profile) u.profile.name = name; }
     if (isObj(d.about) && u.profile) u.memory = { ...u.profile };    // the next match starts from what's written here
     this.save();
-    return { me: u.profile ? this.person(u.id) : null, socials: u.socials, name: u.name, email: u.email || null };
+    return { me: u.profile ? this.person(u.id) : null, socials: u.socials, name: u.name, email: u.email || null, paused: !!u.paused };
+  }
+
+  /** Settings > Send feedback: kept on the person (it travels with the export) and printed to the logs. */
+  feedback(d) {
+    const u = this.user(d.id) || notFound();
+    const text = str(d.text).slice(0, 2000);
+    if (!text) throw new HttpError(400, "Write something first.");
+    u.feedback = [...(u.feedback || []).slice(-49), { at: now(), text, version: str(d.version).slice(0, 40) }];
+    console.log(`feedback from ${u.id} (${u.name || "?"}): ${text}`);
+    this.save();
+    return { ok: true };
   }
 
   // ---- the room: see what you share, chat, then each decides whether to meet ----------------------------------
@@ -1026,6 +1038,7 @@ export class PairShake extends DurableObject {
           case "/account": return await this.account(d, app);
           case "/internal/login": return json(this.login(d, app));          // only from auth.js: index.js never forwards /internal
           case "/profile": return json(this.profile(d));
+          case "/feedback": return json(this.feedback(d));
           case "/suggest": return json(await this.suggest(d));
           case "/speak": return await this.speakLine(d, req.headers.get("cf-connecting-ip") || "?");
           case "/admin/import": return json(this.importAll(d));
