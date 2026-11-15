@@ -966,6 +966,7 @@ export class PairShake extends DurableObject {
     return {
       id: mid, intro: mine ? m.intro_a : m.intro_b, overlap: overlapFor(m.overlap || cleanOverlap({}), mine),
       person: this.person(mine ? m.b : m.a), outcome: m.outcome ?? null,
+      age: Math.max(0, now() - (m.created || now())),     // seconds since it was made (the card gives ten to say yes)
     };
   }
 

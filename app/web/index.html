@@ -118,38 +118,20 @@ body.known #wSub{display:none}
 @keyframes blink{50%{opacity:.25}}
 .net-q{font-weight:600;margin:14px 0 8px} .net-hours{display:flex;width:100%} .net-hours button{flex:1}
 .net-photo{display:grid;place-items:center;height:96px;border-radius:18px;background:var(--fill2) center/cover;color:var(--sec);margin-bottom:16px;cursor:pointer}
-/* hunt: someone for you, in three steps */
-#hunt{--pc:#7B61FF;color:#fff;background:#0b0b10;height:100dvh;overflow:hidden;text-align:center;padding:0 var(--gut);transition:background .8s}
-#hunt>*{position:relative;z-index:1}
-body[data-screen="hunt"],html:has(body[data-screen="hunt"]){background:#0b0b10}
-.hu-orb{width:150px;height:150px;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--pc) 70%,#fff),var(--pc));
-  box-shadow:0 0 60px color-mix(in srgb,var(--pc) 70%,transparent);animation:huBreathe 2.2s ease-in-out infinite;filter:blur(.3px)}
-.hu-orb span{font:700 72px/1 var(--serif, Georgia);color:rgba(255,255,255,.9)}
-.hu-orb .av{border:4px solid #fff}
-@keyframes huBreathe{50%{transform:scale(1.07);box-shadow:0 0 90px color-mix(in srgb,var(--pc) 85%,transparent)}}
-.hu-title{font-size:34px;line-height:1.1;margin-top:26px}
-.hu-sub{opacity:.75;margin-top:8px;font-size:17px;text-wrap:balance}
-.hu-dist{font:700 44px/1 var(--sans);margin-top:18px;font-variant-numeric:tabular-nums;display:none}
-.hu-hints{display:flex;flex-direction:column;gap:8px;margin-top:22px}
-.hu-hint{background:rgba(255,255,255,.1);border-radius:16px;padding:12px 14px;font-size:16px;text-align:left;animation:rise .5s var(--smooth)}
-.hu-hint.locked{color:transparent;text-shadow:0 0 9px rgba(255,255,255,.7);user-select:none}
-.hu-foot{padding-bottom:calc(20px + var(--safeB));display:flex;flex-direction:column;align-items:center;gap:12px}
-.hu-state{min-height:22px;font-weight:600;opacity:.85}
-.hu-hold,#huFound,#huDone{display:none}
-#hunt.s2 .hu-hold{display:grid}
-#hunt.s3 #huFound,#hunt.s4 #huDone{display:flex}
-#hunt .primary{background:#fff;color:#000;box-shadow:none}
-.hu-hold{position:relative;width:132px;height:132px;border-radius:50%;place-items:center;background:rgba(255,255,255,.08);color:#fff;font:700 20px/1 var(--sans);
-  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;transition:transform .15s}
-.hu-hold.down{transform:scale(.93);background:color-mix(in srgb,var(--pc) 45%,transparent)}
-.hu-hold svg{position:absolute;inset:0;transform:rotate(-90deg)}
-.hu-hold circle{fill:none;stroke-width:8} .hu-hold .tr{stroke:rgba(255,255,255,.15)}
-.hu-hold .pr{stroke:var(--pc);stroke-linecap:round;stroke-dasharray:339.3;stroke-dashoffset:339.3;filter:drop-shadow(0 0 8px var(--pc))}
-#hunt.s3{background:var(--pc);animation:huFlash 1.4s ease-in-out infinite}
-#hunt.s3 .hu-orb{display:none} #hunt.s3 .hu-dist{display:block}
-#hunt.s3 .hu-hint{background:rgba(0,0,0,.18)}
-@keyframes huFlash{50%{filter:brightness(1.35)}}
-#hunt.s4{background:color-mix(in srgb,var(--pc) 55%,#000)} #hunt.s4 .hu-orb{animation:none;background:none;box-shadow:none}
+/* someone for you: one card, no name, ten seconds to say Let's go */
+#meet{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:0 var(--gut);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+#meet.on{display:grid;animation:fade .3s}
+.mt-card{width:100%;max-width:360px;background:#111114;color:#fff;border-radius:28px;padding:34px 24px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:rise .45s var(--smooth)}
+.mt-title{font-size:30px;line-height:1.15;text-wrap:balance}
+.mt-sub{opacity:.7;margin-top:10px;font-size:16px;text-wrap:balance}
+.mt-go{position:relative;width:150px;height:150px;margin:34px auto 0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#000;font:700 20px/1 var(--sans);transition:transform .15s,background .3s,color .3s}
+.mt-go:active{transform:scale(.95)}
+.mt-go:disabled{background:rgba(255,255,255,.12);color:#fff}
+.mt-go svg{position:absolute;left:-22px;top:-22px;width:194px;height:194px;transform:rotate(-90deg);pointer-events:none}
+.mt-go circle{fill:none;stroke-width:4} .mt-go .tr{stroke:rgba(255,255,255,.12)} .mt-go .pr{stroke:#fff;stroke-linecap:round;stroke-dasharray:339.3}
+.mt-state{min-height:22px;margin-top:22px;font-weight:600;opacity:.8}
+#findFound{display:none;margin-top:14px;background:rgba(255,255,255,.18);color:inherit;box-shadow:none} #find.secret #findFound{display:flex}
+.mt-q{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--c);color:#fff;font:700 20px/1 var(--sans)}
 /* live: discoverable in a network */
 #live{color:#fff;background:#000;height:100dvh;overflow:hidden;text-align:center;padding:0 var(--gut)}
 .lv-bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.5);transform:scale(1.1)}
@@ -1074,23 +1056,15 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 </div>
 
 <!-- No talking: ChatGPT answers Emma's questions for you -->
-<!-- Someone for you, in three steps: a mystery with a clue, two keys held together, then a hunt in the room -->
-<section class="screen" id="hunt">
-  <button class="xbtn lv-x" id="huClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-  <div class="spacer"></div>
-  <div class="hu-orb" id="huOrb"><span>?</span></div>
-  <h2 class="serif hu-title" id="huTitle"></h2>
-  <p class="hu-sub" id="huSub"></p>
-  <p class="hu-dist" id="huDist"></p>
-  <div class="hu-hints" id="huHints"></div>
-  <div class="spacer"></div>
-  <div class="hu-foot">
-    <p class="hu-state" id="huState"></p>
-    <button class="hu-hold" id="huHold" aria-label="Hold"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="tr"/><circle cx="60" cy="60" r="54" class="pr" id="huRing"/></svg><span>Hold</span></button>
-    <button class="primary" id="huFound">I found them</button>
-    <button class="primary" id="huDone">Done</button>
+<!-- Someone for you: one card, no name and no face, ten seconds to say Let's go -->
+<div id="meet" role="dialog" aria-label="Someone for you">
+  <div class="mt-card">
+    <h2 class="serif mt-title">We found someone you should meet</h2>
+    <p class="mt-sub">They're here right now. Say yes together and go find each other.</p>
+    <button class="mt-go" id="meetGo"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="tr"/><circle cx="60" cy="60" r="54" class="pr" id="meetRing"/></svg><span>Let's go</span></button>
+    <p class="mt-state" id="meetState"></p>
   </div>
-</section>
+</div>
 
 <!-- Live in a network: discoverable, the people here, how long it lasts -->
 <section class="screen" id="live">
@@ -1191,6 +1165,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
       <div style="font-size:22px;font-weight:500;opacity:.75" id="findDir">Finding direction…</div>
       <div class="sub" style="opacity:.5;margin-top:10px" id="findSpot"></div>
       <div class="cap" style="opacity:.4" id="findNote"></div>
+      <button class="primary" id="findFound">I found them</button>
     </div>
   </div>
 </div>
@@ -2141,6 +2116,7 @@ const Net = {
 };
 
 /* ---------------------------------------------------------------- 4. introduction */
+<<<<<<< Updated upstream
 function revealMatch() {
   const r = S.result, p = r.mission.person, me = r.me;
   $("#introPair").style.cssText = `--a:${esc(me.color)};--b:${esc(p.color)}`;
@@ -2158,6 +2134,10 @@ function revealMatch() {
   if (r.say) Muse.finish().then(() => { if (S.result === r) Voice.say(r.say); });     // after the line she's on
 }
 /* An introduction found in a network or sent to you: straight to the two faces coming together, then Talk. */
+=======
+/* Whoever was searching gets the card (no name, no face; see Meet), not the two faces coming together. */
+function revealMatch() { Voice.stopSpeaking(); startInbox(); Meet.open(S.result.mission, true); }
+>>>>>>> Stashed changes
 function introduce(mission, me = S.me) { S.result = {mission, me: me || S.me, say: ""}; revealMatch(); }
 function socialRows(p, sel) {
   const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
@@ -3593,6 +3573,7 @@ function draw() {
     if (!Find.open) return;
     $("#find").classList.add("live"); findCam(!!h.cam);
     findDist(h.d);
+    if (Find.secret && h.d < 2) Meet.reveal();                    // within 2 m by radio: who it is
     const how = h.mode === "uwb" ? "Ultra Wideband, phone to phone" : "Bluetooth, rough distance";
     if (h.a != null) { $("#findNote").textContent = how; return pointAt(h.a * 180 / Math.PI); }
     // No radio direction yet (the camera is still working it out, or they're out of range): say what helps,
@@ -3604,13 +3585,13 @@ function draw() {
   }
   $("#find").classList.remove("live"); if (Find.open) findCam(!!(Find.hw?.cam && Date.now() - Find.hw.t < 3000));
   const m = Find.me, t = target(), card = $("#findCardDist");
-  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { if (Find.distAim == null) $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; noDir("Finding direction…"); } return; }
+  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { if (Find.distAim == null) $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${Find.secret ? "their" : first(Find.person) + "'s"} location…`; noDir("Finding direction…"); } return; }
   const p = enu(m, t.lat, t.lon), dist = Math.hypot(p.x, p.y), bearing = (Math.atan2(p.x, p.y) / RAD + 360) % 360;
   const err = Math.sqrt(m.v + t.acc * t.acc);
   if (card) card.textContent = fmtDist(dist);
   if (!Find.open) return;
   findDist(dist);
-  $("#findNote").textContent = `Location accurate to about ${Math.round(err)} m${Find.person?.seed ? ` · ${first(Find.person)} is a demo attendee` : ""}`;
+  $("#findNote").textContent = `Location accurate to about ${Math.round(err)} m${Find.person?.seed && !Find.secret ? ` · ${first(Find.person)} is a demo attendee` : ""}`;
   if (Find.yaw == null || Find.offset == null) return noDir("Finding direction…");
   pointAt(wrap180(bearing - (Find.yaw + Find.offset)));
 }
@@ -3618,10 +3599,12 @@ function draw() {
 addEventListener("deviceorientation", e => orient(e, false));
 addEventListener("deviceorientationabsolute", e => orient(e, true));
 
-async function findOpen(p) {
+async function findOpen(p, secret = false) {
   startFind(p);
   $("#find").style.setProperty("--c", p.color);
-  $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = first(p); $("#findSpot").textContent = p.spot;
+  Find.secret = secret; $("#find").classList.toggle("secret", secret);      // secret: no name or face until you're close
+  $("#findAv").innerHTML = secret ? `<span class="mt-q">?</span>` : av(p, 40);
+  $("#findName").textContent = secret ? "Someone for you" : first(p); $("#findSpot").textContent = p.spot || "";
   Find.open = true; $("#find").classList.add("on");
   Find.aim = Find.shown = Find.distAim = Find.distShown = Find.distText = Find.dirText = null; Find.was = false;
   $("#find").classList.remove("dir", "aligned"); $("#findDist").textContent = "–";
@@ -3634,159 +3617,89 @@ async function findOpen(p) {
 }
 $("#findClose").onclick = () => {
   Find.open = false; $("#find").classList.remove("on"); findCam(false); APP?.post({t: "findView", on: false});
+  if (Meet.found) { Meet.close(); if (document.body.dataset.screen === "live" && Nets.cur) Nets.live(Nets.cur); }   // back in the network: it looks again
 };
 
-/* ---------------------------------------------------------------- someone for you, in three steps
-   1. a mystery: "I found something for you", one clue, and they're here in the room; no name, no face
-   2. two keys: both hold their button; the bar fills (and clues unlock) only while both hold; full, it locks
-   3. the hunt: both screens flash the pair's colour, warmer or colder by the phones' distance (Jtobin's
-      finding: Ultra Wideband, Bluetooth, GPS); within 2 m, or "I found them", the name and face appear */
-const PAIR_COLORS = ["#7B61FF", "#FF2D92", "#00C7BE", "#FF9F0A", "#30D158", "#0A84FF", "#FF453A", "#BF5AF2"];
-function huntDist() {
-  const h = radio(); if (h) return h.d;
-  const m = Find.me, t = target(); if (!m || !t) return null;
-  const p = enu(m, t.lat, t.lon); return Math.hypot(p.x, p.y);
-}
-const Hunt = {
-  m: null, ws: null, stage: 0, mine: false, theirs: false, prog: 0, raf: 0, timer: 0, hints: [], shown: 0, ref: null, trend: "",
-  color(id) { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return PAIR_COLORS[h % PAIR_COLORS.length]; },
-  hintsFor(m) {
-    const p = m.person || {}, o = m.overlap || {}, f = first(p), out = [];
-    const hide = t => f ? String(t).replace(new RegExp(`\\b${f.replace(/[^\p{L}\p{N}]/gu, "")}\\b`, "giu"), "they") : String(t);
-    const rare = (o.rare || []).find(r => r.text && !/you two share/i.test(r.text));     // (not the stand-in for when the AI didn't answer)
-    if (p.building) out.push(`They're building ${p.building}`); else if (p.role) out.push(`What they do: ${p.role}`);
-    if (o.get) out.push(`They could give you: ${o.get}`);
-    if (rare) out.push(`Something rare you share: ${rare.text}`);
-    if (o.give) out.push(`You could give them: ${o.give}`);
-    if (out.length < 4 && p.role && p.building) out.push(`What they do: ${p.role}`);
-    return out.slice(0, 4).map(hide);
-  },
-  paintHints() {
-    $("#huHints").innerHTML = this.hints.map((t, i) => `<div class="hu-hint${i < this.shown ? "" : " locked"}">${esc(i < this.shown ? t : "A clue unlocks while you both hold")}</div>`).join("");
-  },
-  set(stage) { this.stage = stage; $("#hunt").className = "screen on s" + stage; },
-  open(m) {
-    if (this.m?.id === m.id && document.body.dataset.screen === "hunt") return;
+/* ---------------------------------------------------------------- someone for you
+   One card, no name and no face: "We found someone you should meet". Ten seconds to tap Let's go; once you
+   both have, the finding arrow opens straight away (their name and face appear within 2 m by radio, or with
+   I found them). If the time runs out first, the card goes, and whoever was searching gets the next person. */
+const MEET_S = 10, MEET_GRACE = 6;      // (their card can come a few seconds after yours: a yes waits a little longer)
+const Meet = {
+  m: null, ws: null, searched: false, mine: false, found: false, timer: 0,
+  open(m, searched = false) {
+    if (this.m?.id === m.id) return;
     this.close();
-    this.m = m; Room.mission = m; Room.chat = [];
-    this.mine = this.theirs = false; this.prog = 0; this.shown = 1; this.ref = null; this.trend = ""; this.decided = false;
-    this.hints = this.hintsFor(m);
-    $("#hunt").style.setProperty("--pc", this.color(m.id));
-    $("#huOrb").innerHTML = "<span>?</span>"; $("#huRing").style.strokeDashoffset = 339.3; $("#huHold").classList.remove("down");
-    $("#huTitle").textContent = "I found something for you";
-    $("#huSub").textContent = "They're here, in this room, right now";
-    $("#huState").textContent = ""; $("#huDist").textContent = "";
-    this.paintHints(); show("hunt"); this.set(1); Tabs.sync();
-    buzz([40, 30, 40, 30, 90], "success");
+    this.m = m; this.searched = searched; this.mine = this.found = false;
+    Room.mission = m; Room.chat = []; Room.meet = null;
+    const s = Math.max(5, MEET_S - (m.age || 0)), ring = $("#meetRing");
+    $("#meetGo").disabled = false; $("#meetState").textContent = "";
+    ring.style.transition = "none"; ring.style.strokeDashoffset = 0;
+    $("#meet").classList.add("on"); ring.getBoundingClientRect();
+    ring.style.transition = `stroke-dashoffset ${s}s linear`; ring.style.strokeDashoffset = 339.3;
+    buzz([40, 30, 90], "success");
     this.connect();
-    setTimeout(() => { if (this.m === m && this.stage === 1) { this.set(2); $("#huSub").textContent = "Hold with them to unlock who it is"; this.status(); } }, 2600);
-    this.timer = setTimeout(() => this.giveUp(), 90000);                // nobody came: quietly the next one
-    let last = performance.now();                                       // real time, so a throttled frame rate doesn't slow the bar
-    this.raf = setInterval(() => { const t = performance.now(); this.frame(t - last); last = t; }, 50);
+    this.timer = setTimeout(() => {
+      if (!this.mine) return this.miss();
+      this.timer = setTimeout(() => this.miss(), MEET_GRACE * 1000);
+    }, s * 1000);
   },
   connect() {
     const m = this.m, ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?mission=${m.id}&id=${S.id || kept(ID_KEY)}`);
-    this.ws = Room.ws = ws;                                               // (the finding sends its GPS and radio token here)
+    this.ws = Room.ws = ws;                                     // (the finding sends its GPS and radio token here)
+    ws.onopen = () => { if (this.mine && !this.found) this.send({t: "decide", yes: true}); };   // tapped before it was open
     ws.onmessage = e => {
       const d = JSON.parse(e.data);
-      if (d.t === "state") { Room.you = d.you; this.theirs = !!d.hold; if (d.meet != null) this.meet(d.meet); this.status(); }
-      else if (d.t === "hold") { if (d.on && !this.theirs) buzz(15, "light"); this.theirs = !!d.on; this.status(); }
-      else if (d.t === "meet") this.meet(d.yes);
+      if (d.t === "state") { Room.you = d.you; if (d.meet != null) this.result(d.meet); }
+      else if (d.t === "meet") this.result(d.yes);
       else if (d.t === "gps") peerFix(d);
       else if (d.t === "ni") APP?.post({t: "ni", token: d.token});
     };
-    ws.onclose = () => { if (this.ws === ws && this.m === m && this.stage < 4) setTimeout(() => { if (this.ws === ws && this.m === m) this.connect(); }, 1000); };
+    ws.onclose = () => { if (this.ws === ws && this.m === m) setTimeout(() => { if (this.ws === ws && this.m === m) this.connect(); }, 1000); };
   },
   send(o) { if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(o)); },
-  hold(on) {
-    if (this.stage !== 2 || this.mine === on) return;
-    this.mine = on; $("#huHold").classList.toggle("down", on); this.send({t: "hold", on});
-    if (on) buzz(12, "light");
-    this.status();
+  go() {
+    if (!this.m || this.mine) return;
+    this.mine = true; $("#meetGo").disabled = true; $("#meetState").textContent = "Waiting for them…";
+    buzz(20, "light"); this.send({t: "decide", yes: true});
   },
-  status() {
-    if (this.stage !== 2) return;
-    $("#huState").textContent = this.mine && this.theirs ? "Both holding. Keep going…" : this.mine ? "Waiting for them to hold…"
-      : this.theirs ? "They're holding. Hold with them" : this.prog > 0 ? "Someone let go…" : "";
-  },
-  frame(dt) {
-    if (this.stage === 2 && this.mine && this.theirs && this.prog < 1) {
-      this.prog = Math.min(1, this.prog + dt / 6000);
-      $("#huRing").style.strokeDashoffset = 339.3 * (1 - this.prog);
-      const n = Math.min(this.hints.length, 1 + Math.floor(this.prog * this.hints.length));
-      if (n > this.shown) { this.shown = n; this.paintHints(); buzz(25, "light"); }
-      if (this.prog >= 1) this.lock();
-    }
-    if (this.stage === 3) this.near();
-  },
-  lock() {
-    this.set(2); $("#huHold").classList.remove("down"); this.mine = false; this.stage = 2.5;
-    $("#hunt").classList.add("s2"); $("#huState").textContent = "Locked. Waiting for them…";
-    buzz([90, 40, 90], "success");
-    if (!this.decided) { this.decided = true; this.send({t: "decide", yes: true}); }
-  },
-  meet(yes) {
-    if (this.stage >= 3 || !this.m) return;
-    if (!yes) return this.end("Not this time. Looking for the next one…");
-    clearTimeout(this.timer);
-    this.shown = this.hints.length; this.paintHints();
-    this.set(3);
-    $("#huTitle").textContent = "Find the screen glowing like yours";
-    $("#huSub").textContent = "Hold your phone up. They're looking for you too";
-    $("#huState").textContent = "";
+  result(yes) {
+    if (!this.m || this.found) return;
+    if (!yes) return this.miss();
+    this.found = true; clearTimeout(this.timer); Room.meet = true;
+    $("#meet").classList.remove("on");
     outcomesSeen.add(this.m.id); keep("pairshake.outcomes", [...outcomesSeen].join(","));
     buzz([120, 60, 120], "success");
-    startFind(this.m.person);
+    if (document.body.dataset.screen === "matching") matchBack(S.mfrom);      // (what's under the finding)
+    findOpen(this.m.person, true);
   },
-  near() {
-    const d = huntDist();
-    if (d == null) { $("#huDist").textContent = "…"; return; }
-    const now = Date.now();
-    if (!this.ref || now - this.ref.t > 2500) {
-      if (this.ref) this.trend = d < this.ref.d - .7 ? "Warmer" : d > this.ref.d + .7 ? "Colder" : this.trend;
-      this.ref = {d, t: now};
-    }
-    $("#huDist").textContent = fmtDist(d) + (this.trend ? ` · ${this.trend}` : "");
-    if (d < 2 && radio()) this.reveal();                                 // (GPS is metres off: only the radios reveal)
+  miss() {                       // time's up, or they didn't: the card goes
+    if (!this.m || this.found) return;
+    if (!this.mine) this.send({t: "decide", yes: false});
+    const again = this.searched;
+    this.close(); $("#meet").classList.remove("on");
+    if (!again) return;
+    const s = document.body.dataset.screen;
+    if (s === "live" && Nets.cur) Nets.match();
+    else if (s === "matching") api("/again", {id: S.id}).then(() => findMatch(S.socials || {}), () => matchBack(S.mfrom));
   },
-  reveal() {
-    if (this.stage !== 3) return;
-    const p = this.m.person, o = this.m.overlap || {};
-    this.set(4);
-    $("#huOrb").innerHTML = av(p, 140);
-    $("#huTitle").textContent = `It's ${p.name || "them"}`;
-    const q = o.ladder?.[0] || o.rare?.[0]?.opener || "";
-    $("#huSub").textContent = q ? `Start with: “${q}”` : "Say hi";
-    $("#huDist").textContent = ""; $("#huHints").innerHTML = "";
+  reveal() {                     // close enough (or I found them): who it is, and how to start
+    if (!Find.secret || !Find.person) return;
+    const p = Find.person, o = this.m?.overlap || {}, q = o.ladder?.[0] || o.rare?.[0]?.opener || "";
+    Find.secret = false; $("#find").classList.remove("secret");
+    $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = p.name || first(p);
+    $("#findSpot").textContent = q ? `Start with: “${q}”` : "Say hi";
     buzz([200, 80, 200], "success");
   },
-  giveUp() {
-    if (!this.m || this.stage >= 3) return;
-    if (!this.decided) { this.decided = true; this.send({t: "decide", yes: false}); }
-    this.end("They didn't make it this time. Looking for the next one…");
-  },
-  end(msg) {
-    this.stage = 5; $("#huState").textContent = msg; $("#huHold").classList.remove("down");
-    setTimeout(() => this.back(), 2400);
-  },
   close() {
-    clearInterval(this.raf); clearTimeout(this.timer);
-    if (this.ws) { this.ws.onclose = null; this.ws.onmessage = null; try { this.ws.close(); } catch {} if (Room.ws === this.ws) Room.ws = null; this.ws = null; }
-    if (Find.watch != null) { navigator.geolocation.clearWatch(Find.watch); Find.watch = null; }
-    Find.person = null; Find.peer = null;
-    this.m = null; this.stage = 0;
+    clearTimeout(this.timer);
+    if (this.ws) { this.ws.onopen = this.ws.onclose = this.ws.onmessage = null; try { this.ws.close(); } catch {} if (Room.ws === this.ws) Room.ws = null; this.ws = null; }
+    if (this.found) { if (Find.watch != null) { navigator.geolocation.clearWatch(Find.watch); Find.watch = null; } Find.person = Find.peer = null; Find.secret = false; }
+    this.m = null; this.mine = this.found = false;
   },
-  back() { this.close(); Nets.cur ? Nets.live(Nets.cur) : (show("welcome"), Tabs.sync()); },
 };
-{
-  const b = $("#huHold");
-  b.addEventListener("pointerdown", e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch {} Hunt.hold(true); });
-  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => Hunt.hold(false));
-  b.addEventListener("contextmenu", e => e.preventDefault());
-}
-$("#huFound").onclick = () => Hunt.reveal();
-$("#huDone").onclick = () => Hunt.back();
-$("#huClose").onclick = () => Hunt.stage < 3 ? Hunt.giveUp() : Hunt.back();
+$("#meetGo").onclick = () => Meet.go();
+$("#findFound").onclick = () => Meet.reveal();
 
 /* ---------------------------------------------------------------- someone matched with you */
 let inboxOn = false;
@@ -3796,16 +3709,17 @@ function startInbox() {
     try {
       const r = await api("/inbox?id=" + S.id);
       for (const m of r.missions) if (!S.seen.has(m.id)) {
+        if (m.outcome == null && Meet.m) continue;                     // busy with someone: this one waits (or goes stale)
         S.seen.add(m.id);
-        if (!Prefs.get("alerts", true)) continue;                       // Settings > Alerts off: it just shows up in People
-        $("#banner").innerHTML = `${av(m.person, 40)}<div style="flex:1;min-width:0"><div class="sub semi">Emma introduced you to ${esc(first(m.person))}</div><div class="foot sec" style="margin-top:1px">Tap to see what you share</div></div>`;
+        if (!Prefs.get("alerts", true) || m.outcome === false) continue;   // Settings > Alerts off: it just shows up in People
+        if (m.outcome == null) { if ((m.age ?? 0) < MEET_S) Meet.open(m); continue; }   // the card, wherever you are (too late: gone)
+        $("#banner").innerHTML = `${av(m.person, 40)}<div style="flex:1;min-width:0"><div class="sub semi">You and ${esc(first(m.person))} met</div><div class="foot sec" style="margin-top:1px">Tap to see what you share</div></div>`;
         $("#banner").classList.add("on");
         buzz(80, "warning");
-        $("#banner").onclick = () => { $("#banner").classList.remove("on"); m.outcome == null ? introduce(m) : openRoom(m); };
-        if (document.body.dataset.screen === "live" && m.outcome == null) { $("#banner").classList.remove("on"); clearInterval(Nets.poll); introduce(m); }   // looking in a network: straight to them
+        $("#banner").onclick = () => { $("#banner").classList.remove("on"); openRoom(m); };
       }
     } catch {}
-    await sleep(4000);
+    await sleep(2500);
   } })();
 }
 
