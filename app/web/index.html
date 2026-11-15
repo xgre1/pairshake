@@ -120,8 +120,9 @@ body.known #wSub{display:none}
 .net-q{font-weight:600;margin:14px 0 8px} .net-hours{display:flex;width:100%} .net-hours button{flex:1}
 .net-photo{display:grid;place-items:center;height:96px;border-radius:18px;background:var(--fill2) center/cover;color:var(--sec);margin-bottom:16px;cursor:pointer}
 /* someone for you: one card, no name, ten seconds to say Let's go */
-#meet{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:0 var(--gut);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
-#meet.on{display:grid;animation:fade .3s}
+#meet,#metDone{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:0 var(--gut);background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+#meet.on,#metDone.on{display:grid;animation:fade .3s}
+#mdAv .av{margin:0 auto 22px;box-shadow:0 0 0 4px #fff}
 .mt-card{width:100%;max-width:360px;background:#111114;color:#fff;border-radius:28px;padding:34px 24px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:rise .45s var(--smooth)}
 .mt-title{font-size:30px;line-height:1.15;text-wrap:balance}
 .mt-sub{opacity:.7;margin-top:10px;font-size:16px;text-wrap:balance}
@@ -1077,6 +1078,15 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <p class="mt-sub">They're here right now. Say yes together and go find each other.</p>
     <button class="mt-go" id="meetGo"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" class="tr"/><circle cx="60" cy="60" r="54" class="pr" id="meetRing"/></svg><span>Let's go</span></button>
     <p class="mt-state" id="meetState"></p>
+  </div>
+</div>
+<!-- You found each other: the finding stops, who it is, and how to start -->
+<div id="metDone" role="dialog" aria-label="You found each other">
+  <div class="mt-card">
+    <div id="mdAv"></div>
+    <h2 class="serif mt-title" id="mdTitle"></h2>
+    <p class="mt-sub" id="mdSub"></p>
+    <button class="primary" id="mdDone" style="margin-top:30px;background:#fff;color:#000;box-shadow:none">Done</button>
   </div>
 </div>
 
@@ -3683,8 +3693,9 @@ const Meet = {
     ws.onopen = () => { if (this.mine && !this.found) this.send({t: "decide", yes: true}); };   // tapped before it was open
     ws.onmessage = e => {
       const d = JSON.parse(e.data);
-      if (d.t === "state") { Room.you = d.you; if (d.meet != null) this.result(d.meet); }
+      if (d.t === "state") { Room.you = d.you; if (d.meet != null) this.result(d.meet); if (d.found) this.done(); }
       else if (d.t === "meet") this.result(d.yes);
+      else if (d.t === "found") this.done();
       else if (d.t === "gps") peerFix(d);
       else if (d.t === "ni") APP?.post({t: "ni", token: d.token});
     };
@@ -3716,23 +3727,33 @@ const Meet = {
     if (s === "live" && Nets.cur) Nets.tried = Date.now();          // the network looks again by itself in a few seconds
     else if (s === "matching") api("/again", {id: S.id}).then(() => findMatch(S.socials || {}), () => matchBack(S.mfrom));
   },
-  reveal() {                     // close enough (or I found them): who it is, and how to start
-    if (!Find.secret || !Find.person) return;
-    const p = Find.person, o = this.m?.overlap || {}, q = o.ladder?.[0] || o.rare?.[0]?.opener || "";
-    Find.secret = false; $("#find").classList.remove("secret");
-    $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = p.name || first(p);
-    $("#findSpot").textContent = q ? `Start with: “${q}”` : "Say hi";
-    buzz([200, 80, 200], "success");
+  reveal() {                     // within 2 m by radio, or I found them: both phones hear it
+    if (!this.found || this.met) return;
+    this.send({t: "found"}); this.done();
+  },
+  done() {                       // you found each other: the finding stops, who it is, and how to start
+    if (!this.m || !this.found || this.met) return;
+    this.met = true;
+    const p = this.m.person, o = this.m.overlap || {}, q = o.ladder?.[0] || o.rare?.[0]?.opener || "";
+    Find.open = false; $("#find").classList.remove("on"); findCam(false); APP?.post({t: "findView", on: false});
+    stopFind(true); Find.secret = false;
+    $("#mdAv").innerHTML = av(p, 120); $("#mdTitle").textContent = `You found ${first(p)}`;
+    $("#mdSub").textContent = q ? `Start with: \u201c${q}\u201d` : "Say hi";
+    $("#metDone").classList.add("on"); buzz([200, 80, 200], "success");
   },
   close() {
     clearTimeout(this.timer);
     if (this.ws) { this.ws.onopen = this.ws.onclose = this.ws.onmessage = null; try { this.ws.close(); } catch {} if (Room.ws === this.ws) Room.ws = null; this.ws = null; }
     if (this.found) { stopFind(true); Find.secret = false; }
-    this.m = null; this.mine = this.found = false;
+    this.m = null; this.mine = this.found = this.met = false;
   },
 };
 $("#meetGo").onclick = () => Meet.go();
 $("#findFound").onclick = () => Meet.reveal();
+$("#mdDone").onclick = () => {                // done: back to the network, which looks for the next person
+  $("#metDone").classList.remove("on"); Meet.close(); loadMe();
+  if (document.body.dataset.screen === "live" && Nets.cur) Nets.live(Nets.cur);
+};
 
 /* ---------------------------------------------------------------- someone matched with you */
 let inboxOn = false;

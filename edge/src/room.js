@@ -724,9 +724,11 @@ export class PairShake extends DurableObject {
     u.name = u.profile.name || u.name;
     if (!u.traits) this.writePersona(u, this.sourceText(u));     // (after a voice chat; the pasted kind started already)
     this.claims = this.claims.filter(c => !(c.a === u.id && c.b === them.id));     // the introduction itself counts from here on
-    // two people who found each other at the same moment (or already have one waiting) share one introduction
-    const open = Object.values(this.missions).find(m => m.outcome == null && !m.test &&
-      ((m.a === u.id && m.b === them.id) || (m.a === them.id && m.b === u.id)));
+    // two people who found each other at the same moment share one introduction. One left unanswered from before
+    // (its card gave ten seconds) is over: closed as a no, and a new one is made, so both phones show its card
+    const pair = m => !m.test && ((m.a === u.id && m.b === them.id) || (m.a === them.id && m.b === u.id));
+    for (const m of Object.values(this.missions)) if (m.outcome == null && pair(m) && now() - (m.created || 0) > 30) { m.outcome = false; this.broadcast(m.id, { t: "meet", yes: false }); }
+    const open = Object.values(this.missions).find(m => m.outcome == null && pair(m));
     const mid = open ? open.id : hexId(8);
     if (!open) {
       this.missions[mid] = {
@@ -1251,7 +1253,7 @@ export class PairShake extends DurableObject {
     const { m, bot } = this.roomFor(mid);
     const { R } = this.roomFor(mid);
     return { t: "state", you: role, chat: m.chat, decided: role in m.decide, meet: m.outcome ?? null, online: this.sockets(mid, other(role)).length > 0 || !!bot,
-             hold: !!R.hold[other(role)] };
+             hold: !!R.hold[other(role)], found: !!m.found };
   }
 
   decide(mid, role, yes) {
@@ -1298,13 +1300,18 @@ export class PairShake extends DurableObject {
       this.save();
       this.broadcast(mid, { t: "chat", from: role, text }, role);
       if (bot) this.botReply(mid);
+    } else if (d.t === "found") {      // they found each other (within 2 m, or I found them): both phones hear it at once
+      if (m.outcome !== true) return;
+      if (!m.found) { m.found = now(); this.save(); }
+      this.broadcast(mid, { t: "found" });
     } else if (d.t === "ni") {         // Nearby Interaction token: relayed so the two iPhones can find each other
+      if (m.found) return;             // (found: no more radio or location for this introduction)
       const token = String(d.token ?? "").slice(0, 4000);
       (m.ni ||= {})[role] = token;
       this.save();
       this.broadcast(mid, { t: "ni", token }, role);
     } else if (d.t === "gps") {        // web finding: share each person's filtered location with the other
-      if (m.outcome !== true) return;  // only once both said yes: a location sent into any other introduction goes nowhere
+      if (m.outcome !== true || m.found) return;  // only once both said yes, and not after they found each other
       const lat = parseFloat(d.lat), lon = parseFloat(d.lon), acc = d.acc == null ? 30 : parseFloat(d.acc);
       if (![lat, lon, acc].every(Number.isFinite)) return;
       R.gps[role] = { t: "gps", lat, lon, acc };
