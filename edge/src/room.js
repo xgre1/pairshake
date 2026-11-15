@@ -1,12 +1,12 @@
 /* The room: one Durable Object that is the whole of Roomie's server. Emma interviews each attendee, finds the
    one person in the room they should meet, and gives both of them an icebreaker mission instead of a DM.
 
-   Everything the Mac's server.py kept in room.json lives in this object's storage, one key per person
-   ("u:<id>") and per introduction ("m:<id>"), so it survives restarts and deploys. What only matters for a few
+   Everyone and every introduction is kept in D1 (the `users` and `missions` tables), loaded when the room
+   starts and written through after each change, so it survives restarts and deploys. What only matters for a few
    seconds (a match being worked out, the agents' talks, who is waiting for a test match) is kept in memory.
    The rooms' WebSockets use hibernation: an open chat costs nothing while nobody types.
 
-   A port of server/server.py; the API is the same (docs/api.md). */
+   A port of the first, Python server; the API is the same (docs/api.md). */
 import { DurableObject } from "cloudflare:workers";
 import * as M from "./matching.js";
 import * as P from "./prompts.js";
@@ -80,7 +80,7 @@ export class Roomie extends DurableObject {
     this.users = {};          // id -> {id, name, transcript[], profile{}, socials{}, code, color, match, inbox[]}
     this.missions = {};       // mission id -> {...}
     this.stats = { spoke: 0, intros: 0, met: 0 };
-    this.written = new Map(); // storage key -> the JSON last written there
+    this.written = new Map(); // "u:<id>", "m:<id>", "meta:stats" -> the JSON last written to D1
     this.pending = new Map(); // user id -> the match being worked out
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
@@ -91,39 +91,84 @@ export class Roomie extends DurableObject {
     this.said = new Set();    // lines Emma came up with lately: the only new lines /speak will voice
     this.voicedBy = new Map();// address -> times it had a new line voiced, in the last ten minutes
     this.agentsTurns = new Turns(12);
-    ctx.blockConcurrencyWhile(async () => {
-      for (const [prefix, into] of [["u:", this.users], ["m:", this.missions]]) {
-        for (const [k, v] of await ctx.storage.list({ prefix })) {
-          into[k.slice(2)] = JSON.parse(v);
-          this.written.set(k, v);
-        }
-      }
-      const s = await ctx.storage.get("stats");
-      if (s) { Object.assign(this.stats, JSON.parse(s)); this.written.set("stats", s); }
-    });
+    this.flushing = Promise.resolve();
+    ctx.blockConcurrencyWhile(() => this.load());
     // the whole script, voiced (or found in R2) ahead of the first person, so the first seconds are instant
     const lines = [P.OPENER, P.THINKING, ...(SCRIPT ? [...Object.values(P.ASK), P.SCRIPT_BACK, ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK] : []), ...NUDGES, ...FILLERS];
     ctx.waitUntil(Promise.all(lines.map(l => speak(env, l).catch(e => console.log("voice warm-up:", String(e))))));
   }
 
-  // ---- storage -------------------------------------------------------------------------------------------
-  /** Writes what changed since the last save, one key per person and introduction (coalesced per tick). */
+  // ---- the database (D1) ----------------------------------------------------------------------------------
+  // D1 is where everyone and every introduction is kept (migrations/0001_init.sql). The room loads it all when it
+  // starts and works in memory; each change is written through right after, one row per person and introduction.
+
+  async load() {
+    const [us, ms, meta] = await this.env.DB.batch([
+      this.env.DB.prepare("SELECT id, data FROM users"),
+      this.env.DB.prepare("SELECT id, data FROM missions"),
+      this.env.DB.prepare("SELECT key, value FROM meta"),
+    ]);
+    for (const r of us.results) { this.users[r.id] = JSON.parse(r.data); this.written.set("u:" + r.id, r.data); }
+    for (const r of ms.results) { this.missions[r.id] = JSON.parse(r.data); this.written.set("m:" + r.id, r.data); }
+    for (const r of meta.results) if (r.key === "stats") { Object.assign(this.stats, JSON.parse(r.value)); this.written.set("meta:stats", r.value); }
+    if (us.results.length || ms.results.length) return;
+    // an empty database: the room was kept in this object's own storage before D1; bring it over once
+    const old = [];
+    for (const [prefix, into] of [["u:", this.users], ["m:", this.missions]]) {
+      for (const [k, v] of await this.ctx.storage.list({ prefix })) { into[k.slice(2)] = JSON.parse(v); old.push(k); }
+    }
+    const st = await this.ctx.storage.get("stats");
+    if (st) { Object.assign(this.stats, JSON.parse(st)); old.push("stats"); }
+    if (old.length) {
+      console.log(`moving ${old.length} records from the object's storage to D1`);
+      await this.flush();
+      for (let i = 0; i < old.length; i += 128) await this.ctx.storage.delete(old.slice(i, i + 128));
+    }
+  }
+
+  /** Writes what changed, right after the change (coalesced per tick, one write at a time, retried on failure). */
   save() {
     if (this.saving) return;
     this.saving = true;
     queueMicrotask(() => {
       this.saving = false;
-      const puts = {}, live = new Set(["stats"]);
-      const put = (k, v) => { live.add(k); const s = JSON.stringify(v); if (this.written.get(k) !== s) { puts[k] = s; this.written.set(k, s); } };
-      for (const [id, u] of Object.entries(this.users)) put("u:" + id, u);
-      for (const [id, m] of Object.entries(this.missions)) put("m:" + id, m);
-      put("stats", this.stats);
-      const gone = [...this.written.keys()].filter(k => !live.has(k));
-      gone.forEach(k => this.written.delete(k));
-      const keys = Object.keys(puts);
-      for (let i = 0; i < keys.length; i += 128) this.ctx.storage.put(Object.fromEntries(keys.slice(i, i + 128).map(k => [k, puts[k]])));
-      for (let i = 0; i < gone.length; i += 128) this.ctx.storage.delete(gone.slice(i, i + 128));
+      this.flushing = this.flushing.then(() => this.flush()).catch(e => {
+        console.log("db error:", String(e));
+        setTimeout(() => this.save(), 2000);
+      });
+      this.ctx.waitUntil(this.flushing);
     });
+  }
+
+  async flush() {
+    const db = this.env.DB, t = now(), live = new Set(["meta:stats"]), done = [], dels = [], puts = [];
+    const changed = (k, v) => {
+      live.add(k);
+      const s = JSON.stringify(v);
+      if (this.written.get(k) === s) return null;
+      done.push([k, s]);
+      return s;
+    };
+    for (const [id, u] of Object.entries(this.users)) {
+      const s = changed("u:" + id, u);
+      if (s) puts.push(db.prepare(`INSERT INTO users (id, email, name, app, test, has_profile, created_at, updated_at, data)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8) ON CONFLICT(id) DO UPDATE SET email = ?2, name = ?3, app = ?4, test = ?5,
+        has_profile = ?6, updated_at = ?7, data = ?8`).bind(id, u.email || null, u.name || null, u.app ? 1 : 0, u.test ? 1 : 0, u.profile ? 1 : 0, t, s));
+    }
+    for (const [id, m] of Object.entries(this.missions)) {
+      const s = changed("m:" + id, m);
+      if (s) puts.push(db.prepare(`INSERT INTO missions (id, a, b, outcome, created_at, updated_at, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ON CONFLICT(id) DO UPDATE SET a = ?2, b = ?3, outcome = ?4, updated_at = ?6, data = ?7`)
+        .bind(id, m.a, m.b, m.outcome == null ? null : m.outcome ? 1 : 0, m.created || t, t, s));
+    }
+    const s = changed("meta:stats", this.stats);
+    if (s) puts.push(db.prepare("INSERT INTO meta (key, value) VALUES ('stats', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(s));
+    const gone = [...this.written.keys()].filter(k => !live.has(k));
+    for (const k of gone) dels.push(db.prepare(`DELETE FROM ${k[0] === "u" ? "users" : "missions"} WHERE id = ?1`).bind(k.slice(2)));
+    const all = [...dels, ...puts];             // deletes first: a deleted account's email may be signed up again
+    for (let i = 0; i < all.length; i += 100) await db.batch(all.slice(i, i + 100));
+    for (const [k, v] of done) this.written.set(k, v);
+    for (const k of gone) this.written.delete(k);
   }
 
   // ---- people ---------------------------------------------------------------------------------------------

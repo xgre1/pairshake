@@ -14,6 +14,8 @@
   // the room: every person, introduction and chat (room.js)
   "durable_objects": { "bindings": [{ "name": "ROOM", "class_name": "Roomie" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Roomie"] }],
+  // the database: users, introductions and their chats (D1, SQL). The room loads it at start and writes every change through.
+  "d1_databases": [{ "binding": "DB", "database_name": "roomie", "database_id": "2596fa8d-18e2-4d67-9f83-811b3efadb1a", "migrations_dir": "migrations" }],
   // every line Emma has said, in her voice, kept for good
   "r2_buckets": [{ "binding": "VOICE", "bucket_name": "roomie-voice" }],
   // Emma's ears (Whisper) and her stand-in voice when ElevenLabs is down

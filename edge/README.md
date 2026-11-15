@@ -9,12 +9,13 @@ PairShake's backend for the iPhone app, all on Cloudflare: **https://roomie.binj
 | File | What it is |
 | --- | --- |
 | `src/index.js` | The Worker. Serves the app's page from static assets (to the app only; a browser gets a short note), checks the hands' models against the app's bundled copies by ETag, runs Emma's ears (`/hear`, Whisper on Workers AI), answers `/speak` straight from R2 when the line was voiced before, and sends everything else to the room. |
-| `src/room.js` | The room: one Durable Object holding every person, introduction and chat, the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of the first, Python server (now in `~/Desktop/pairshake-web`), same API ([docs/api.md](../docs/api.md)). |
+| `src/room.js` | The room: one Durable Object working with every person, introduction and chat (kept in D1), the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of the first, Python server (now in `~/Desktop/pairshake-web`), same API ([docs/api.md](../docs/api.md)). |
 | `src/matching.js` | Who meets whom, and the spark. A port of the Python `matching.py`. |
 | `src/llm.js` | Gemini: flash-lite for the chat and the quick jobs, flash for the spark and the agents' talk. |
 | `src/voice.js` | Emma's voice (ElevenLabs, kept in R2 for good; Workers AI's voice if ElevenLabs is down) and ears. |
 | `src/prompts.js` | Every prompt and line Emma says, and the demo attendees. |
-| `wrangler.jsonc` | Bindings: `ROOM` (Durable Object), `VOICE` (R2 bucket `roomie-voice`), `AI`, `LIMIT` (rate limit), `ASSETS`. |
+| `migrations/` | The D1 schema: `users`, `missions`, `meta`. Apply a new one with `npx wrangler d1 migrations apply roomie --remote`. |
+| `wrangler.jsonc` | Bindings: `ROOM` (Durable Object), `DB` (D1 database `roomie`), `VOICE` (R2 bucket `roomie-voice`), `AI`, `LIMIT` (rate limit), `ASSETS`. |
 
 ## Secrets
 
@@ -33,6 +34,14 @@ make backup      # saves the whole room to backups/room-<date>.json
 ```
 
 To restore one, or to move data in: `curl -X POST https://roomie.binjto.workers.dev/admin/import -H "authorization: Bearer $TOKEN" --data-binary @room.json` (it replaces everything).
+
+## Looking at the data
+
+```sh
+npx wrangler d1 execute roomie --remote --command "SELECT id, name, email, app, created_at FROM users ORDER BY created_at DESC LIMIT 20"
+```
+
+Or Storage & Databases → D1 → roomie in the Cloudflare dashboard. Change data through the app or `/admin/import`, not by hand: the room keeps it in memory and would write its own copy back.
 
 ## Logs
 

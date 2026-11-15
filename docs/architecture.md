@@ -16,7 +16,7 @@ flowchart TB
   W -- "/hear" --> AI["Workers AI: Whisper"]
   W -- "/speak, a line voiced before" --> R2[("R2: Emma's lines")]
   W -- "API, WebSocket" --> S["Durable Object 'room' (edge/src/room.js)"]
-  S --> ST[("its storage: people, introductions, chats")]
+  S --> ST[("D1: users, missions")]
   S --> LLM["Gemini"]
   S --> TTS["ElevenLabs"]
   TTS --> R2
@@ -24,9 +24,9 @@ flowchart TB
 
 ## Backend (`edge/`)
 
-A Cloudflare Worker (`edge/src/index.js`) in front of one Durable Object, the room (`edge/src/room.js`). The room is the only place with state; every request that needs it goes to the same object, so everyone sees the same people and matches. It is a port of the first, Python server (`server.py`, now in `~/Desktop/pairshake-web`), with the same API.
+A Cloudflare Worker (`edge/src/index.js`) in front of one Durable Object, the room (`edge/src/room.js`), with a D1 database behind it. All JavaScript. The room is the only place that changes state; every request that needs it goes to the same object, so everyone sees the same people and matches. It is a port of the first, Python server (`server.py`, now in `~/Desktop/pairshake-web`), with the same API.
 
-**What it stores.** Everything is kept in memory and written to the Durable Object's own storage after each change, one key per person (`u:<id>`) and per introduction (`m:<id>`), so restarts and deploys lose nothing. `make backup` saves a copy:
+**What it stores.** The D1 database `roomie` (`edge/migrations/`) has a `users` table (one row per person: id, email, name, app, test, has_profile, created and updated times, and the whole record as JSON in `data`), a `missions` table (one row per introduction: the two people, the outcome, times, and the record with its chat in `data`) and `meta` (the room's counts). The room loads it all when it starts, works in memory, and writes each change through right after, so restarts and deploys lose nothing. `make backup` saves a copy:
 
 - `users`: one record per attendee. A random 10-character id, Emma's transcript, the profile she wrote (name, role, what they are building, what they need, what they offer, where they are standing), social handles, a colour, introductions waiting for them (`inbox`), and flags: `app` (joined from the iPhone app), `test` (a made-up attendee from the test button). With an account, also an email and a salted PBKDF2-SHA256 hash of the password.
 - `missions`: one per introduction. Who the two people are, Emma's note to each, what they share (`overlap`), the chat, each person's yes or no, and the outcome.
