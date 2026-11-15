@@ -39,6 +39,9 @@ const pick1 = a => a[Math.floor(Math.random() * a.length)];
 const hexId = n => crypto.randomUUID().replace(/-/g, "").slice(0, n);
 const now = () => Date.now() / 1000;
 // a Luma event that is on right now: started, not ended (no end given: the 12 hours after it starts)
+// the hackathon's own event: its room stays open through the finals on Monday (Luma says it ends Sunday 18:00);
+// the app features it on top of the event list (app/web/index.html, FEATURED)
+const FEATURED = { id: "evt-710BpFWsoXOJ5wi", end: "2026-11-16T20:00:00.000Z" };
 const happening = e => { const t = Date.now(), a = Date.parse(e?.start || ""), b = Date.parse(e?.end || "") || a + 12 * 3600 * 1000; return t >= a && t <= b; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const str = v => (v == null ? "" : String(v)).trim();
@@ -534,8 +537,9 @@ export class PairShake extends DurableObject {
   async networkLuma(d) {
     this.purgeNetworks();
     const u = this.user(d.id) || notFound();
-    const ev = await Events.lookup(d.event);
+    let ev = await Events.lookup(d.event);
     if (!ev) throw new HttpError(400, "Couldn't find that event on Luma.");
+    if (ev.id === FEATURED.id) ev = { ...ev, end: FEATURED.end };
     if (!happening(ev)) throw new HttpError(409, `${ev.name} isn't on right now.`);
     let n = Object.values(this.networks).find(x => x.luma === ev.id);
     if (!n) {
@@ -547,6 +551,7 @@ export class PairShake extends DurableObject {
       n = { id: hexId(8), code, name: ev.name.slice(0, 60), owner: u.id, created: t, expires: end + 2 * 3600, members: [], luma: ev.id, cover: ev.cover || "" };
       this.networks[n.id] = n;
     }
+    if (ev.id === FEATURED.id) n.expires = Math.max(n.expires, Date.parse(FEATURED.end) / 1000 + 2 * 3600);   // (made before it was featured)
     if (!n.members.includes(u.id)) n.members.push(u.id);
     u.networks = [...new Set([...(u.networks || []), n.id])];
     u.live = { network: n.id, since: now() };
