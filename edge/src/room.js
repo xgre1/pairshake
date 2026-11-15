@@ -913,8 +913,16 @@ export class PairShake extends DurableObject {
       const mf = this.missionFor(mid, u.id);
       if (!mf.person) continue;
       const chat = m.chat || [];
+      if (mf.person.seed && !chat.some(c => c.from === (m.a === u.id ? "a" : "b"))) continue;   // a demo attendee you never wrote to isn't someone you know
       contacts.push({ ...mf, you: m.a === u.id ? "a" : "b", chat: chat.slice(-30), at: Math.max(m.created || 0, ...chat.map(c => c.at || 0)) });
     }
+    // one row per person: several introductions to the same person (older ones) show as the one you talked in, else the newest
+    const best = new Map();
+    for (const c of contacts) {
+      const k = c.person.id, o = best.get(k);
+      if (!o || (c.chat.length ? c.at : -1) > (o.chat.length ? o.at : -1) || (!c.chat.length && !o.chat.length && c.at > o.at)) best.set(k, c);
+    }
+    contacts.length = 0; contacts.push(...best.values());
     contacts.sort((x, y) => y.at - x.at);
     return { me: u.profile ? this.person(u.id, true) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
              photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
