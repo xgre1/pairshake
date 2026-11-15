@@ -122,8 +122,23 @@ final class LocalServer: NSObject, URLSessionDelegate {
     private func handle(_ c: NWConnection, _ r: Request) {
         if r.headers["upgrade"]?.lowercased() == "websocket" { return websocket(c, r) }
         if r.path.hasPrefix("/vendor/") { return vendor(c, r) }
+        if r.path.hasPrefix("/luma/") { return luma(c, r) }
         if let etag = manifest[r.path], r.method == "GET" { return bundled(c, r, etag) }
         proxy(c, r)
+    }
+
+    /// Luma's public event search, asked from the phone itself: Luma turns away Cloudflare's shared addresses
+    /// (429), not a phone's. Only its two read-only lookups, with nothing of ours sent along.
+    private func luma(_ c: NWConnection, _ r: Request) {
+        let rest = String(r.target.dropFirst("/luma/".count))
+        guard r.method == "GET", rest.hasPrefix("discover/get-paginated-events") || rest.hasPrefix("url?"),
+              let url = URL(string: "https://api.lu.ma/" + rest) else { return respond(c, 404, "text/plain", Data("not found".utf8)) }
+        var q = URLRequest(url: url, timeoutInterval: 10)
+        q.setValue("application/json", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: q) { [weak self] data, resp, _ in
+            let h = resp as? HTTPURLResponse
+            self?.respond(c, h?.statusCode ?? 502, h?.value(forHTTPHeaderField: "Content-Type") ?? "application/json", data ?? Data())
+        }.resume()
     }
 
     /// three.js, pinned by version: from the app, or from the CDN if the page asks for a file we don't ship.

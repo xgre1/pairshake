@@ -538,7 +538,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.pairshake.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.PairShakeApp = {
-        native: true, tabs: true, linkedin: true, asks: true, post, onAsk: null, onTab: null, onFix: null, onToken: null, onLogin: null, onJoin: null, pendingJoin: null,
+        native: true, tabs: true, linkedin: true, asks: true, luma: true, post, onAsk: null, onTab: null, onFix: null, onToken: null, onLogin: null, onJoin: null, pendingJoin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {

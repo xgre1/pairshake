@@ -2317,11 +2317,45 @@ const Ev = {
     $("#evHead").textContent = q ? "Results" : "Near you";
     if (!this.list.length) { $("#evEmpty").hidden = false; $("#evEmpty").textContent = "Looking on Luma…"; $("#evList").style.display = "none"; }
     let r;
-    try { r = await api("/events?" + new URLSearchParams({q, id: S.id || ""})); } catch { r = {events: [], error: "Can't reach the PairShake server."}; }
+    if (APP?.luma) r = await this.viaPhone(q);                       // the app asks Luma from the phone (see viaPhone)
+    else try { r = await api("/events?" + new URLSearchParams({q, id: S.id || ""})); } catch { r = {events: [], error: "Can't reach the PairShake server."}; }
     if (n !== this.seq) return;                                       // a newer search is on its way
     this.list = r.events || []; this.error = r.error;
     if (r.mine !== undefined && S.id) { S.event = r.mine; this.pill(); }
     this.render();
+  },
+  /* Luma turns away Cloudflare's shared addresses (429), so in the app the phone asks Luma itself, through the
+     app's local server (LocalServer.swift, /luma/...), and PairShake adds the events kept there and who joined what.
+     The same cleaning as edge/src/events.js. */
+  clean(ev, extra = {}) {
+    if (!ev?.api_id) return null;
+    const s = (v, n = 200) => String(v ?? "").trim().slice(0, n), geo = ev.geo_address_info || {};
+    return {id: s(ev.api_id, 40), name: s(ev.name, 160), start: s(ev.start_at, 40), end: s(ev.end_at, 40), tz: s(ev.timezone, 60),
+            city: s(geo.city || geo.city_state || (ev.location_type === "online" ? "Online" : ""), 80),
+            cover: /^https:\/\/images\.lumacdn\.com\//.test(ev.cover_url || "") ? s(ev.cover_url, 300) : "",
+            url: s(ev.url, 80).replace(/[^\w-]/g, ""), guests: Number(extra.guest_count) || 0};
+  },
+  async fromLuma(q) {
+    const get = async path => { const r = await fetch("/luma/" + path); if (!r.ok) throw new Error("luma " + r.status); return r.json(); };
+    const slug = q.match(/^(?:https?:\/\/)?(?:www\.)?(?:lu\.ma|luma\.com)\/(?:event\/)?([\w-]{3,80})\/?(?:[?#].*)?$/i)?.[1];
+    if (slug) {
+      const d = await get("url?url=" + encodeURIComponent(slug)).catch(() => null);
+      const ev = d?.kind === "event" && this.clean(d.data?.event, d.data);
+      if (ev) return [ev];
+    }
+    const p = new URLSearchParams({pagination_limit: "50"}); if (q) p.set("query", q);
+    const d = await get("discover/get-paginated-events?" + p), cutoff = Date.now() - 6 * 3600 * 1000, seen = new Set();
+    return (d.entries || []).map(e => this.clean(e.event, e)).filter(e => e && !seen.has(e.id) && seen.add(e.id) && (!e.end || Date.parse(e.end) > cutoff));
+  },
+  async viaPhone(q) {
+    const [luma, ours] = await Promise.all([
+      this.fromLuma(q).then(list => ({list}), () => ({list: [], error: "Luma isn't answering. Try again in a minute."})),
+      api("/events?" + new URLSearchParams({q, id: S.id || "", noluma: 1})).catch(() => ({events: [], here: {}})),
+    ]);
+    const seen = new Set(), here = ours.here || {};
+    const list = [...(ours.events || []), ...luma.list].filter(e => !seen.has(e.id) && seen.add(e.id)).map(e => ({...e, here: here[e.id] || 0}));
+    list.sort((a, b) => (b.here > 0) - (a.here > 0));
+    return {events: list.slice(0, 40), mine: ours.mine, error: list.length ? null : luma.error};
   },
   render() {
     const box = $("#evList"), mine = S.event?.id;

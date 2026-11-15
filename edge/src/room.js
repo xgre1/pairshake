@@ -241,21 +241,24 @@ export class PairShake extends DurableObject {
     const u = this.user(q.get("id"));
     const lat = parseFloat(q.get("lat")), lon = parseFloat(q.get("lon"));
     let list = [], error = null;
-    try { list = await Events.find(q.get("q") || "", lat, lon); }
-    catch (e) { console.log("luma error:", String(e)); error = "Luma isn't answering. Try again in a minute."; }
+    // noluma: the app asked Luma itself (from the phone); here only the events kept here, and who joined what
+    if (!q.get("noluma")) {
+      try { list = await Events.find(q.get("q") || "", lat, lon); }
+      catch (e) { console.log("luma error:", String(e)); error = "Luma isn't answering. Try again in a minute."; }
+    }
     const here = {}, ours = new Map();
     for (const x of Object.values(this.users)) if (x.event?.id && !x.test) { here[x.event.id] = (here[x.event.id] || 0) + 1; ours.set(x.event.id, x.event); }
     // events Luma's search leaves out: the pinned ones, and any someone here joined (from its link), found by name
     const s = q.get("q") || "";
     if (!Events.isLink(s)) {
-      const pinned = (await Promise.all(Events.PINNED.map(Events.bySlug))).filter(Boolean);
+      const pinned = (await Promise.all(Events.PINNED.map(slug => Events.bySlug(slug).catch(() => null)))).filter(Boolean);
       const extra = [...pinned, ...ours.values()].filter(e => Events.live(e) && Events.named(e, s)).map(({ at, ...e }) => e);
       const seen = new Set(list.map(e => e.id));
       list = [...extra.filter(e => !seen.has(e.id) && seen.add(e.id)), ...list];
     }
     list = list.map(e => ({ ...e, here: here[e.id] || 0 }));
     list.sort((a, b) => (b.here > 0) - (a.here > 0));
-    return { events: list.slice(0, 40), mine: u?.event || null, error };
+    return { events: list.slice(0, 40), mine: u?.event || null, error, here };
   }
 
   /** An event's page: who joined it (?event=<Luma id>, or the event they're in), and who has its room open now
@@ -276,7 +279,8 @@ export class PairShake extends DurableObject {
   async joinEvent(d) {
     const u = this.user(d.id) || notFound();
     if (d.leave) { delete u.event; this.save(); return { event: null, people: [], count: 0 }; }
-    const ev = await Events.lookup(d.event);
+    const kept = Object.values(this.users).find(x => x.event?.id && x.event.id === d.event?.id)?.event;
+    const ev = kept ? (({ at, ...e }) => e)(kept) : await Events.lookup(d.event);
     if (!ev) throw new HttpError(400, "Couldn't find that event on Luma.");
     if (u.event?.id !== ev.id) { u.event = { ...ev, at: now() }; this.save(); }
     return this.eventRoom(new URLSearchParams({ id: u.id }));

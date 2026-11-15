@@ -13,8 +13,13 @@ export const PINNED = ["x1wxi5sn"];
 async function luma(path) {
   const url = LUMA + path, hit = cache.get(url);
   if (hit && Date.now() - hit.at < TTL) return hit.data;
-  const r = await fetch(url, { headers: { accept: "application/json", "user-agent": "PairShake/1.0" }, signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw Object.assign(new Error(`luma ${r.status}`), { status: r.status });
+  let r;
+  try { r = await fetch(url, { headers: { accept: "application/json", "user-agent": "PairShake/1.0" }, signal: AbortSignal.timeout(8000) }); }
+  catch (e) { if (hit) return hit.data; throw e; }
+  if (!r.ok) {
+    if (hit && (r.status === 429 || r.status >= 500)) return hit.data;     // turned away (or down): the last answer will do
+    throw Object.assign(new Error(`luma ${r.status}`), { status: r.status });
+  }
   const data = await r.json();
   if (cache.size > 300) cache.clear();
   cache.set(url, { at: Date.now(), data });
@@ -98,7 +103,7 @@ export async function lookup(sent) {
   let d;
   try { d = await luma(`/url?url=${encodeURIComponent(slug)}`); }
   catch (e) {
-    if (e.status >= 400 && e.status < 500 || !s(sent.name)) return null;         // Luma says there's no such event
+    if (e.status >= 400 && e.status < 500 && e.status !== 429 || !s(sent.name)) return null;   // Luma says there's no such event
     return clean({ ...sent, api_id: id, start_at: sent.start, end_at: sent.end, cover_url: sent.cover, geo_address_info: { city: sent.city } });
   }
   const ev = d && d.kind === "event" && clean(d.data?.event, d.data);
