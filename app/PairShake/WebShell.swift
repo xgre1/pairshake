@@ -1,5 +1,6 @@
 import AuthenticationServices
 import AVFoundation
+import CoreBluetooth
 import CoreLocation
 import SwiftUI
 import UIKit
@@ -260,9 +261,42 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             if let s = d["url"] as? String, let url = URL(string: s) { signInWithLinkedIn(url) }
         case "haptic":
             haptic(d["k"] as? String ?? "light")
+        case "perms":                                       // Settings > Permissions: what PairShake may use right now
+            sendPermissions()
+        case "openSettings":                                // ...and a tap there opens PairShake's page in iOS Settings
+            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
         default:
             break
         }
+    }
+
+    /// on, off (refused, fixed only in iOS Settings) or ask (not asked yet: PairShake asks when it needs it)
+    private func sendPermissions() {
+        let location: String
+        switch CLLocationManager().authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse: location = "on"
+        case .denied, .restricted: location = "off"
+        default: location = "ask"
+        }
+        let bluetooth: String
+        switch CBManager.authorization {
+        case .allowedAlways: bluetooth = "on"
+        case .denied, .restricted: bluetooth = "off"
+        default: bluetooth = "ask"
+        }
+        let camera: String
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: camera = "on"
+        case .denied, .restricted: camera = "off"
+        default: camera = "ask"
+        }
+        let microphone: String
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted: microphone = "on"
+        case .denied: microphone = "off"
+        default: microphone = "ask"
+        }
+        js("window.PairShakeApp && PairShakeApp.onPerms && PairShakeApp.onPerms({location: '\(location)', bluetooth: '\(bluetooth)', camera: '\(camera)', microphone: '\(microphone)'})")
     }
 
     /// LinkedIn or Google in Apple's sign-in sheet (it shares Safari's session, so usually one tap). The server
