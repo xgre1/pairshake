@@ -335,6 +335,14 @@ body.known #wSub{display:none}
 /* on a phone's first pages Emma's hands are framed close and sit low, near the words under them */
 #gateHands,#welcomeHands{height:360px}
 :is(#gateHands,#welcomeHands) .hands-canvas{transform:translateY(14%)}
+/* On a phone the picture bleeds well past its stage (700px tall, behind the words), so a moving hand is only
+   ever covered by the text itself, never cut by a box; the arms fade out instead of stopping at a line.
+   Same framing as before: the fit is width-limited either way, and the centre sits 14% below the stage's. */
+@media (max-width: 899px){
+  :is(#gateHands,#welcomeHands){z-index:-1;overflow:visible;pointer-events:none}
+  :is(#gateHands,#welcomeHands) .hands-canvas{position:absolute;left:0;width:100%;height:700px;top:calc(64% - 350px);transform:none;
+    -webkit-mask-image:linear-gradient(#000 0,#000 66%,transparent 80%);mask-image:linear-gradient(#000 0,#000 66%,transparent 80%)}
+}
 .hands-canvas.hands-full{position:fixed;inset:0;width:100vw;height:100dvh;z-index:0;pointer-events:none}
 .screen{z-index:1}
 #heard{font-size:20px;line-height:1.25;color:var(--sec);padding:0 28px;height:3.75em;overflow:hidden;
