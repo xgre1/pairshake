@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>PairShake</title>
 <style>
-/* Same screens, sizes and colours as the iPhone app (app/PairShake). iOS system colours, SF + New York. */
+/* Same screens, sizes and colours as the first, native iPhone version (app/Legacy). iOS system colours, SF + New York. */
 :root{
   --bg:#fff; --bg2:#f2f2f7; --gbg:#f2f2f7; --gcell:#fff;
   --fg:#000; --sec:rgba(60,60,67,.6); --ter:rgba(60,60,67,.3);
@@ -48,7 +48,7 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .screen.on{display:flex;animation:fade .5s var(--smooth)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-/* pinned bottom button that content scrolls under (Fade in the app) */
+/* pinned bottom button that content scrolls under (Fade in app/Legacy) */
 .dock{position:sticky;bottom:0;margin-top:auto;padding:28px var(--gut) calc(8px + var(--safeB));
   background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 28px);z-index:2}
 
@@ -71,7 +71,7 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .xbtn{width:30px;height:30px;border-radius:50%;background:var(--fill2);display:grid;place-items:center;color:var(--sec);flex:none}
 .xbtn svg,.chev svg{display:block}
 
-/* Emma's orb: her four colours swirling (MeshGradient in the app) */
+/* Emma's orb: her four colours swirling (MeshGradient in app/Legacy) */
 .orb{--s:200px;--k:1;width:var(--s);height:var(--s);border-radius:50%;position:relative;overflow:hidden;flex:none;
   transform:scale(var(--k));transition:transform .12s ease-out;isolation:isolate;
   box-shadow:0 calc(var(--s)*.08) calc(var(--s)*.32) rgba(110,107,242,.28), inset 0 0 0 .5px rgba(255,255,255,.35)}
@@ -153,7 +153,7 @@ body.known #wSub{display:none}
 
 /* Conversation */
 #emmaLine{font-family:var(--serif);font-size:30px;line-height:1.2;padding:36px 100px 0 28px;transition:opacity .35s}
-/* leaving the chat, and the bar you answer with: a mic to tap (send, skip) or hold (talk while held),
+/* leaving the chat, and the bar you answer with: a mic to hold (talk while held) or tap (skip Emma),
    the keyboard on its left, start-over on its right */
 /* Emma's voice on or off, next to the close button on the screens where she talks (off by default) */
 .sound{position:absolute;top:calc(var(--safeT) + 14px);right:56px;width:32px;height:32px;border-radius:50%;background:var(--fill2);color:var(--sec);display:grid;place-items:center;z-index:5;translate:0 var(--pull,0px)}
@@ -180,7 +180,7 @@ body.known #wSub{display:none}
 #interview .hint{padding:12px 0 calc(10px + var(--safeB));min-height:0;color:var(--sec)}
 #interview.kb .hint{padding:0 0 8px}
 #talkOrbWrap{align-self:center;cursor:pointer}
-/* Emma's two hands (hands/hands.js) stand where her orb was; the orb stays until they load */
+/* Emma's two hands (hands/hands.js) stand in for her orb; the orb shows only if they can't load */
 .hands-stage{width:100%;height:320px;display:grid;place-items:center;position:relative}
 .hands-stage>.orb{visibility:hidden}                       /* only if the hands can't load */
 .hands-stage.hands-off:not(.hands-on)>.orb{visibility:visible;animation:fade .5s var(--smooth)}
@@ -430,7 +430,6 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
   .sheet{height:auto;max-width:420px;border-radius:28px;animation:pop .35s var(--spring)}
   @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 }
-/* Settings: grouped lists like the iPhone's own */
 /* People, You and Settings are lists, set the way iOS sets them: a grey page with white groups */
 body[data-screen="settings"],#settings,#settings .topbar,body[data-screen="about"],#about,#about .topbar,body[data-screen="tabPeople"],#tabPeople{background:var(--gbg)}
 html:has(body[data-screen="settings"]),html:has(body[data-screen="about"]),html:has(body[data-screen="tabPeople"]){background:var(--gbg)}
@@ -618,7 +617,7 @@ body:not(.in-app) .app-only{display:none!important}
   <p id="heard"></p>
   <div class="talkbar" id="talkBar" data-s="idle">
     <button class="tb-side" id="kbBtn" aria-label="Type instead"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8.5 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    <button class="tb-mic" id="micBtn" aria-label="Hold to talk, tap to send or skip">
+    <button class="tb-mic" id="micBtn" aria-label="Hold to talk, tap to skip Emma">
       <svg class="i-mic" width="28" height="28" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="currentColor"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <svg class="i-send" width="26" height="26" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="tb-side" id="redoBtn" aria-label="Start my answer over" disabled><svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 9a8 8 0 1 1-1 6M5 3.5V9h5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -704,7 +703,7 @@ body:not(.in-app) .app-only{display:none!important}
   </div>
 </section>
 
-<!-- Meet? -->
+<!-- Account: create one or sign in -->
 <div class="scrim" id="acctScrim">
   <div class="sheet">
     <h3 class="serif" style="font-size:30px;line-height:1.15" id="acctTitle">Create an account</h3>
@@ -718,7 +717,6 @@ body:not(.in-app) .app-only{display:none!important}
     <div><button class="primary" id="acctGo">Create account</button><button class="plainbtn" id="acctSwitch">I already have an account</button></div>
   </div>
 </div>
-<!-- No talking: ChatGPT, which already knows you, answers Emma's questions -->
 <!-- Test tools (the hammer on the first page): shortcuts for trying things out, kept off the real screens -->
 <div class="scrim" id="devScrim">
   <div class="sheet" style="height:auto;gap:12px">
@@ -730,6 +728,7 @@ body:not(.in-app) .app-only{display:none!important}
   </div>
 </div>
 
+<!-- No talking: ChatGPT answers Emma's questions for you -->
 <div class="scrim" id="gptScrim">
   <div class="sheet">
     <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT introduce you</h3>
@@ -752,10 +751,10 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="sheet">
     <div class="faces" id="meetFaces"></div>
     <h3 class="serif" style="font-size:30px;line-height:1.15" id="meetTitle"></h3>
-    <p class="sec">If you both say yes, Emma shows you where to find each other. If not, nobody is told.</p>
+    <p class="sec">If you both say yes, Emma shows you where to find each other. If not, neither of you is told who said no.</p>
     <p class="foot ter">People usually underestimate how much the other person enjoyed talking to them.</p>
     <div class="spacer"></div>
-    <div><button class="primary" id="yesBtn">Yes, let's meet</button><button class="plainbtn" id="noBtn" style="margin-top:4px">Not now</button></div>
+    <div><button class="primary" id="yesBtn">Yes, let's meet</button><button class="plainbtn" id="noBtn" style="margin-top:4px">No thanks</button></div>
   </div>
 </div>
 
@@ -835,17 +834,15 @@ const PLUS = `<svg width="11" height="11" viewBox="0 0 11 11"><path d="M5.5 1v9M
 const CHECK = `<svg width="12" height="11" viewBox="0 0 12 11"><path d="M1.5 5.8 4.6 9 10.5 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* ---------------------------------------------------------------- Emma's voice and ears
-   Half duplex on the web: the browser's recogniser has no echo cancellation, so if it listened while Emma
-   spoke it would hear her through the speakers and take her words for yours. So the mic only opens a
-   moment after she has finished (tap the orb to cut her short), and an "answer" that is mostly her own
-   last line is thrown away. Your turn ends on the words, not a fixed timer. */
+   Half duplex: the browser's recogniser has no echo cancellation, so if it listened while Emma spoke it
+   would hear her through the speakers and take her words for yours. Holding the mic stops her first, and an
+   "answer" that is mostly her own last line is thrown away. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const OPEN = new Set("and but so because or um uh like then with the a an to of for my i m is that".split(" "));
-/* Ears for the web page: the mic is recorded here (with the browser's echo cancelling and noise
-   suppression) and sent to the server, where Emma's own speech model (Parakeet) writes it down. Much more
-   accurate than the browser's recogniser, which stays only as the fallback. A simple loudness gate decides
-   when you start and stop talking; while you talk, what you've said so far is re-transcribed about once a
-   second so your words still appear live. */
+/* Ears: while the mic is held, it is recorded here (with the browser's echo cancelling and noise
+   suppression) and sent to /hear, where Whisper writes it down. Much more accurate than the browser's
+   recogniser, which stays only as the fallback. While you talk, what you've said so far is re-transcribed
+   about once a second so your words still appear live. */
 const Ears = {
   ok: false, ready: null, active: false, seg: -1, chunks: [], pre: [], inSpeech: false, speechMs: 0, silenceMs: 0,
   floor: .004, startAt: 0, lastInterim: 0, busy: false, level: 0,
@@ -1052,7 +1049,7 @@ const Voice = {
     if (this.phase === "speaking" && this.barge) {
       if (words(this.heard).filter(w => !this.echo.has(w)).length >= 2) this.endSpeaking(true);
     } else if (this.phase === "listening" && Ears.ok) {
-      this.level = Ears.level;                            // Ears decides when the turn ends
+      this.level = Ears.level;                            // the turn ends when the mic is let go; Ears gives the level
     } else if (this.phase === "listening") {
       // push to talk: the turn ends when the mic is let go (or the typed answer is sent), never on a silence
       if (this.hold && this.heard && now - this.lastText < 400) this.level = .35;
@@ -1067,12 +1064,12 @@ const Voice = {
 /* ---------------------------------------------------------------- state */
 const S = { mrun: 0, id: null, result: null, mission: null, talks: [], total: 0, chosen: null, mode: "idle", answers: 0, seen: new Set(),
             me: null, socials: {}, contacts: [] };
-// Emma remembers you on this device: your id is kept, and the server keeps what you told her
 addEventListener("scroll", () => {
   const root = document.documentElement, over = scrollY - (root.scrollHeight - innerHeight);
   root.style.setProperty("--pull", Math.min(0, scrollY) + "px");
   root.style.setProperty("--push", Math.max(0, over) + "px");
 }, {passive: true});
+// Emma remembers you on this device: your id is kept, and the server keeps what you told her
 const ID_KEY = "pairshake.id";
 const keep = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const kept = k => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -1232,8 +1229,8 @@ async function interview() {
 }
 
 /* Test match (only in the iPhone app): tap it on two phones and they're introduced to each other at once,
-   each as a made-up attendee, straight into the room; say yes on both to try finding each other by Ultra
-   Wideband. The made-up person is kept per phone, apart from your real one. Tap again to stop waiting. */
+   each as a made-up attendee, straight into the room; both already count as yes, so it goes straight to
+   finding each other by Ultra Wideband. The made-up person is kept per phone, apart from your real one. Tap again to stop waiting. */
 const Test = { on: false, label: $("#testBtn").innerHTML };
 $("#testBtn").onclick = async () => {
   const b = $("#testBtn");
@@ -1581,7 +1578,7 @@ const Net = {
     // with the 3D ring on, the agents are hands and the orb sits in the ring's middle
     const ring = window.Ring?.ok && Ring.running, rc = ring && Ring.center();
     if (rc) { c.x = rc.x - cv.offsetLeft; c.y = rc.y - cv.offsetTop; }
-    // Emma's orb is the same element as in the conversation; here it only drifts
+    // Emma's orb looks as it does in the conversation; here it only drifts
     if (!this.orb) this.orb = {x: c.x, y: c.y};
     const ox = this.converging ? c.x - 36 : c.x + Math.sin(t * .3) * 3, oy = this.converging ? c.y : c.y + Math.cos(t * .25) * 3;
     this.orb.x = approach(this.orb.x, ox, 1.6); this.orb.y = approach(this.orb.y, oy, 1.6);
@@ -1848,7 +1845,7 @@ const retell = () => {
 };
 $("#updBack").onclick = () => goHome();
 /* The whole of what Emma remembers, on its own page: each part can be fixed by hand (saved as you type),
-   or told again from scratch. The first page only shows what she's looking for, in two lines. */
+   or told again from scratch. The first page only shows what she's looking for, in up to three lines. */
 const About = {
   FIELDS: [["needs", "Looking for"], ["building", "Working on"], ["offers", "You can offer"], ["role", "What you do"],
            ["line", "In one sentence"], ["spot", "Where to find you"]],
@@ -1908,7 +1905,7 @@ const Settings = {
     const signed = !!S.email;
     const who = S.me || {name: S.name || ""}, chev = `<span class="s-chev">${CHEV}</span>`;
     const card = (tag, extra) => `<${tag} class="row s-me" ${extra}>${av(who, 58)}<div class="who"><div class="n">${esc(who.name || "You")}</div>` +
-      `<div class="e">${signed ? esc(S.email) : "Sign in to be you on any device"}</div></div>${signed ? "" : chev}</${tag}>`;
+      `<div class="e">${signed ? esc(S.email) : "Create an account to be you on any device"}</div></div>${signed ? "" : chev}</${tag}>`;
     $("#sAccount").innerHTML = signed ? card("div", "") + `<button class="row s-act" id="sOut">Sign out</button>`
       : card("button", `id="sUp"`) + `<button class="row s-act" id="sIn">I already have an account</button>`;
     $("#sAccountFoot").textContent = signed ? "Sign in with this email on any phone or computer to be you there too."
@@ -2093,7 +2090,7 @@ $("#gptSpot").onkeydown = e => { if (e.key === "Enter") e.target.blur(); };
 $("#gptBtn").onclick = () => Gpt.open();
 $("#gptScrim").onclick = e => { if (e.target.id === "gptScrim") Gpt.close(); };
 
-// ways out of the screens that had none
+// the X on the handles and introduction screens goes home
 $("#socialsLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
 $("#introLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
 
@@ -2135,7 +2132,8 @@ const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0
 const openChat = c => openRoom(c, {chat: true});                    // a person in your list: straight to your messages
 const outcomesSeen = new Set((kept("pairshake.outcomes") || "").split(",").filter(Boolean));
 function openRoom(m, opts = {}) {
-  Room.mission = m; Room.chat = m.chat ? [...m.chat] : []; if (m.you) Room.you = m.you; Room.rung = 0;   // (what we have, until the room says more) Room.decided = false; Room.meet = null; Room.queue = opts.send || null;
+  Room.mission = m; Room.chat = m.chat ? [...m.chat] : [];   // what we have, until the room says more
+  if (m.you) Room.you = m.you; Room.rung = 0; Room.decided = false; Room.meet = null; Room.queue = opts.send || null;
   Room.from = {intro: "intro", person: "person", tabPeople: "people"}[document.body.dataset.screen] || "home";
   Room.direct = !!opts.chat;
   const p = m.person, me = S.result?.me || S.me, o = m.overlap;
@@ -2455,7 +2453,6 @@ function startInbox() {
   } })();
 }
 
-// someone Emma already knows opens on their home page (the stage demo always starts fresh)
 /* Tapping a text field in the app: WebKit scrolls the page to show the field above the keyboard, but the app
    already makes the page end where the keyboard starts and the message boxes sit at the bottom anyway, so that
    scroll only shoves the whole page up, and the top bars with it (they stop sticking while it's shoved).
@@ -2505,6 +2502,7 @@ if (APP) APP.onLogin = (id, err) => signedIn(id, err);
   }
 }
 if (demo) { S.signed = true; show("welcome"); }
+// someone Emma already knows opens on their home page (the stage demo always starts fresh)
 if (!demo) loadMe().catch(() => {}).finally(() => {
   if (S.signed && document.body.dataset.screen === "gate") show("welcome");
   Tabs.sync();

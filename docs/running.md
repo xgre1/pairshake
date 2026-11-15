@@ -51,7 +51,7 @@ Only native changes need a reinstall. The page, Emma and matching come from Clou
 ## Testing finding between two phones
 
 1. Open PairShake on two iPhones with the app.
-2. On both, tap **Test: find another phone** on the first page.
+2. On both, tap the hammer on the first page, then **Find another phone**.
 3. The phones are introduced to each other as made-up attendees who have both said yes, and go straight to the finding screen.
 
 To read a phone's diagnostics afterwards:
@@ -67,7 +67,7 @@ xcrun devicectl device copy from --device <device id> --domain-type appDataConta
 | --- | --- |
 | The app says "Connecting to PairShake…" | The phone is offline, or a server address typed in by hand no longer answers. The app retries every 2 seconds. Shake the phone to change the server address. |
 | Emma's lines come out in a different voice | ElevenLabs failed (allowance used up, or down), so Workers AI's voice stands in. `wrangler tail` shows why. |
-| Matches come back plain ("I want you to meet …") | The model failed; the code still paired people. Check `wrangler tail` for `gemini 4xx/5xx`. |
-| On the web in Safari, a top bar sits halfway down after typing | An iOS 26 WebKit bug (the page isn't panned back after the keyboard closes, WebKit bug 297779). The app avoids it by shrinking the page above the keyboard; the web page nudges the scroll after the keyboard closes. |
+| Matches come back plain (the introduction reads "Go find … and ask about this: …") | The model failed; the code still paired people. Check `wrangler tail` for `gemini 4xx/5xx`. |
+| A top bar sits halfway down after typing | An iOS 26 WebKit bug (the page isn't panned back after the keyboard closes, WebKit bug 297779). The app avoids it by shrinking the page above the keyboard; the page also nudges the scroll after the keyboard closes. |
 | The arrow doesn't turn | See [finding.md](finding.md). Hold the phone up and follow the hint on screen. |
 | A `trycloudflare.com` link stopped working | Quick tunnels are for testing and can disappear at any time. Use the Worker address. |

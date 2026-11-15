@@ -1,6 +1,6 @@
 # edge
 
-PairShake's backend for the iPhone app, all on Cloudflare: **https://pairshake.binjto.workers.dev**. Nothing runs on the Mac.
+PairShake's backend for the iPhone app, all on Cloudflare: **https://pairshake.binjto.workers.dev**.
 
 ```sh
 ./deploy.sh      # copy the app's page from ../app/web and deploy (or `make edge`)
@@ -9,11 +9,11 @@ PairShake's backend for the iPhone app, all on Cloudflare: **https://pairshake.b
 | File | What it is |
 | --- | --- |
 | `src/index.js` | The Worker. Serves the app's page from static assets (to the app only; a browser gets a short note), checks the hands' models against the app's bundled copies by ETag, runs Emma's ears (`/hear`, Whisper on Workers AI), answers `/speak` straight from R2 when the line was voiced before, and sends everything else to the room. |
-| `src/room.js` | The room: one Durable Object working with every person, introduction and chat (kept in D1), the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of the first, Python server (now in `~/Desktop/pairshake-web`), same API ([docs/api.md](../docs/api.md)). |
-| `src/matching.js` | Who meets whom, and the spark. A port of the Python `matching.py`. |
+| `src/room.js` | The room: one Durable Object working with every person, introduction and chat (kept in D1), the interview, matching, accounts and the rooms' WebSockets (with hibernation). API: [docs/api.md](../docs/api.md). |
+| `src/matching.js` | Who meets whom, and the spark. |
 | `src/llm.js` | Gemini: flash-lite for the chat and the quick jobs, flash for the spark and the agents' talk. |
 | `src/voice.js` | Emma's voice (ElevenLabs, kept in R2 for good; Workers AI's voice if ElevenLabs is down) and ears. |
-| `src/prompts.js` | Every prompt and line Emma says, and the demo attendees. |
+| `src/prompts.js` | Emma's scripted lines, the interview, agent and chat prompts, and the demo attendees (the matching prompts are in `matching.js`). |
 | `migrations/` | The D1 schema: `users`, `missions`, `meta`. Apply a new one with `npx wrangler d1 migrations apply pairshake --remote`. |
 | `wrangler.jsonc` | Bindings: `ROOM` (Durable Object), `DB` (D1 database `pairshake`), `VOICE` (R2 bucket `pairshake-voice`), `AI`, `LIMIT` (rate limit), `ASSETS`. |
 
@@ -24,7 +24,7 @@ Set once with `npx wrangler secret put <NAME>`; they are never in the repository
 | Name | What |
 | --- | --- |
 | `GEMINI_API_KEY` | The model. A local copy is in `.dev.vars` (ignored by git). |
-| `ELEVENLABS_API_KEY` | Emma's voice (from `~/.elevenlabsrc`). |
+| `ELEVENLABS_API_KEY` | Emma's voice. |
 | `ADMIN_TOKEN` | For `/admin/export` and `/admin/import`. A local copy is in `.dev.vars`. |
 
 ## Backups

@@ -3,7 +3,6 @@
 <title>Hands toon still</title>
 <!-- Renders a two-person gesture (e.g. handkit's "handshake": two right hands) with Emma's hand meshes, cel shaded
      so the 3D hands read as flat 2D shapes (a few hard tones, an ink outline), each hand its own colour.
-     Driven by app/tools/icon_toon.py:
        await render({gesture, colors: [a, b], tones: [dark, mid, light], outline: "#000" | null, width,
                      cut, light: [ambient, key], key: [x, y, z], camera: {pos, look, fov, up}, size})
          -> PNG data URL, transparent background. tones [255] + light [3.14, 0] = flat colour, no shading. -->

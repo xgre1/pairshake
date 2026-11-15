@@ -1,12 +1,12 @@
 /* Emma's voice and ears.
 
    speak(): a line in Emma's voice. Voiced once by ElevenLabs, then kept in R2 for good (it costs from a small
-   monthly allowance), under the same name the Mac's voice_cache used: sha1("<voice id>|<text>").wav. When
+   monthly allowance), under voice/<sha1("<voice id>|<text>")>.wav. When
    ElevenLabs is down, Cloudflare's own voice speaks instead, and that line isn't kept.
    hear(): 16 kHz mono int16 PCM in, Whisper's text out. */
 import { Buffer } from "node:buffer";
 
-export const VOICE_ID = "OSxQoMnSFe6QtcNVSptL";       // PairShake's voice: Emma's own designed ElevenLabs voice
+export const VOICE_ID = "OSxQoMnSFe6QtcNVSptL";       // Emma's own designed ElevenLabs voice
 const ELEVEN_MODEL = "eleven_v4_turbo";
 const SR = 24000;
 

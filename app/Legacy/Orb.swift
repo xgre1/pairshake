@@ -6,7 +6,7 @@ extension Color {
         let v = UInt64(h, radix: 16) ?? 0xB9A7FF
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
     }
-    // Emma's palette: the colours of her orb, used nowhere else.
+    // Emma's palette: the colours of her orb.
     static let iris = Color(hex: "#6E6BF2")
     static let lilac = Color(hex: "#B9A7FF")
     static let sky = Color(hex: "#8FD3FF")

@@ -16,7 +16,7 @@ All endpoints are served by Cloudflare at `https://pairshake.binjto.workers.dev`
 
 | Method | Path | Body or query | Returns |
 | --- | --- | --- | --- |
-| GET | `/scan` | `?id` | `{talks: [{person, ask, reply, fit}], total}`. Your agent's conversations so far. |
+| GET | `/scan` | `?id` | `{talks: [{person, ask, reply, fit}], total, muse}` (`muse`: Emma's `{start, looking}` lines). Your agent's conversations so far. |
 | POST | `/match` | `{id, socials}` | `{say, me, mission}`. The introduction. 409 `{cancelled: true}` if the search was stopped meanwhile. |
 | POST | `/match/cancel` | `{id}` | `{ok}`. Drops the match being worked out; nobody is introduced. |
 | POST | `/again` | `{id}` | `{ok}`. Look for someone new using what Emma already knows. |
@@ -41,7 +41,7 @@ A `mission` is `{id, intro, overlap, person, outcome}`. `overlap` holds `rare` (
 | POST | `/account` | `{action: "signup", email, password, id?}` | `{id, email}`. Adds an email and password to this device's user (or a new one). 409 if the email is taken. |
 | POST | `/account` | `{action: "login", email, password}` | `{id, email}`. 401 on a wrong password, 429 after five failures in a minute. |
 | POST | `/account` | `{action: "delete", id}` | `{ok}`. Removes the user. |
-| POST | `/profile` | `{id, name?, socials?}` | `{me, socials, name, email}`. |
+| POST | `/profile` | `{id, name?, socials?, about?}` | `{me, socials, name, email}`. |
 
 Errors come back as `{error}` with a sentence that can be shown to the person. 429 means too many calls from one address in a minute.
 
@@ -57,12 +57,12 @@ From the server:
 
 | `t` | Fields | Meaning |
 | --- | --- | --- |
-| `state` | `you, chat, decided, meet, online` | Sent on connect. `meet` is `true` or `false` once both have decided. |
+| `state` | `you, chat, decided, meet, online` | Sent on connect. `meet` is `true` or `false` once both have decided, or one said no. |
 | `chat` | `from, text` | A message from the other side. |
 | `typing` | | The other side (or Emma playing a seed person) is typing. |
 | `presence` | `online` | The other person joined or left. |
-| `meet` | `yes` | Both decided. |
+| `meet` | `yes` | Both decided, or one said no. |
 | `ni` | `token` | The other iPhone's Nearby Interaction token (base64), for Ultra Wideband. |
-| `gps` | `lat, lon, acc` | The other person's filtered position, for finding on the web. |
+| `gps` | `lat, lon, acc` | The other person's filtered position, for finding by GPS. |
 
 From the page: `{t: "chat", text}`, `{t: "decide", yes}`, `{t: "ni", token}`, `{t: "gps", lat, lon, acc}`.

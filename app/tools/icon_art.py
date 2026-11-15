@@ -2,7 +2,7 @@
 
 The idea: two drops about to merge, the way the matching screen draws you meeting your person. You (the
 bigger drop, white) and them (the smaller, warm) are joined by a liquid neck: the same metaball connector
-as goo() in server/web/index.html. Two layers, so each catches its own light: you in front, them and the
+as goo() in web/index.html. Two layers, so each catches its own light: you in front, them and the
 neck reaching out to you behind.
 
     python3 tools/icon_art.py

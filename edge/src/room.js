@@ -6,7 +6,7 @@
    seconds (a match being worked out, the agents' talks, who is waiting for a test match) is kept in memory.
    The rooms' WebSockets use hibernation: an open chat costs nothing while nobody types.
 
-   A port of the first, Python server; the API is the same (docs/api.md). */
+   The API is in docs/api.md. */
 import { DurableObject } from "cloudflare:workers";
 import * as M from "./matching.js";
 import * as P from "./prompts.js";
@@ -14,7 +14,7 @@ import { ask, QUICK, MAIN } from "./llm.js";
 import { speak } from "./voice.js";
 
 const MAX_TURNS = 3;          // the chat is only there to get to an introduction: at most two questions after the opener
-// Testing (on for now): Emma follows one fixed script, so every line is voiced once and then always comes from
+// Testing: Emma follows one fixed script, so every line is voiced once and then always comes from
 // R2. The model still works out who someone is and who they should meet; only what she says out loud is fixed.
 const SCRIPT = true;
 const KNOWN = ["name", "building", "needs", "offers", "spot"];
@@ -88,7 +88,7 @@ export class PairShake extends DurableObject {
     this.testWait = new Map();
     this.loginFails = new Map();
     this.rooms = new Map();   // mission id -> what a room keeps only in memory: {gps, replying}
-    this.said = new Set();    // lines Emma came up with lately: the only new lines /speak will voice
+    this.said = new Set();    // lines Emma came up with lately, which /speak may voice
     this.voicedBy = new Map();// address -> times it had a new line voiced, in the last ten minutes
     this.agentsTurns = new Turns(12);
     this.flushing = Promise.resolve();
@@ -384,7 +384,7 @@ export class PairShake extends DurableObject {
     return { say, me: this.person(u.id), mission: this.missionFor(mid, u.id) };
   }
 
-  /** What Emma says while she looks (written as the search starts, voiced before the page asks for it). */
+  /** What Emma says while she looks (written as the search starts, ready when the page asks for it). */
   async prepareMuse(u, state) {
     try {
       const out = SCRIPT ? P.SCRIPT_MUSE : await ask(this.env, M.fill(P.MUSE, { about: this.convo(u) }));
@@ -634,7 +634,7 @@ export class PairShake extends DurableObject {
     if (!u || !u.test) u = this.testUser(app);
     const t = now();
     if (d.cancel) { this.testWait.delete(u.id); this.save(); return { me: this.person(u.id) }; }
-    let mid = u.test_mid;                    // the other phone tapped first and matched us
+    let mid = u.test_mid;                    // the other phone came while we waited and matched us
     delete u.test_mid;
     if (!mid) {
       for (const [w, at] of this.testWait) if (t - at > 8 || !this.users[w]) this.testWait.delete(w);   // that phone left
@@ -683,7 +683,7 @@ export class PairShake extends DurableObject {
       this.loginFails.delete(email);
       return json({ id: u.id, email });
     }
-    if (action === "delete") {               // everything about this person goes
+    if (action === "delete") {               // the user record goes; their introductions stay, without them
       const id = String(d.id ?? "");
       if (this.user(id)) {
         delete this.users[id];

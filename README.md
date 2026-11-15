@@ -31,7 +31,7 @@ Nobody can predict which two strangers will click ([Joel, Eastwick & Finkel 2017
 
 - **Code picks the pair, the model writes the words.** The agents' verdicts count for 80%, the two profiles for 20%.
 - **Five kinds of pair:** one needs what the other offers (useful), something rare in common (twin), the same frustration (pain), a friendly disagreement (clash), or no link at all (wildcard).
-- **Fair to the room.** People with no introduction yet go first. Two unanswered introductions make someone busy for 20 minutes. Nobody meets the same person twice.
+- **Fair to the room.** People with no introduction yet go first. Two unanswered introductions make someone busy for 20 minutes. Nobody meets the same person twice unless they've met everyone.
 - **Always a match.** If the model fails, the code still pairs people and writes a plain introduction.
 
 The code is in [`edge/src/matching.js`](edge/src/matching.js).
@@ -44,7 +44,8 @@ flowchart LR
   W --> R["Durable Object: room<br/>people, matching, chats"]
   R --> D[("D1")]
   R --> G["Gemini"]
-  R --> V["ElevenLabs, Whisper"]
+  R --> V["ElevenLabs"]
+  W --> H["Workers AI: Whisper"]
   A <-. "Ultra Wideband, Bluetooth" .-> B["the other iPhone"]
 ```
 

@@ -5,7 +5,6 @@ When both people say yes, PairShake shows an arrow and a distance until they mee
 | Both on | Distance | Direction |
 | --- | --- | --- |
 | The iPhone app (iPhone 11 or later, not SE or 16e) | Ultra Wideband, then Bluetooth when out of range | Ultra Wideband, then GPS when far apart |
-| The web, or one of each | GPS | GPS, compass and gyroscope |
 | A seed attendee (no phone) | a made-up position nearby | GPS, compass and gyroscope |
 
 ## In the app: Ultra Wideband
@@ -23,7 +22,7 @@ When both people say yes, PairShake shows an arrow and a distance until they mee
 
 The page draws the reading: `PairShakeApp.onFix({d, a, mode, coach})` arrives about 15 times a second; while one is less than 3 seconds old it wins over GPS.
 
-## On the web: GPS, compass, gyroscope
+## In the page: GPS, compass, gyroscope
 
 In `app/web/index.html` (`Find`):
 
@@ -33,8 +32,8 @@ In `app/web/index.html` (`Find`):
 
 ## What testing taught us
 
-- **Camera assistance on its own fails at night.** With it always on, one phone received 55 Ultra Wideband readings a second at 1.5 metres and not one direction: the camera never had enough light. That is why plain Ultra Wideband now comes first.
-- **GPS can't point across a room.** Its error is several metres, so the arrow only moved after walking that far. GPS direction is now used only when people are well apart.
+- **Camera assistance on its own fails at night.** With it always on, one phone received 55 Ultra Wideband readings a second at 1.5 metres and not one direction: the camera never had enough light. That is why plain Ultra Wideband comes first.
+- **GPS can't point across a room.** Its error is several metres, so the arrow only moved after walking that far. GPS direction is used only when people are well apart.
 - **Diagnostics.** The app writes `Documents/web.log` on the phone: page load times, errors, and every 5 seconds how many Ultra Wideband readings arrived and how many had a direction. See [running.md](running.md) for how to read it.
 
 ## Sound ranging experiment
