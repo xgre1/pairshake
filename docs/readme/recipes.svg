@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300" role="img" aria-label="Five ways to pair two people: useful, twin, pain, clash, wildcard">
+  <title>Five ways to pair two people</title>
+  <defs>
+    <radialGradient id="glow" cx=".5" cy="0" r=".8">
+      <stop offset="0" stop-color="#6E6BF2" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#6E6BF2" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .sans{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+      .serif{font-family:ui-serif,"New York","Iowan Old Style",Georgia,serif}
+      .eyebrow{font-size:12px;font-weight:600;letter-spacing:3px;fill:#B9A7FF}
+      .note{font-size:13px;fill:#7D7A9E}
+      .card{fill:#10101A;stroke:#262640}
+      .name{font-size:23px;fill:#F4F0FF}
+      .txt{font-size:14.5px;fill:#A9A6C9}
+      .tag{font-size:11px;fill:#7CF2C4}
+      .g{transform-box:fill-box;transform-origin:center}
+      .slideR{animation:slideR 2.4s ease-in-out infinite}.slideL{animation:slideL 2.4s ease-in-out infinite}
+      @keyframes slideR{0%,100%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
+      @keyframes slideL{0%,100%{transform:translateX(4px)}50%{transform:translateX(-4px)}}
+      .closeA{animation:closeA 3s ease-in-out infinite}.closeB{animation:closeB 3s ease-in-out infinite}
+      @keyframes closeA{0%,100%{transform:translateX(-5px)}50%{transform:translateX(2px)}}
+      @keyframes closeB{0%,100%{transform:translateX(5px)}50%{transform:translateX(-2px)}}
+      .lens{animation:lens 3s ease-in-out infinite}
+      @keyframes lens{0%,100%{opacity:.25}50%{opacity:1}}
+      .bolt{animation:bolt 2.2s steps(1) infinite}
+      @keyframes bolt{0%,100%{opacity:1}46%{opacity:.35}50%{opacity:1}54%{opacity:.35}58%{opacity:1}}
+      .spark{animation:spark 1.6s ease-in-out infinite}
+      @keyframes spark{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1.2);opacity:1}}
+      .die{animation:die 3.6s ease-in-out infinite}
+      @keyframes die{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(12deg)}}
+      @media (prefers-reduced-motion: reduce){*{animation:none!important}}
+    </style>
+  </defs>
+
+  <rect width="1000" height="300" rx="24" fill="#07070D"/>
+  <rect width="1000" height="300" rx="24" fill="url(#glow)"/>
+  <rect x=".5" y=".5" width="999" height="299" rx="23.5" fill="none" stroke="#1E1E30"/>
+  <text x="50" y="50" class="sans eyebrow">FIVE WAYS TO PAIR TWO PEOPLE</text>
+  <text x="950" y="50" text-anchor="end" class="sans note">the code picks one, the model may switch it</text>
+
+  <!-- useful -->
+  <rect x="50" y="78" width="172" height="190" rx="18" class="card"/>
+  <g transform="translate(72 100)">
+    <g class="g slideR"><path d="M0 10 H34 M26 3 L34 10 L26 17" fill="none" stroke="#8FD3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g class="g slideL"><path d="M40 28 H6 M14 21 L6 28 L14 35" fill="none" stroke="#8FD3FF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/></g>
+  </g>
+  <text x="72" y="182" class="serif name">useful</text>
+  <text class="sans txt"><tspan x="72" y="210">One needs what</tspan><tspan x="72" y="230">the other gives.</tspan></text>
+
+  <!-- twin -->
+  <rect x="232" y="78" width="172" height="190" rx="18" class="card"/>
+  <g transform="translate(254 98)">
+    <circle cx="14" cy="20" r="14" fill="none" stroke="#B9A7FF" stroke-width="2.4" class="g closeA"/>
+    <circle cx="34" cy="20" r="14" fill="none" stroke="#B9A7FF" stroke-width="2.4" class="g closeB"/>
+    <circle cx="24" cy="20" r="4" fill="#B9A7FF" class="lens"/>
+  </g>
+  <text x="254" y="182" class="serif name">twin</text>
+  <text class="sans txt"><tspan x="254" y="210">A rare thing</tspan><tspan x="254" y="230">they both share.</tspan></text>
+
+  <!-- pain -->
+  <rect x="414" y="78" width="172" height="190" rx="18" class="card"/>
+  <g transform="translate(436 98)">
+    <path d="M24 0 L8 22 H22 L14 40 L34 14 H20 L28 0 Z" fill="#FFB8CF" class="bolt"/>
+  </g>
+  <text x="436" y="182" class="serif name">pain</text>
+  <text class="sans txt"><tspan x="436" y="210">The same pet peeve,</tspan><tspan x="436" y="230">vented together.</tspan></text>
+
+  <!-- clash -->
+  <rect x="596" y="78" width="172" height="190" rx="18" class="card"/>
+  <g transform="translate(618 100)">
+    <path d="M0 18 H14 M8 11 L15 18 L8 25" fill="none" stroke="#FFB86B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M44 18 H30 M36 11 L29 18 L36 25" fill="none" stroke="#FFB86B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22" cy="18" r="4" fill="#FFB86B" class="g spark"/>
+  </g>
+  <text x="618" y="182" class="serif name">clash</text>
+  <text class="sans txt"><tspan x="618" y="210">A friendly fight</tspan><tspan x="618" y="230">over small stuff.</tspan></text>
+
+  <!-- wildcard -->
+  <rect x="778" y="78" width="172" height="190" rx="18" class="card"/>
+  <g transform="translate(800 98)">
+    <g class="g die">
+      <rect x="2" y="2" width="36" height="36" rx="9" fill="none" stroke="#7CF2C4" stroke-width="2.4"/>
+      <circle cx="12" cy="12" r="3" fill="#7CF2C4"/><circle cx="20" cy="20" r="3" fill="#7CF2C4"/><circle cx="28" cy="28" r="3" fill="#7CF2C4"/>
+    </g>
+  </g>
+  <text x="800" y="182" class="serif name">wildcard</text>
+  <text class="sans txt"><tspan x="800" y="210">No link at all.</tspan><tspan x="800" y="230">Go find one.</tspan></text>
+  <text x="800" y="254" class="sans tag">up to 1 in 4, big rooms</text>
+</svg>
