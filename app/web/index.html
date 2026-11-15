@@ -91,6 +91,7 @@ body.plain-match #matching .plain-wait{display:grid;place-items:center;flex:1;pa
 body.known #wSub{display:none}
 .rooms{display:flex;gap:10px;padding:0 var(--gut);margin-top:18px}
 body.known .rooms{margin-top:16px}
+#home .rooms{padding:0;margin:0}          /* for someone Emma knows it sits under what they're looking for */
 .rbtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 10px 12px;border-radius:var(--r);
   font-size:15px;font-weight:600;letter-spacing:-.015em;color:var(--fg);text-align:center;transition:transform .15s}
 body :is(.rbtn){background:var(--glass);box-shadow:var(--glass-rim),var(--glass-drop);-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
@@ -642,7 +643,7 @@ html.camfind body>*:not(#find){visibility:hidden}
   body.known #welcomeHands .hands-canvas{transform:translateY(9%)}   /* her resting hands sit above the frame's middle */
   body.known #home{display:contents}
   body.known #wTitle{order:1;text-align:left!important;font-size:40px!important;line-height:1.1;margin:0 0 28px!important}
-  body.known .rooms{order:1;padding:0;margin:-12px 0 24px}
+  body.known .rooms{order:2;padding:0;margin:24px 0 0}
   body.known .memcard{order:2}
   body.known #wFoot{order:3;position:static;margin:0;padding:16px 0 0!important;background:none}
   body.known #peopleBox{order:4;margin-top:40px}
@@ -2196,6 +2197,7 @@ function renderHome() {
     <div class="who"><div class="semi">${esc(c.person.name)}</div><div class="foot sec" style="margin-top:1px">${esc(preview(c))}</div></div>${CHEV}</button>`).join("");
   $("#people").querySelectorAll(".prow").forEach(b => b.onclick = () => openChat(S.contacts[b.dataset.i]));
   $("#forgetBtn").textContent = `Not ${first(me)}? Start fresh`;
+  $("#memCard").after($(".rooms"));                                // what you're looking for first, then the search under it
   $("#welcomeHands").dataset.inline = "1";                          // small hands above the page, not behind it
   $("#welcomeHands").dataset.fitWide = "0.32,0.25";                // on a computer: big, to weigh as much as the column
   if (document.body.dataset.screen === "welcome") mountHands();
@@ -2370,6 +2372,7 @@ $("#erFind").onclick = () => S.me ? $("#againBtn").onclick() : Tabs.back();
 /* Update: back to the first page, to tell Emma again with ChatGPT or by voice. What she remembers stays
    until the new answer replaces it (what isn't mentioned stays as it was); the X goes back home. */
 const retell = () => {
+  $("#wSub").after($(".rooms"));                                   // (back under the greeting, as for someone new)
   document.body.classList.remove("known"); document.body.classList.add("updating");
   $("#wTitle").textContent = `Hi again, ${first(S.me)}.`;
   delete $("#welcomeHands").dataset.inline; delete $("#welcomeHands").dataset.fitWide;   // Emma big again
