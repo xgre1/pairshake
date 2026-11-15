@@ -139,7 +139,7 @@ body.known #wSub{display:none}
 #live{color:#fff;background:#000;height:100dvh;overflow:hidden;text-align:center;padding:0 var(--gut)}
 .lv-bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.5);transform:scale(1.1)}
 #live>*:not(.lv-bg){position:relative;z-index:1}
-.lv-x{position:absolute!important;top:calc(var(--safeT) + 14px);right:16px;z-index:2!important}
+.lv-x{position:absolute!important;top:calc(var(--safeT) + 14px);right:var(--gut);z-index:2!important}
 .lv-radar{width:220px;height:220px;margin:0 auto;display:grid;place-items:center}
 .lv-radar span{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(52,199,89,.9);animation:radar 3s ease-out infinite;opacity:0}
 .lv-radar span:nth-child(2){animation-delay:1s} .lv-radar span:nth-child(3){animation-delay:2s}
@@ -185,7 +185,7 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)
 #scanVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .scan-frame{position:absolute;left:50%;top:42%;width:min(260px,66vw);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:28px;
   box-shadow:0 0 0 2000px rgba(0,0,0,.45);border:3px solid rgba(255,255,255,.9)}
-.scan-x{position:absolute;top:calc(var(--safeT) + 14px);right:16px;z-index:2}
+.scan-x{position:absolute;top:calc(var(--safeT) + 14px);right:var(--gut);z-index:2}
 .scan-foot{position:absolute;left:0;right:0;bottom:0;padding:20px 24px calc(24px + var(--safeB));text-align:center;z-index:2}
 .scan-foot p{margin-bottom:12px;font-size:17px} .scan-foot .field{width:100%;text-align:center;letter-spacing:.12em;font-size:18px}
 .scan-err{color:#FF9F0A;font-size:15px!important;margin-top:10px}
@@ -204,6 +204,9 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)
   font:600 19px/1 var(--sans);letter-spacing:-.01em;transition:transform .12s}
 .ai:active{transform:scale(.98)}
 .ai .ai-logo{width:28px;height:28px;flex:none}
+/* the three logos stand in one column and the three labels start on one line: the logo and the longest
+   label ("Ask ChatGPT", ~160 px together) sit in the middle, the shorter ones start where it does */
+.ais .ai:not(.ai-ours){justify-content:flex-start;padding-left:calc(50% - 80px)}
 .ai.ai-ours{height:52px;background:none;color:var(--sec);font-weight:500;font-size:16px}
 #onb{height:100dvh} #onb .chat{padding-top:14px} #onbDone{padding:6px 0 2px}
 .sound{display:none!important}
@@ -212,7 +215,7 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)
 .ai[data-ai="gemini"]{background:#fff;color:#1F1F1F;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 @media (prefers-color-scheme: dark){
   .ai[data-ai="chatgpt"]{background:#fff;color:#000}
-  .ai[data-ai="claude"]{background:#262624;color:#FAF9F5}
+  .ai[data-ai="claude"]{background:#262624;color:#FAF9F5;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}   /* (the same edge as Gemini's) */
   .ai[data-ai="gemini"]{background:#1E1F20;color:#E3E3E3;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 }
 .primary[disabled]{opacity:.35;cursor:default}
@@ -282,7 +285,7 @@ body.known #home{display:flex} body.known #againBtn{display:flex}
 body.known .new-only{display:none!important}
 /* Update: someone Emma knows back on the first page to tell her again (ChatGPT or voice); X goes home */
 #updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn,body.updating #devBtn{display:none!important}
-body:not(.tabs) #devBtn{right:56px}            /* (beside the gear, where the gear shows) */
+body:not(.tabs) #devBtn{right:calc(var(--gut) + 42px)}            /* (beside the gear, where the gear shows) */
 body.known #welcome>.spacer{display:none}
 body.known #welcomeHands{height:290px}
 body.known #wTitle{margin-top:-6px!important}
@@ -322,7 +325,7 @@ body.known #wSub{display:none}
 /* Emma's voice on or off, next to the close button on the screens where she talks (off by default) */
 .sound{position:absolute;top:calc(var(--safeT) + 14px);right:56px;width:32px;height:32px;border-radius:50%;background:var(--fill2);color:var(--sec);display:grid;place-items:center;z-index:5;translate:0 var(--pull,0px)}
 .sound .s-on,body.sound-on .sound .s-off{display:none} body.sound-on .sound .s-on{display:inline} body.sound-on .sound{color:var(--fg)}
-.leave{position:absolute;top:calc(var(--safeT) + 14px);right:16px;width:32px;height:32px;border-radius:50%;background:var(--fill2);
+.leave{position:absolute;top:calc(var(--safeT) + 14px);right:var(--gut);width:32px;height:32px;border-radius:50%;background:var(--fill2);
   color:var(--sec);display:grid;place-items:center;z-index:3}
 .talkbar{display:flex;align-items:center;justify-content:center;gap:30px;padding:14px 16px 0;
   user-select:none;-webkit-user-select:none}
