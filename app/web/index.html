@@ -80,10 +80,22 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 #gate{justify-content:center}
 /* the three AIs, each in its own colours, logo first */
 .ais{display:flex;flex-direction:column;gap:12px}
+/* Settings: the summary and the traits */
+.tr-sum{font-size:19px;line-height:1.4;padding:14px 16px}
+.tr-type{font:600 13px/1 var(--sans);background:var(--fg);color:var(--bg);border-radius:6px;padding:4px 7px;margin-left:6px;vertical-align:2px}
+.tr-g{padding-top:16px!important;font-weight:600;color:var(--fg)!important}
+.tr-row{gap:10px;min-height:40px}
+.tr-k{flex:0 0 46%;font-size:15px}
+.tr-bar{flex:1;height:6px;border-radius:3px;background:var(--fill2);overflow:hidden}
+.tr-bar i{display:block;height:100%;background:var(--fg);border-radius:3px}
+.tr-v{flex:none;width:36px;text-align:right;font-size:13px;color:var(--sec);font-variant-numeric:tabular-nums}
 .ai{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:64px;border-radius:999px;
   font:600 19px/1 var(--sans);letter-spacing:-.01em;transition:transform .12s}
 .ai:active{transform:scale(.98)}
 .ai .ai-logo{width:28px;height:28px;flex:none}
+.ai.ai-ours{height:52px;background:none;color:var(--sec);font-weight:500;font-size:16px}
+#onb{height:100dvh} #onb .chat{padding-top:14px} #onbDone{padding:6px 0 2px}
+.sound{display:none!important}
 .ai[data-ai="chatgpt"]{background:#000;color:#fff}
 .ai[data-ai="claude"]{background:#F0EEE6;color:#141413}
 .ai[data-ai="gemini"]{background:#fff;color:#1F1F1F;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
@@ -440,11 +452,33 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .findcard{display:flex;flex-direction:column;gap:14px;padding:18px;width:100%;text-align:left;border-radius:var(--r);
   background:var(--mat);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
 .mini{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--fill2);font-size:26px;font-weight:700}
-#find{background:#121212;color:#fff;transition:background .35s}
-#find.aligned{background:var(--c)} #find.aligned .cover{color:#000}
-#find .xbtn{background:rgba(255,255,255,.15);color:inherit;width:32px;height:32px}
-#arrow{transition:transform .5s var(--spring),opacity .3s}
-#find.live #arrow{transition:transform .15s linear,opacity .3s}   /* radio readings come ~15 times a second: follow them */
+/* Finding. In the app it sits on the live camera, blurred by the app behind the transparent page (.cam);
+   elsewhere on a dark base. While no direction is known, soft dots drift round the middle; when one comes
+   they fold away and the arrow sharpens out of a blur. Pointing at them floods the screen with their colour
+   from the arrow outwards. The arrow's turning and the distance are eased every frame (see Stage). */
+#find{background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.1) 36%,rgba(0,0,0,.16) 62%,rgba(0,0,0,.52));color:#fff;overflow:hidden}
+#find::before{content:"";position:absolute;inset:0;z-index:0;background:#121212;transition:opacity .6s var(--smooth)}
+#find.cam::before{opacity:0}
+html.camfind,html.camfind body{background:transparent!important}
+html.camfind body>*:not(#find){visibility:hidden}
+#findFlood{position:absolute;inset:0;z-index:1;background:var(--c);clip-path:circle(0 at 50% var(--fy,46%));transition:clip-path .45s cubic-bezier(.4,0,.6,1)}
+#find.aligned #findFlood{clip-path:circle(150% at 50% var(--fy,46%));transition:clip-path .75s cubic-bezier(.2,.75,.25,1)}
+#find .cover{z-index:2;transition:color .35s var(--smooth)}
+#find.aligned .cover{color:#000}
+#find .xbtn{background:rgba(255,255,255,.16);color:inherit;width:32px;height:32px}
+#find.aligned .xbtn{background:rgba(0,0,0,.1)}
+#findAv .av{transition:box-shadow .35s} #find.aligned #findAv .av{box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
+#findStage{position:relative;height:300px;display:grid;place-items:center}
+#findDots{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px 0 0 -170px;pointer-events:none;
+  transition:opacity .6s var(--smooth),transform .8s var(--smooth),filter .6s var(--smooth)}
+#find.dir #findDots{opacity:0;transform:scale(.5);filter:blur(8px)}
+#arrowWrap{opacity:0;transform:scale(.8);filter:blur(18px);
+  transition:opacity .5s var(--smooth),transform .7s var(--spring),filter .6s var(--smooth)}
+#find.dir #arrowWrap{opacity:1;transform:none;filter:blur(0)}
+#find.dir.aligned #arrowWrap{transform:scale(1.07)}
+#arrow{display:block;will-change:transform}
+#findDir{transition:opacity .18s var(--smooth)}
+@media (prefers-reduced-motion:reduce){#findDots{display:none}#findFlood,#arrowWrap{transition-duration:.01s}}
 .dist{font:600 72px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 
 /* Notification banner */
@@ -513,7 +547,8 @@ html:has(body[data-screen="settings"]),html:has(body[data-screen="about"]),html:
 .sbody .row:active:is(button){background:var(--fill2)}
 /* Settings rows, as in iOS Settings: a small coloured tile, the label, then the value or a chevron */
 .tile{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none;font:700 12px/1 var(--round);background:#8E8E93}
-.tile svg{width:18px;height:18px}
+.tile svg{width:17px;height:17px}
+.tile{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}      /* (so X's black tile still has an edge on a dark page) */
 .sbody .row:has(.tile) + .row::before{left:57px}
 .s-chev{color:var(--ter);flex:none;display:grid}
 .s-me{padding:12px 16px!important;gap:14px!important}
@@ -537,6 +572,9 @@ body:not(.in-app) .app-only{display:none!important}
 #fbText{flex:none;min-height:150px;resize:none;font:inherit;color:inherit;line-height:1.35;padding:12px 16px}
 .sbody .row.s-perm .s-v.off{color:#FF3B30}
 .s-ver{text-align:center;padding-top:22px}
+.s-gap{margin-top:28px}
+.sbody .row:has(> .tile) + .row::before{left:57px}     /* rows with a logo: the line starts where the words do */
+.sbody .row .s-v.ok{color:var(--sec)}
 #acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
 .acct-err{color:#FF3B30;min-height:18px}
 .sheet h3{text-wrap:balance}
@@ -571,6 +609,14 @@ body:not(.in-app) .app-only{display:none!important}
   <div style="padding:0 var(--gut) calc(16px + var(--safeB))"><button class="primary li" id="liBtn"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="4" fill="#fff"/><path fill="#0A66C2" d="M7.1 9.4H4.6V19h2.5V9.4zM5.85 5.2a1.45 1.45 0 1 0 0 2.9 1.45 1.45 0 0 0 0-2.9zM19.4 13.7c0-2.6-.6-4.5-3.6-4.5-1.45 0-2.4.8-2.8 1.55h-.04V9.4h-2.4V19h2.5v-4.75c0-1.25.24-2.47 1.8-2.47 1.53 0 1.55 1.43 1.55 2.55V19h2.5l.03-5.3z"/></svg>Continue with LinkedIn</button><button class="primary g" id="gBtn"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continue with Google</button></div>
 </section>
 
+<!-- No AI of your own: our agent asks what the copied prompt asks theirs -->
+<section class="screen" id="onb">
+  <div class="topbar"><button class="chev" id="onbBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Getting to know you</div></div>
+  <div class="chat" id="onbChat"></div>
+  <button class="plainbtn foot" id="onbDone">That's enough, write my profile</button>
+  <form class="composer" id="onbForm"><input class="field" id="onbInput" placeholder="Your answer" autocomplete="off" enterkeyhint="send"><button class="send" id="onbSend" aria-label="Send" disabled><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
+</section>
+
 <!-- Welcome -->
 <section class="screen" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
@@ -594,7 +640,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button><button class="ai ai-ours" id="onbBtn"><span>No AI? Answer a few questions</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -604,27 +650,26 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="sbody">
     <div class="group" id="sAccount"></div>
     <p class="s-f" id="sSaved"></p>
-    <p class="s-h">Where people can follow you</p>
+    <p class="s-h">Your links</p>
     <div class="group" id="sSocials"></div>
     <p class="s-h">Introductions</p>
-    <div class="group"><label class="row"><span class="s-l">Pause introductions</span><input type="checkbox" class="switch" id="sPause"></label></div>
-    <p class="s-f">While it's on, Emma introduces nobody to you.</p>
-    <p class="s-h">Alerts</p>
-    <div class="group"><label class="row"><span class="s-l">New introductions</span><input type="checkbox" class="switch" id="sAlerts"></label></div>
-    <p class="s-f">A banner and a buzz while PairShake is open.</p>
+    <div class="group">
+      <label class="row"><span class="s-l">Pause introductions</span><input type="checkbox" class="switch" id="sPause"></label>
+      <label class="row"><span class="s-l">Alert me to new ones</span><input type="checkbox" class="switch" id="sAlerts"></label>
+    </div>
+    <p class="s-f">Paused, nobody is introduced to you. Alerts show while PairShake is open.</p>
     <div id="sPermsBox" hidden>
       <p class="s-h">Permissions</p>
       <div class="group" id="sPerms"></div>
-      <p class="s-f">Finding someone in the room needs location, Bluetooth and the camera. Tap one to change it in iOS Settings.</p>
+      <p class="s-f" id="sPermsFoot"></p>
     </div>
     <p class="s-h">Sound</p>
     <div class="group">
       <label class="row"><span class="s-l">Emma's voice</span><input type="checkbox" class="switch" id="sVoiceOn"></label>
       <label class="row app-only"><span class="s-l">Vibration</span><input type="checkbox" class="switch" id="sBuzz"></label>
     </div>
-    <p class="s-h">Help</p>
-    <div class="group"><button class="row" id="sFeedback"><span class="s-l">Send feedback</span><span class="s-chev" id="sFbChev"></span></button></div>
-    <div class="group" style="margin-top:28px"><button class="row s-danger" id="sDelete">Delete my account</button></div>
+    <div class="group s-gap"><button class="row" id="sFeedback"><span class="s-l">Send feedback</span><span class="s-chev" id="sFbChev"></span></button></div>
+    <div class="group s-gap"><button class="row s-danger" id="sDelete">Delete my account</button></div>
     <p class="s-f s-ver" id="sVersion"></p>
   </div>
 </section>
@@ -849,6 +894,7 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Finding -->
 <div class="overlay" id="find">
+  <div id="findFlood"></div>
   <div class="cover">
     <div style="display:flex;align-items:center;gap:12px;padding:calc(12px + var(--safeT)) var(--gut) 0">
       <div id="findAv"></div>
@@ -856,8 +902,9 @@ body:not(.in-app) .app-only{display:none!important}
       <button class="xbtn" id="findClose" aria-label="Close"><svg width="11" height="11" viewBox="0 0 11 11"><path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="spacer"></div>
-    <div style="height:300px;display:grid;place-items:center">
-      <svg id="arrow" width="170" height="190" viewBox="0 0 170 190" style="opacity:.25"><path d="M85 178V18M18 85 85 18l67 67" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div id="findStage">
+      <canvas id="findDots" width="340" height="340"></canvas>
+      <div id="arrowWrap"><svg id="arrow" width="170" height="190" viewBox="0 0 170 190"><path d="M85 178V18M18 85 85 18l67 67" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
     <div class="spacer"></div>
     <div style="padding:0 28px calc(24px + var(--safeB));display:flex;flex-direction:column;gap:6px">
@@ -1352,11 +1399,16 @@ async function rehearse() {
 }
 
 /* ---------------------------------------------------------------- 2. handles */
-const SOCIALS = [["x", "X", "X", h => `https://x.com/${h}`], ["instagram", "Instagram", "IG", h => `https://instagram.com/${h}`],
-                 ["linkedin", "LinkedIn", "in", h => `https://www.linkedin.com/in/${h}`], ["github", "GitHub", "GH", h => `https://github.com/${h}`]];
+// each network's real mark (Simple Icons, CC0), white on its own colour
+const LOGO = {"x": "M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z", "instagram": "M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077", "linkedin": "M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z", "github": "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"};
+const logo = k => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${LOGO[k]}"/></svg>`;
+const TINT = {x: "#000", linkedin: "#0A66C2", github: "#181717",
+              instagram: "radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285aeb 90%)"};
+const SOCIALS = [["x", "X", logo("x"), h => `https://x.com/${h}`], ["instagram", "Instagram", logo("instagram"), h => `https://instagram.com/${h}`],
+                 ["linkedin", "LinkedIn", logo("linkedin"), h => `https://www.linkedin.com/in/${h}`], ["github", "GitHub", logo("github"), h => `https://github.com/${h}`]];
 function showSocials() {
   $("#handleGroup").innerHTML = SOCIALS.map(([k, label, g]) =>
-    `<label class="row"><span class="glyph">${g}</span><input data-k="${k}" placeholder="${label}" autocapitalize="off" autocorrect="off" value="${esc(localStorage.getItem("h." + k) || "")}"></label>`).join("");
+    `<label class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><input data-k="${k}" placeholder="${label}" autocapitalize="off" autocorrect="off" value="${esc(localStorage.getItem("h." + k) || "")}"></label>`).join("");
   show("socials");
 }
 $("#introduceBtn").onclick = () => {
@@ -1812,7 +1864,7 @@ function socialRows(p, sel) {
   const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
   const rows = SOCIALS.filter(([k]) => p.socials?.[k]).map(([k, label, g, url]) => {
     const h = p.socials[k], key = k + ":" + h, on = followed.has(key);
-    return `<div class="row"><span class="glyph">${g}</span><div style="flex:1;min-width:0"><div>@${esc(h)}</div><div class="cap sec" style="margin-top:1px">${label}</div></div>
+    return `<div class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><div style="flex:1;min-width:0"><div>@${esc(h)}</div><div class="cap sec" style="margin-top:1px">${label}</div></div>
       <a class="follow ${on ? "on" : ""}" data-key="${esc(key)}" href="${esc(url(encodeURIComponent(h)))}" target="_blank" rel="noopener">${on ? CHECK + "Following" : PLUS + "Follow"}</a></div>`;
   });
   const el = $(sel); el.innerHTML = rows.join(""); el.style.display = rows.length ? "" : "none";
@@ -1838,7 +1890,7 @@ async function loadMe() {
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
     const d = await r.json();
-    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused;
+    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused; S.traits = d.traits || null; S.dims = d.dims || null;
     document.body.classList.toggle("linked", !!d.linkedin);
     if (S.signed && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
       $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}.`;
@@ -1945,7 +1997,7 @@ const About = {
     $("#aEmpty").style.display = "none"; $("#aStart").style.display = fresh ? "" : "none";
     $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.editing ? "Done" : "Edit";
     $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
-    if (me && !this.editing) this.view();
+    if (me && !this.editing) { this.view(); $("#aView").insertAdjacentHTML("beforeend", Traits.html(me)); }   // summary and, for the demo, the numbers
     if (fresh) $("#aMe").innerHTML = `${av({name: S.name || "?", color: "#B9A7FF", photo: S.photo}, 52)}` +
       `<div><div class="n">${esc(S.name || "You")}</div><div class="e">Emma doesn't know you yet</div></div>`;
     if (this.editing) {
@@ -1980,7 +2032,6 @@ const About = {
     const sent = c.reduce((n, x) => n + x.chat.filter(m => m.from === x.you).length, 0);
     const facts = [["Working on", me.building], ["You can offer", me.offers], ["Where to find you", me.spot]].filter(([, v]) => v);
     const handles = SOCIALS.filter(([k]) => so[k]);
-    const tint = {x: "#000", instagram: "#E1306C", linkedin: "#0A66C2", github: "#24292F"};
     $("#aView").innerHTML =
       `<div class="group you-hero">${av(me, 88)}<h2 class="serif">${esc(me.name)}</h2>` +
         (me.role ? `<p class="role">${esc(me.role)}</p>` : "") +
@@ -1990,7 +2041,7 @@ const About = {
       `<p class="s-h">Emma is looking for</p><div class="group you-need serif">${esc((me.needs || "Someone worth meeting").replace(/[.\s]+$/, ""))}</div>` +
       (facts.length ? `<p class="s-h">About you</p><div class="group">${facts.map(([k, v]) => `<div class="row you-fact"><span class="k">${k}</span><span>${esc(v)}</span></div>`).join("")}</div>` : "") +
       `<p class="s-h">Where people can follow you</p><div class="group">` +
-        (handles.length ? handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${tint[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("")
+        (handles.length ? handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("")
                         : `<button class="row" id="aHandles"><span class="s-l">Add your handles</span><span class="s-chev">${CHEV}</span></button>`) + `</div>` +
       `<button class="primary soft" id="aRetell">Tell Emma again<small>With ChatGPT or by voice</small></button>` +
       `<p class="s-f">What you don't mention stays as it is.</p>`;
@@ -2039,6 +2090,70 @@ const twoTaps = (btn, label, act) => {          // dangerous rows ask once more 
     setTimeout(() => { delete btn.dataset.armed; btn.textContent = label; }, 4000);
   };
 };
+/* What PairShake read about you: a short summary, and (for the demo) the 44 numbers matching works with,
+   each 0 to 1, grouped, with a 16personalities-style type drawn from the Big Five. Faint bars are guesses. */
+const Traits = {
+  GROUPS: [["personality", "Personality"], ["values", "Values"], ["interests", "Interests"], ["work", "How you work"],
+           ["networking", "How you network"], ["career", "Career"]],
+  label: k => k.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()),
+  html(me) {
+    const t = S.traits;
+    const summary = t?.summary || me?.line || "";
+    if (!me && !t) return "";
+    let out = summary ? `<div class="group"><p class="tr-sum serif">${esc(summary)}</p></div>` : "";
+    if (!t) return out + `<p class="s-f">Working out your traits\u2026 They show up here in a minute.</p>`;
+    out += `<p class="s-h">How PairShake reads you <span class="tr-type">${esc(t.type)}</span></p>`;
+    for (const [g, name] of this.GROUPS) {
+      const rows = (S.dims || []).filter(d => d[1] === g).map(([k, , lo, hi]) => {
+        const v = t.v?.[k] ?? 0.5, c = t.c?.[k] ?? 0;
+        return `<div class="row tr-row" title="${esc(lo ? lo + " \u2194 " + hi : hi)}"><span class="tr-k">${esc(this.label(k))}</span>` +
+          `<span class="tr-bar"><i style="width:${Math.round(v * 100)}%;opacity:${(0.25 + 0.75 * c).toFixed(2)}"></i></span><span class="tr-v">${v.toFixed(2)}</span></div>`;
+      }).join("");
+      if (rows) out += `<p class="s-f tr-g">${name}</p><div class="group">${rows}</div>`;
+    }
+    return out;
+  },
+};
+
+/* No AI of their own: our agent asks the profile's questions one or two at a time (edge: /onboard), then
+   writes the same PAIRSHAKE PROFILE the AIs write, and it goes in exactly like a pasted answer. */
+const Onb = {
+  chat: [], busy: false,
+  async open() { this.chat = []; this.render(); show("onb"); Tabs.sync(); await this.turn(); },
+  render(typing) {
+    $("#onbChat").innerHTML = this.chat.map(c => `<div class="b ${c.from === "agent" ? "them" : "me"}">${esc(c.text)}</div>`).join("") +
+      (typing ? `<div class="b them" style="opacity:.6">\u00b7\u00b7\u00b7</div>` : "");
+    const el = $("#onbChat"); el.scrollTop = el.scrollHeight;
+    $("#onbDone").style.visibility = this.chat.some(c => c.from === "me") ? "visible" : "hidden";
+  },
+  async turn(finish) {
+    this.busy = true; this.render(true);
+    try {
+      const r = await api("/onboard", {id: S.id || kept(ID_KEY), chat: this.chat, finish: !!finish});
+      this.chat.push({from: "agent", text: r.say}); this.render();
+      if (r.done && r.profile) { $("#onbInput").disabled = true; await this.submit(r.profile); }
+    } catch { this.render(); oops("Can't reach the PairShake server."); }
+    finally { this.busy = false; }
+  },
+  async submit(text) {
+    try {
+      const r = await fetch("/quick", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({id: S.id || kept(ID_KEY), text})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return oops(d.error || "Something went wrong. Try again.");
+      S.id = d.id; keep(ID_KEY, d.id); buzz(30, "light");
+      $("#onbInput").disabled = false; showSocials();
+    } catch { oops("Can't reach the PairShake server."); }
+  },
+};
+$("#onbBtn").onclick = () => Onb.open();
+$("#onbBack").onclick = () => { show("welcome"); Tabs.sync(); };
+$("#onbInput").oninput = e => $("#onbSend").disabled = !e.target.value.trim();
+$("#onbForm").onsubmit = e => {
+  e.preventDefault(); const t = $("#onbInput").value.trim(); if (!t || Onb.busy) return;
+  Onb.chat.push({from: "me", text: t}); $("#onbInput").value = ""; $("#onbSend").disabled = true; Onb.turn();
+};
+$("#onbDone").onclick = () => { if (!Onb.busy) Onb.turn(true); };
+
 const Settings = {
   open() { this.render(); show("settings"); },
   render() {
@@ -2048,8 +2163,7 @@ const Settings = {
       `<button class="row s-act" id="sOut">Sign out</button>`;
     twoTaps($("#sOut"), "Sign out", forgetDevice);                 // (this device forgets you; sign in again to come back)
     const so = S.socials || {};
-    const tint = {x: "#000", instagram: "#E1306C", linkedin: "#0A66C2", github: "#24292F"};
-    $("#sSocials").innerHTML = SOCIALS.map(([k, label, g]) => `<label class="row"><span class="tile" style="background:${tint[k]}">${g}</span><span class="s-l">${label}</span>` +
+    $("#sSocials").innerHTML = SOCIALS.map(([k, label, g]) => `<label class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><span class="s-l">${label}</span>` +
       `<input data-k="${k}" placeholder="@handle" autocapitalize="off" autocorrect="off" enterkeyhint="done" value="${esc(so[k] || kept("h." + k) || "")}"></label>`).join("");
     $("#sSocials").querySelectorAll("input").forEach(i => i.oninput = () => this.saveSoon());
     $("#sSaved").textContent = "";
@@ -2064,9 +2178,11 @@ const Settings = {
   // what the app may use (location, Bluetooth, camera, microphone): only an app build that can tell shows the rows
   perms() { if (APP) APP.post({t: "perms"}); },
   showPerms(p) {
-    const say = {on: "On", off: "Off", ask: "Not asked yet"};
-    $("#sPerms").innerHTML = [["location", "Location"], ["bluetooth", "Bluetooth"], ["camera", "Camera"], ["microphone", "Microphone"]]
-      .map(([k, label]) => `<button class="row s-perm"><span class="s-l">${label}</span><span class="s-v ${esc(p[k])}">${say[p[k]] || "?"}</span><span class="s-chev">${CHEV}</span></button>`).join("");
+    const off = [["location", "Location"], ["bluetooth", "Bluetooth"], ["camera", "Camera"], ["microphone", "Microphone"]].filter(([k]) => p[k] === "off");
+    $("#sPerms").innerHTML = off.length
+      ? off.map(([, label]) => `<button class="row s-perm"><span class="s-l">${label}</span><span class="s-v off">Off</span><span class="s-chev">${CHEV}</span></button>`).join("")
+      : `<div class="row"><span class="s-l">Everything PairShake needs</span><span class="s-v ok">Allowed</span></div>`;
+    $("#sPermsFoot").textContent = off.length ? "Finding someone in the room needs these. Tap to turn it on in iOS Settings." : "";
     $("#sPerms").querySelectorAll("button").forEach(b => b.onclick = () => APP?.post({t: "openSettings"}));
     $("#sPermsBox").hidden = false;
   },
@@ -2566,39 +2682,97 @@ function gpsDir(real) {
 }
 function radio() { const h = Find.hw; return h && Date.now() - h.t < 3000 && h.d != null && (h.mode === "uwb" || h.mode === "bluetooth") ? h : null; }
 function pointAt(d) {                                   // d: degrees, 0 = ahead, positive = to the right
-  // keep the rotation continuous so the arrow never spins the long way round
-  Find.shown = Find.shown == null ? d : Find.shown + wrap180(d - Find.shown);
-  $("#arrow").style.transform = `rotate(${Find.shown}deg)`; $("#arrow").style.opacity = 1;
-  const ok = Math.abs(d) < 16; $("#find").classList.toggle("aligned", ok);
+  Find.aim = d; $("#find").classList.add("dir");
+  // pointing at them: in under 12°, out past 20°, so the colour doesn't flicker on the edge
+  const ok = Math.abs(d) < (Find.was ? 20 : 12); $("#find").classList.toggle("aligned", ok);
   if (ok && !Find.was) buzz(30, "light"); Find.was = ok;
-  $("#findDir").textContent = ok ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left";
+  findDir(ok ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left");
 }
+function noDir(tip) {                                   // no direction yet: the dots come back, the arrow blurs away
+  Find.aim = null; Find.was = false;
+  $("#find").classList.remove("dir", "aligned"); findDir(tip);
+}
+function findDir(text) {                                // the line under the distance, crossfaded when it changes
+  const el = $("#findDir"); if (Find.dirText === text) return;
+  Find.dirText = text; clearTimeout(Find.dirT);
+  el.style.opacity = 0; Find.dirT = setTimeout(() => { el.textContent = text; el.style.opacity = ""; }, 180);
+}
+function findDist(d) { Find.distAim = d; if (Find.distShown == null) { Find.distShown = d; $("#findDist").textContent = fmtDist(d); } }
+function findCam(on) {                                  // the app's blurred camera is behind the page
+  $("#find").classList.toggle("cam", on); document.documentElement.classList.toggle("camfind", on && Find.open);
+}
+
+/* Every frame while the finding screen is open: the arrow turns on a critically damped spring toward the
+   latest reading (15 a second from the app), the distance eases toward the latest number, and the
+   searching dots drift. Nothing jumps, however the readings arrive. */
+const Stage = {
+  raf: 0, last: 0, v: 0, dots: null, ctx: null, dpr: 1,
+  start() {
+    if (this.raf) return;
+    const c = $("#findDots"); this.dpr = Math.min(3, devicePixelRatio || 1);
+    c.width = c.height = 340 * this.dpr; this.ctx = c.getContext("2d");
+    if (!this.dots) this.dots = Array.from({length: 46}, (_, i) => ({ a: Math.random() * 6.283, r: 46 + Math.random() * 110,
+      w: (.12 + Math.random() * .3) * (i % 3 ? 1 : -1), z: Math.random(), ph: Math.random() * 6.283 }));
+    this.last = performance.now();
+    const tick = now => { this.step(Math.min(.05, (now - this.last) / 1000), now / 1000); this.last = now;
+      this.raf = Find.open ? requestAnimationFrame(tick) : 0; };
+    this.raf = requestAnimationFrame(tick);
+  },
+  step(dt, t) {
+    if (Find.aim != null) {
+      if (Find.shown == null) { Find.shown = Find.aim; this.v = 0; }
+      const goal = Find.shown + wrap180(Find.aim - Find.shown), w = 11;     // never the long way round
+      this.v += (w * w * (goal - Find.shown) - 2 * w * this.v) * dt; Find.shown += this.v * dt;
+      $("#arrow").style.transform = `rotate(${Find.shown.toFixed(2)}deg)`;
+    }
+    if (Find.distAim != null) {
+      Find.distShown += (Find.distAim - Find.distShown) * (1 - Math.exp(-dt / .22));
+      const s = fmtDist(Find.distShown); if (s !== Find.distText) { Find.distText = s; $("#findDist").textContent = s; }
+    }
+    if (Find.aim == null) Find.dirAt = t;
+    if (t - (Find.dirAt || 0) < 1) this.drawDots(t);                     // and for a second while they fold away
+  },
+  drawDots(t) {
+    const g = this.ctx, s = this.dpr, col = Find.person?.color || "#fff";
+    g.setTransform(s, 0, 0, s, 0, 0); g.clearRect(0, 0, 340, 340);
+    // a slow ping from the middle, like a radio listening
+    const p = (t % 2.2) / 2.2; g.globalAlpha = .22 * (1 - p); g.strokeStyle = col; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(170, 170, 18 + p * 150, 0, 6.283); g.stroke();
+    for (const d of this.dots) {
+      const a = d.a + d.w * t, r = d.r + 9 * Math.sin(t * .7 + d.ph), x = 170 + r * Math.cos(a), y = 170 + r * Math.sin(a) * .92;
+      g.globalAlpha = (.25 + .55 * (.5 + .5 * Math.sin(t * 1.4 + d.ph))) * (1 - Math.max(0, r - 140) / 30);
+      g.fillStyle = d.z > .55 ? col : "#fff"; g.shadowColor = g.fillStyle; g.shadowBlur = 4 + d.z * 10;
+      g.beginPath(); g.arc(x, y, 1.6 + d.z * 3.2, 0, 6.283); g.fill();
+    }
+    g.shadowBlur = 0; g.globalAlpha = 1;
+  },
+};
 function draw() {
   const h = radio();
   if (h) {
     const card = $("#findCardDist"); if (card) card.textContent = fmtDist(h.d);
     if (!Find.open) return;
-    $("#find").classList.add("live");
-    $("#findDist").textContent = fmtDist(h.d);
+    $("#find").classList.add("live"); findCam(!!h.cam);
+    findDist(h.d);
     const how = h.mode === "uwb" ? "Ultra Wideband, phone to phone" : "Bluetooth, rough distance";
     if (h.a != null) { $("#findNote").textContent = how; return pointAt(h.a * 180 / Math.PI); }
-    // No radio direction (too far, or outside the narrow cone UWB sees): say what helps the phone work it
-    // out, and meanwhile point by GPS if the two positions are good enough to give a direction at all.
-    const tip = COACH[h.coach] || (h.mode === "uwb" ? COACH.turn : COACH.move), g = gpsDir(h.d);
+    // No radio direction yet (the camera is still working it out, or they're out of range): say what helps,
+    // and meanwhile point by GPS if the two positions are good enough to give a direction at all.
+    const tip = COACH[h.coach] || (h.mode === "uwb" ? COACH.sweep : COACH.move), g = gpsDir(h.d);
     if (g != null) { $("#findNote").textContent = `${how} · direction from GPS, rough · ${tip}`; return pointAt(g); }
     $("#findNote").textContent = how;
-    $("#findDir").textContent = tip; $("#arrow").style.opacity = .25; $("#find").classList.remove("aligned"); Find.was = false; return;
+    return noDir(tip);
   }
-  $("#find").classList.remove("live");
+  $("#find").classList.remove("live"); if (Find.open) findCam(!!(Find.hw?.cam && Date.now() - Find.hw.t < 3000));
   const m = Find.me, t = target(), card = $("#findCardDist");
-  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; } return; }
+  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { if (Find.distAim == null) $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; noDir("Finding direction…"); } return; }
   const p = enu(m, t.lat, t.lon), dist = Math.hypot(p.x, p.y), bearing = (Math.atan2(p.x, p.y) / RAD + 360) % 360;
   const err = Math.sqrt(m.v + t.acc * t.acc);
   if (card) card.textContent = fmtDist(dist);
   if (!Find.open) return;
-  $("#findDist").textContent = fmtDist(dist);
+  findDist(dist);
   $("#findNote").textContent = `Location accurate to about ${Math.round(err)} m${Find.person?.seed ? ` · ${first(Find.person)} is a demo attendee` : ""}`;
-  if (Find.yaw == null || Find.offset == null) { $("#findDir").textContent = "Finding direction…"; return; }
+  if (Find.yaw == null || Find.offset == null) return noDir("Finding direction…");
   pointAt(wrap180(bearing - (Find.yaw + Find.offset)));
 }
 
@@ -2610,10 +2784,18 @@ async function findOpen(p) {
   $("#find").style.setProperty("--c", p.color);
   $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = first(p); $("#findSpot").textContent = p.spot;
   Find.open = true; $("#find").classList.add("on");
+  Find.aim = Find.shown = Find.distAim = Find.distShown = Find.distText = Find.dirText = null; Find.was = false;
+  $("#find").classList.remove("dir", "aligned"); $("#findDist").textContent = "–";
+  APP?.post({t: "findView", on: true});
+  // the colour floods out from the arrow's middle
+  const r = $("#findStage").getBoundingClientRect(); $("#find").style.setProperty("--fy", Math.round(r.top + r.height / 2) + "px");
+  Stage.start();
   try { if (DeviceOrientationEvent?.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {}
   draw();
 }
-$("#findClose").onclick = () => { Find.open = false; $("#find").classList.remove("on"); };
+$("#findClose").onclick = () => {
+  Find.open = false; $("#find").classList.remove("on"); findCam(false); APP?.post({t: "findView", on: false});
+};
 
 /* ---------------------------------------------------------------- someone matched with you */
 let inboxOn = false;

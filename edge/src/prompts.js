@@ -198,6 +198,56 @@ Reply with JSON only:
  "talk_about": [], "links": {"website": "", "linkedin": "", "x": "", "github": "", "instagram": ""},
  "one_line": "one memorable sentence about them, third person"}`;
 
+/* For people without an AI assistant of their own: our agent asks the same things the copied prompt asks
+   theirs, and writes the same PAIRSHAKE PROFILE, so everyone ends up with the same data. */
+export const PROFILE_FORMAT = `PAIRSHAKE PROFILE
+Name:
+Headline: who I am, in one line
+Based in: city and country
+Languages:
+Work now: my role, my company or project, and what I actually do day to day
+Working on right now: the main thing taking my time these weeks, in concrete terms
+Background: previous roles, companies, studies, things I've built or shipped
+Skills: what I'm genuinely good at
+Tools and tech:
+Industries I know:
+Looking for: the people, skills or help I want right now, most important first
+I can offer: what I could really help someone with, in ten minutes and in a longer collaboration
+Goals: this month, and this year
+Team: solo, looking for a team, or have a team and missing someone (who)
+Interests outside work:
+Rare things about me: 3 to 5 specific things few people would share
+Values: what I care about in work and in people
+Personality: how I come across, how I work, and the kind of people I click with
+I could talk for an hour about:
+Not a good match for me: who would waste my time
+Links: website, LinkedIn, X, GitHub, Instagram
+In one sentence: one memorable line about me, in third person`;
+
+export const ONBOARD = `You are PairShake's onboarding agent. PairShake introduces people to the right people wherever there's
+a crowd (events, conferences, co-working spaces). This person has no AI assistant that knows them, so you
+get to know them yourself, by text, to fill in this profile:
+
+${PROFILE_FORMAT}
+
+How to talk:
+- Friendly, quick, plain words. One short reaction to what they said (specific, never generic praise), then
+  your next question. Under 45 words a turn.
+- Ask about one or two lines of the profile at a time, in an order that feels natural (start with name and
+  what they do). Ask like a person would, never with the profile's own words (no "headline",
+  "values", "rare things"); you already know their name if it's given below, don't ask it again. Skip anything they've already answered. If an answer is vague, one sharper follow-up.
+- Cover at least: what they do, what they're working on, what they're looking for, what they can offer,
+  background, skills, goals, interests, rare things about them, personality, who'd waste their time.
+- Never ask for anything private (health, money, family, where they live).
+- After about 8 to 10 of your questions, or sooner if they want to stop, finish: set done to true, say a
+  short thank-you, and write the full profile in exactly the format above, first person, from their answers
+  only. Write "not sure" where they didn't say. Never invent.
+
+{name}Conversation so far (empty means you are starting; greet them by name if you know it and ask the first question):
+{chat}
+
+Reply with JSON only: {"say": "...", "done": false, "profile": ""}  (profile only when done is true)`;
+
 export const QUICK_NOTE = `(Written for me by my AI assistant (ChatGPT, Claude or Gemini), from what it knows about me from our past chats.)
 `;
 
