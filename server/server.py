@@ -20,20 +20,22 @@ import uuid
 
 from aiohttp import WSMsgType, web
 
+import llm
+import matching as M
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 EMMA = os.path.expanduser("~/Desktop/emma")
 sys.path.insert(0, EMMA)
 from engine.tts import Voice  # noqa: E402
 
 PORT = int(os.environ.get("PORT", 8780))
-MODEL = os.environ.get("ROOMIE_MODEL", "haiku")
-MAX_TURNS = 5
+MAX_TURNS = 6
 STATE_FILE = os.path.join(HERE, "room.json")
 
 OPENER = ("Hi, I'm Emma. I know pretty much everyone in this room, and I'd love to introduce you to someone. "
           "First, what's your name, and what are you building?")
 TOPICS = ["(2) what they need most right now", "(3) what they could help someone else with",
-          "(4) where they are in the room and how to spot them"]
+          "(4) where they are in the room and how to spot them", M.HOOK_TOPIC]
 THINKING = ("Lovely. I think I know someone. While I check, add your handles so they can follow you.")
 
 # ---------------------------------------------------------------------------------------------
@@ -157,7 +159,7 @@ def person(pid):
     return {"id": pid, "name": u.get("name") or p.get("name") or "Someone", "role": p.get("role", ""),
             "color": u["color"], "building": p.get("building", ""), "needs": p.get("needs", ""),
             "offers": p.get("offers", ""), "spot": p.get("spot", ""), "line": p.get("line", ""),
-            "socials": u.get("socials", {})}
+            "hooks": p.get("hooks", []), "socials": u.get("socials", {})}
 
 
 def candidates(exclude, app=False, seeds=True):
@@ -171,25 +173,9 @@ def candidates(exclude, app=False, seeds=True):
 
 
 # ---------------------------------------------------------------------------------------------
-# Language model: one-shot `claude -p` calls on the subscription (no tools, no MCP, no CLAUDE.md).
+# Language model (llm.py): Gemini when GEMINI_API_KEY is set, else one-shot `claude -p` calls.
 
-async def ask_llm(prompt, timeout=40):
-    env = dict(os.environ, CLAUDE_CODE_DISABLE_CLAUDE_MDS="1")
-    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"):
-        env.pop(k, None)
-    proc = await asyncio.create_subprocess_exec(
-        "claude", "-p", "--model", MODEL, "--strict-mcp-config", "--tools", "", "--output-format", "text",
-        prompt, cwd=HERE, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    try:
-        out, err = await asyncio.wait_for(proc.communicate(), timeout)
-    except asyncio.TimeoutError:
-        proc.kill()
-        raise RuntimeError("model timed out")
-    text = out.decode()
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        raise RuntimeError(f"no JSON from model: {text[:200]!r} {err.decode()[:200]!r}")
-    return json.loads(m.group(0))
+ask_llm = llm.ask
 
 
 def convo(u):
@@ -211,9 +197,10 @@ INTERVIEW = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in At
 playful, like a friend who knows everyone in the room and loves setting people up. You are getting to
 know one attendee BY VOICE so you can introduce them to the one person here they should meet.
 
-You need four things: (1) their name and what they're building, (2) what they need most right now,
+You need five things: (1) their name and what they're building, (2) what they need most right now,
 (3) what they could help someone else with in ten minutes, (4) where they are in the room and
-something to spot them by (clothes, a laptop sticker, anything).
+something to spot them by (clothes, a laptop sticker, anything), (5) one thing that has nothing to do
+with work that they could talk about for an hour (ask it lightly, as the fun last question).
 {returning}
 Rules for what you say next:
 - This is spoken aloud. One short reaction (a few words, specific to what they said, never generic
@@ -222,7 +209,7 @@ Rules for what you say next:
   Never ask about a later topic before an earlier one. If an answer was too vague to use, ask one
   sharper follow-up on that same topic instead.
 - If they cut you off, don't repeat what you were saying: just respond to them.
-- When all four are answered, set done to true and say only a short handover line like "Perfect. Give
+- When all five are answered, set done to true and say only a short handover line like "Perfect. Give
   me a second, I'm looking around the room."
 
 Conversation so far:
@@ -237,41 +224,6 @@ changed" updates it; anything they don't change stays as it was. Then ask only a
 which is usually just where they are in the room today (that changes every time).
 """
 RETURN_OPENER = "Welcome back, {first}. I remember what you told me last time. What's changed?"
-
-MATCH = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens (36 hours, teams of 1-5,
-build an agent that does real work). Below is your voice chat with one attendee, then everyone else in the room.
-
-Chat:
-{convo}
-
-People in the room (JSON):
-{room}
-
-Do three things.
-1. Write the attendee's profile from the chat, in short plain sentences (if the chat starts with what Emma
-   remembers, keep everything they didn't change).
-2. Pick the ONE person they should meet. Prefer complementary needs (one needs what the other offers,
-   ideally both ways) over similar topics. Be concrete.
-3. Map their OVERLAP, the thing that gets two strangers talking. Research says RARE shared traits bond
-   people far more than common ones (Alves 2018), so skip the obvious ("you both like AI", "you're both at
-   the hackathon"); find specific, surprising things they share: a past, a frustration, a way of working,
-   a user they care about, a taste. Also what each could give the other. Then write a ladder of three
-   questions they could ask each other, from light to real to deep (escalating self-disclosure, Aron 1997),
-   tied to their actual lives and projects, never generic icebreakers.
-
-Reply with JSON only:
-{{"me": {{"name": "...", "role": "3-6 words", "building": "...", "needs": "...", "offers": "...",
-         "spot": "...", "line": "one memorable sentence about them, third person"}},
-  "match_id": "id from the room list",
-  "intro_me": "Emma's matchmaker note to the attendee about the match: 2-3 warm, specific sentences on why these two should meet. Second person.",
-  "intro_them": "the same note written to the match about the attendee. Second person.",
-  "overlap": {{"rare": [{{"text": "a rare thing they share, under 9 words", "opener": "how the attendee could open with it, a question, under 18 words"}}, ...2 or 3],
-               "you_only": ["2 short tags (2-4 words) true of the attendee but not the match"],
-               "them_only": ["2 short tags (2-4 words) true of the match but not the attendee"],
-               "give": "what the attendee can give the match, under 10 words",
-               "get": "what the match can give the attendee, under 10 words",
-               "ladder": ["light question", "real question", "deep question"]}},
-  "say": "what Emma says aloud when revealing the match, like a matchmaker: their name and one reason. Never say where they are. Under 30 words, no lists."}}"""
 
 
 AGENT_TALK = """Two personal agents are meeting on behalf of their people at the Gen AI Summit Hackathon in
@@ -503,9 +455,20 @@ async def run_match(u):
     new = lambda ps: [p for p in ps if p["id"] not in seen]
     room = (app and new(candidates(u["id"], True, seeds=False))) or new(candidates(u["id"], app)) \
         or candidates(u["id"], app)
-    room_json = json.dumps([{k: p[k] for k in ("id", "name", "role", "building", "needs", "offers")}
-                            for p in room], ensure_ascii=False)
-    return await ask_llm(MATCH.format(convo=convo(u), room=room_json), timeout=60), room
+    me = await M.profile(convo(u), ask_llm)
+    if u.get("memory"):                       # back again: what they didn't mention stays as it was
+        me = {**u["memory"], **{k: v for k, v in me.items() if v}}
+    ids = {p["id"] for p in room} | {u["id"]}
+    R = M.Room(room + [{"id": u["id"], **me}], [m for m in missions.values() if m["a"] in ids and m["b"] in ids])
+    m = await M.match_one(R, u["id"], ask_llm)
+    if not m:
+        raise RuntimeError("nobody else in the room")
+    b, sh = m["ids"][1], m["share"]
+    note = lambda pid: f"{m['teases'][pid]} Your mission together: {m['mission']}"
+    return {"me": me, "match_id": b, "intro_me": note(u["id"]), "intro_them": note(b), "say": m["say"],
+            "overlap": {"rare": sh["rare"], "you_only": sh["first_only"], "them_only": sh["second_only"],
+                        "give": sh["give"], "get": sh["get"], "ladder": m["ladder"],
+                        "mission": m["mission"], "recipe": m["recipe"]}}, room
 
 
 def clean_overlap(o):
@@ -513,7 +476,8 @@ def clean_overlap(o):
             for x in (o.get("rare") or []) if isinstance(x, dict)][:3]
     strs = lambda v: [str(x) for x in (v or [])][:3]
     return {"rare": rare, "you_only": strs(o.get("you_only")), "them_only": strs(o.get("them_only")),
-            "give": str(o.get("give", "")), "get": str(o.get("get", "")), "ladder": strs(o.get("ladder"))}
+            "give": str(o.get("give", "")), "get": str(o.get("get", "")), "ladder": strs(o.get("ladder")),
+            "mission": str(o.get("mission", "")), "recipe": str(o.get("recipe", ""))}
 
 
 def overlap_for(o, mine):
