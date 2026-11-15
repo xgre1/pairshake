@@ -95,15 +95,16 @@ body.known #wSub{display:none}
 .net-empty{text-align:center;padding:12px 24px;font-size:17px}
 /* networks: a grid of square cards, the + first */
 #nets{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.netlive{position:relative;display:flex;align-items:center;gap:14px;width:100%;margin-bottom:12px;padding:16px;border-radius:24px;overflow:hidden;color:#fff;text-align:left;background:#0d1f14}
+.netlive{position:relative;display:flex;align-items:center;gap:12px;width:100%;margin-bottom:-16px;padding:12px 24px 12px 14px;border-radius:999px;overflow:hidden;color:#fff;text-align:left;background:var(--glass-pro);box-shadow:var(--glass-pro-rim),var(--glass-pro-drop);transition:transform .15s}
+.netlive:active{transform:scale(.97)} .netlive .nl-bg{display:none}   /* the same pill as the buttons under it */
 .netlive[hidden]{display:none}
 .netlive .nl-bg{position:absolute;inset:-20px;background-size:cover;background-position:center;filter:blur(18px) brightness(.45)}
 .netlive>*:not(.nl-bg){position:relative}
-.nl-radar{position:relative;width:52px;height:52px;flex:none;display:grid;place-items:center}
+.nl-radar{position:relative;width:40px;height:40px;flex:none;display:grid;place-items:center}
 .nl-radar span{position:absolute;inset:0;border-radius:50%;border:2px solid #34C759;animation:radar 2.4s ease-out infinite;opacity:0}
 .nl-radar span:nth-child(2){animation-delay:1.2s}
 .nl-radar i{width:14px;height:14px;border-radius:50%;background:#34C759;box-shadow:0 0 12px #34C759}
-.nl-t{flex:1;min-width:0} .nl-t b{display:block;font:600 18px/1.2 var(--sans)} .nl-t small{display:block;opacity:.8;font-size:14px;margin-top:3px}
+.nl-t{flex:1;min-width:0} .nl-t b{display:block;font:600 17px/1.2 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .nl-t small{display:block;opacity:.6;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nl-faces{display:flex} .nl-faces .av{border:2px solid #0d1f14;margin-left:-10px}
 .ncard{position:relative;aspect-ratio:1;border-radius:24px;overflow:hidden;text-align:left;color:#fff;background:#222;transition:transform .12s}
 .ncard:active{transform:scale(.97)}
@@ -808,7 +809,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <div id="nets"></div>
     <div class="home-acts">
       <button class="primary" id="hCreate">Create a network<small>Start one and share its QR code</small></button>
-      <button class="primary soft" id="hJoin">Join<small>Scan a QR code, or pick a Luma event that's on now</small></button>
+      <button class="primary soft" id="hJoin">Join<small>Scan a QR or pick Luma</small></button>
     </div>
     <!-- one thing big: what Emma looks for next; the rest small under it -->
     <button class="memcard" id="memCard">
@@ -2790,7 +2791,7 @@ const Nets = {
     document.body.classList.toggle("is-live", !!on?.you_live); bar.hidden = !on; bar.classList.toggle("off", !on?.you_live);
     if (on) {
       bar.innerHTML = `<div class="nl-bg" style='background-image:${netCover(on)}'></div><div class="nl-radar"><span></span><span></span><i></i></div>` +
-        `<div class="nl-t"><b>${on.you_live ? `You're live in ${esc(on.name)}` : esc(on.name)}</b><small>${on.you_live ? "Your agent is looking" : "Tap to be discoverable here again"} \u00b7 ends in ${endsIn(on.expires)}</small></div>`;
+        `<div class="nl-t"><b>${on.you_live ? `You're live in ${esc(on.name)}` : esc(on.name)}</b><small>${on.you_live ? "Your agent is looking" : "Tap to go live again"} \u00b7 ${endsIn(on.expires)} left</small></div>`;
       bar.onclick = () => this.live(on);
     }
     box.querySelectorAll(".ncard[data-i]").forEach(b => b.onclick = () => this.live(this.list[b.dataset.i]));
