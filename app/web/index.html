@@ -160,6 +160,13 @@ body.known #wSub{display:none}
 body[data-screen="live"],html:has(body[data-screen="live"]){background:#000}
 .lv-row{display:flex;justify-content:center;gap:20px;margin-top:6px}
 .lv-row .plainbtn{color:rgba(255,255,255,.8)}
+/* live (looking in a network): Emma's hands thinking, one line on what your agent is doing, and X. Nothing else. */
+#live{color:var(--fg);background:var(--bg)}
+body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)}
+#live .lv-bg,#live .lv-state,#live .lv-name,#live .lv-radar,#live .lv-foot{display:none!important}
+#lvHands{margin-top:-16vh}   /* (her hands sit low in their frame: lifted, so the two of them and the line are in the middle) */
+#live .lv-sub{font-size:19px;line-height:1.4;opacity:.8;text-wrap:balance;padding:0 12px;margin-top:4px;min-height:54px}
+.netlive.off .nl-radar span{animation:none} .netlive.off .nl-radar i{background:rgba(255,255,255,.6);box-shadow:none}
 .net-dot{width:40px;height:40px;border-radius:12px;background:var(--fill2);display:grid;place-items:center;font:600 18px/1 var(--serif);flex:none}
 .net-opt{display:flex;align-items:center;gap:16px;width:100%;padding:18px;border-radius:20px;background:var(--fill2);text-align:left;margin-bottom:12px}
 .net-opt svg{flex:none} .net-opt b{display:block;font-size:19px} .net-opt span{color:var(--sec);font-size:15px}
@@ -335,14 +342,14 @@ body.known #wSub{display:none}
 .hands-stage.hands-off:not(.hands-on)>.orb{visibility:visible;animation:fade .5s var(--smooth)}
 .hands-canvas{width:100%;height:100%;display:block;animation:fade .6s var(--smooth)}
 /* on a phone's first pages Emma's hands are framed close and sit low, near the words under them */
-#gateHands,#welcomeHands{height:360px}
-:is(#gateHands,#welcomeHands) .hands-canvas{transform:translateY(14%)}
+#gateHands,#welcomeHands,#lvHands{height:360px}
+:is(#gateHands,#welcomeHands,#lvHands) .hands-canvas{transform:translateY(14%)}
 /* On a phone the picture bleeds well past its stage (700px tall, behind the words), so a moving hand is only
    ever covered by the text itself, never cut by a box; the arms fade out instead of stopping at a line.
    Same framing as before: the fit is width-limited either way, and the centre sits 14% below the stage's. */
 @media (max-width: 899px){
-  :is(#gateHands,#welcomeHands){z-index:-1;overflow:visible;pointer-events:none}
-  :is(#gateHands,#welcomeHands) .hands-canvas{position:absolute;left:0;width:100%;height:700px;top:calc(64% - 350px);transform:none;
+  :is(#gateHands,#welcomeHands,#lvHands){z-index:-1;overflow:visible;pointer-events:none}
+  :is(#gateHands,#welcomeHands,#lvHands) .hands-canvas{position:absolute;left:0;width:100%;height:700px;top:calc(64% - 350px);transform:none;
     -webkit-mask-image:linear-gradient(#000 0,#000 80%,transparent 96%);mask-image:linear-gradient(#000 0,#000 80%,transparent 96%)}
 }
 .hands-canvas.hands-full{position:fixed;inset:0;width:100vw;height:100dvh;z-index:0;pointer-events:none}
@@ -1098,6 +1105,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <button class="xbtn lv-x" id="lvClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
   <div class="lv-radar" id="lvRadar"><canvas id="lvDots" aria-hidden="true"></canvas><div id="lvMe" hidden></div></div>
+  <div class="orb-wrap hands-stage" id="lvHands" data-fit="0.28,0.22"><div class="orb" style="--s:210px" data-mode="thinking"></div></div>
   <p class="lv-state" id="lvState"><i></i>Live</p>
   <h2 class="serif lv-name" id="lvName"></h2>
   <p class="lv-sub" id="lvSub"></p>
@@ -1243,7 +1251,8 @@ function handsOff() { document.querySelectorAll(".hands-stage").forEach(e => e.c
 setTimeout(() => { if (!window.Hands?.ok) handsOff(); }, 10000);
 // the hands canvas lives in whichever screen shows Emma big
 // Emma's hands are on every page she is part of: the way in, the first page (new or known), and the chat with her
-function mountHands() { if (!window.Hands?.ok) return; const el = {gate: "#gateHands", welcome: "#welcomeHands", interview: "#talkOrbWrap"}[document.body.dataset.screen]; el ? Hands.mount($(el)) : Hands.unmount(); }
+function mountHands() { if (!window.Hands?.ok) return; const id = document.body.dataset.screen, el = {gate: "#gateHands", welcome: "#welcomeHands", interview: "#talkOrbWrap", live: "#lvHands"}[id]; el ? Hands.mount($(el)) : Hands.unmount();
+  if (id === "live") Hands.mode("thinking"); else if (id !== "interview" && Hands.m === "thinking") Hands.mode("idle"); }   // looking in a network: she thinks
 const PLUS = `<svg width="11" height="11" viewBox="0 0 11 11"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const CHECK = `<svg width="12" height="11" viewBox="0 0 12 11"><path d="M1.5 5.8 4.6 9 10.5 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -2729,30 +2738,6 @@ const endsIn = t => {
   const s = Math.max(0, t - Date.now() / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
   return h >= 48 ? `${Math.floor(h / 24)} days` : h ? `${h}h ${m}m` : `${Math.max(1, m)} min`;
 };
-/* While you're live in a network: the finding screen's ring of plain dots, slowly turning (faster while your agent
-   is looking). No faces. */
-const LiveDots = {
-  raf: 0, dots: null, last: 0,
-  start() {
-    const c = $("#lvDots"); if (!c || this.raf) return;
-    const dpr = Math.min(3, devicePixelRatio || 1), g = c.getContext("2d"); c.width = c.height = 260 * dpr;
-    this.dots ||= Array.from({length: 90}, () => ({a: Math.random() * 6.283, r: 84 + Math.random() * 28, w: .06 + Math.random() * .05, z: Math.random(), ph: Math.random() * 6.283}));
-    this.last = performance.now();
-    const tick = now => {
-      if (document.body.dataset.screen !== "live") { this.raf = 0; return; }
-      const dt = Math.min(.05, (now - this.last) / 1000), t = now / 1000, k = Nets.busy ? 4 : 1; this.last = now;
-      g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, 260, 260); g.fillStyle = "#fff";
-      for (const d of this.dots) {
-        d.a += d.w * k * dt; const r = d.r + 3 * Math.sin(t * .9 + d.ph);
-        g.globalAlpha = .32 + .6 * d.z + .08 * Math.sin(t * 1.1 + d.ph);
-        g.beginPath(); g.arc(130 + r * Math.cos(d.a), 130 + r * Math.sin(d.a), 2.7 + d.z * .5, 0, 6.283); g.fill();
-      }
-      g.globalAlpha = 1;
-      this.raf = requestAnimationFrame(tick);
-    };
-    this.raf = requestAnimationFrame(tick);
-  },
-};
 const Nets = {
   list: [], cur: null, stream: null, hours: 6, photo: "", poll: 0,
   link: code => `${(APP?.server || location.origin).replace(/\/$/, "")}/join/${code}`,
@@ -2768,12 +2753,12 @@ const Nets = {
         (n.you_live ? `<span class="ncard-live"><i></i>Live</span>` : "") + `<span class="ncard-time">${left(n.expires)} left</span>` +
         `<div class="ncard-name">${esc(n.name)}<small>${n.members} ${n.members === 1 ? "person" : "people"}</small></div></button>`).join("");
     $("#netNew").onclick = () => this.sheet("netChoose");
-    const on = this.list.find(n => n.you_live), bar = $("#netLive");          // live somewhere: it says so, big
-    document.body.classList.toggle("is-live", !!on); bar.hidden = !on;
+    // the network you're in (live, or the latest): tap it to be discoverable there again
+    const on = this.list.find(n => n.you_live) || [...this.list].sort((a, b) => b.created - a.created)[0], bar = $("#netLive");
+    document.body.classList.toggle("is-live", !!on?.you_live); bar.hidden = !on; bar.classList.toggle("off", !on?.you_live);
     if (on) {
-      const others = on.live - 1;
       bar.innerHTML = `<div class="nl-bg" style='background-image:${netCover(on)}'></div><div class="nl-radar"><span></span><span></span><i></i></div>` +
-        `<div class="nl-t"><b>You're live in ${esc(on.name)}</b><small>${others > 0 ? `${others} ${others === 1 ? "person" : "people"} live with you` : "Looking for people"} \u00b7 ends in ${endsIn(on.expires)}</small></div>`;
+        `<div class="nl-t"><b>${on.you_live ? `You're live in ${esc(on.name)}` : esc(on.name)}</b><small>${on.you_live ? "Your agent is looking" : "Tap to be discoverable here again"} \u00b7 ends in ${endsIn(on.expires)}</small></div>`;
       bar.onclick = () => this.live(on);
     }
     box.querySelectorAll(".ncard[data-i]").forEach(b => b.onclick = () => this.live(this.list[b.dataset.i]));
@@ -2852,7 +2837,7 @@ const Nets = {
     $("#lvBg").style.backgroundImage = netCover(n);
     $("#lvMe").innerHTML = av({name: S.me?.name || S.name || "You", color: S.me?.color || "#B9A7FF", photo: S.photo || S.me?.photo}, 96);
     $("#lvName").textContent = n.name; $("#lvPeople").innerHTML = "";
-    this.paint(n); show("live"); Tabs.sync(); LiveDots.start();
+    this.paint(n); show("live"); Tabs.sync();
     clearInterval(this.poll); this.poll = setInterval(() => this.refresh(), 4000);
     if (!n.you_live) await this.toggle();                         // in it means live in it: no extra tap
     try { await loadMe(); } catch {}                              // who you've met already (S.contacts)
@@ -2862,7 +2847,7 @@ const Nets = {
     const on = !!n.you_live;
     $("#live").classList.toggle("off", !on);
     $("#lvState").lastChild.textContent = "You're live";
-    $("#lvSub").textContent = `${on ? "Discoverable here" : "Nobody can find you here"} \u00b7 ends in ${endsIn(n.expires)}`;
+    $("#lvSub").textContent = "Your agent is looking around\u2026";
   },
   async refresh() {
     if (document.body.dataset.screen !== "live" || !this.cur) { clearInterval(this.poll); return; }
@@ -2873,10 +2858,9 @@ const Nets = {
       for (const p of r.people) if (!have.has(p.id)) box.insertAdjacentHTML("beforeend", av(p, 52).replace('class="av', `data-id="${esc(p.id)}" class="av${p.live ? "" : " away"}`));
       const total = r.people.length, ready = r.people.filter(p => p.live && p.ready).length;
       this.ready = r.ready && ready > 0; this.readyN = ready;       // (whether someone here is new to you is the server's call)
-      if (r.network.you_live && !this.busy) $("#lvSub").textContent = ready ? `${ready} ${ready === 1 ? "person" : "people"} live here · ends in ${endsIn(r.network.expires)}`
-        : "Waiting for people to join…";
+      if (!this.busy) $("#lvSub").textContent = ready ? `Your agent sees ${ready} ${ready === 1 ? "agent" : "agents"} here` : "Your agent is waiting for other agents to join";
       if (!r.ready) $("#lvSub").textContent = "Introduce yourself first, so your agent knows who to look for";
-      if (!this.busy && this.none && this.none.n === ready) $("#lvSub").textContent = "You've met everyone here. Waiting for someone new";
+      if (!this.busy && this.none && this.none.n === ready) $("#lvSub").textContent = "Your agent has talked to everyone here. Waiting for someone new";
       // in a network it looks by itself, whenever someone is here and nothing is on. After "nobody new" it looks again
       // when the room changes, or after a minute (each search is the agents' talks, which cost)
       const wait = this.none && this.none.n === ready ? 60000 : 15000;
@@ -2909,9 +2893,16 @@ const Nets = {
     } catch (e) {
       scanning = false;
       if (e.status === 422) this.none = {n: this.readyN};
-      sub.textContent = e.status === 422 ? "You've met everyone here. Waiting for someone new" : "No one this time. Looking again in a moment";
+      sub.textContent = e.status === 422 ? "Your agent has talked to everyone here. Waiting for someone new" : "No one this time. Your agent looks again in a moment";
       if (document.body.dataset.screen === "live") this.poll = setInterval(() => this.refresh(), 4000);
     } finally { scanning = false; this.busy = false; }
+  },
+  // out of the looking screen (X, or Done after meeting someone): not discoverable until you tap the network again
+  async off() {
+    clearInterval(this.poll); const n = this.cur;
+    show("welcome"); Tabs.sync();
+    if (n?.you_live) try { await api("/network/live", {id: this.me(), network: n.id, on: false}); } catch {}
+    await this.load();
   },
   async toggle() {
     const n = this.cur; if (!n) return;
@@ -2957,7 +2948,7 @@ $("#hCreate").onclick = () => { buzz(8); Nets.openCreate(); };
 $("#hJoin").onclick = () => { buzz(8); Nets.sheet("netChoose"); };
 $("#netHours").querySelectorAll("button").forEach(b => b.onclick = () => { Nets.hours = +b.dataset.h; $("#netHours").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
 $("#netPhoto").onchange = e => Nets.pickPhoto(e.target.files[0]);
-$("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); Nets.load(); };
+$("#lvClose").onclick = () => Nets.off();
 $("#lvShare").onclick = () => Nets.cur && Nets.share(Nets.cur);
 twoTaps($("#lvLeave"), "Leave", () => Nets.leave());
 twoTaps($("#tpForget"), "Forget everyone", async () => {      // (testing: meet the same people again)
@@ -3757,9 +3748,9 @@ const Meet = {
 };
 $("#meetGo").onclick = () => Meet.go();
 $("#findFound").onclick = () => Meet.reveal();
-$("#mdDone").onclick = () => {                // done: back to the network, which looks for the next person
+$("#mdDone").onclick = () => {                // done: home, as if nothing happened (they're in People now), not discoverable
   $("#metDone").classList.remove("on"); Meet.close(); loadMe();
-  if (document.body.dataset.screen === "live" && Nets.cur) Nets.live(Nets.cur);
+  Nets.cur ? Nets.off() : goHome();
 };
 
 /* ---------------------------------------------------------------- someone matched with you */
