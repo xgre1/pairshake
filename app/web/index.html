@@ -95,7 +95,7 @@ body.known #wSub{display:none}
 .net-empty{text-align:center;padding:12px 24px;font-size:17px}
 /* networks: a grid of square cards, the + first */
 #nets{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.netlive{position:relative;display:flex;align-items:center;gap:12px;width:100%;margin-bottom:-16px;padding:12px 24px 12px 14px;border-radius:999px;overflow:hidden;color:#fff;text-align:left;background:var(--glass-pro);box-shadow:var(--glass-pro-rim),var(--glass-pro-drop);transition:transform .15s}
+.netlive{position:relative;display:flex;align-items:center;gap:12px;width:100%;margin-bottom:-16px;padding:12px 24px 12px 14px;border-radius:999px;overflow:hidden;color:var(--bg);text-align:left;background:var(--glass-pro);box-shadow:var(--glass-pro-rim),var(--glass-pro-drop);transition:transform .15s}
 .netlive:active{transform:scale(.97)} .netlive .nl-bg{display:none}   /* the same pill as the buttons under it */
 .netlive[hidden]{display:none}
 .netlive .nl-bg{position:absolute;inset:-20px;background-size:cover;background-position:center;filter:blur(18px) brightness(.45)}
@@ -105,7 +105,7 @@ body.known #wSub{display:none}
 .nl-radar span:nth-child(2){animation-delay:1.2s}
 .nl-radar i{width:14px;height:14px;border-radius:50%;background:#34C759;box-shadow:0 0 12px #34C759}
 .nl-t{flex:1;min-width:0} .nl-t b{display:block;font:600 17px/1.2 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .nl-t small{display:block;opacity:.6;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nl-faces{display:flex} .nl-faces .av{border:2px solid #0d1f14;margin-left:-10px}
+.nl-faces{display:flex} .nl-faces .av{border:2px solid var(--fg);margin-left:-10px}   /* (the pill is the text colour, inverted) */
 .ncard{position:relative;aspect-ratio:1;border-radius:24px;overflow:hidden;text-align:left;color:#fff;background:#222;transition:transform .12s}
 .ncard:active{transform:scale(.97)}
 .ncard-bg{position:absolute;inset:0;background-size:cover;background-position:center}
@@ -174,7 +174,7 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)
 #live .lv-foot #lvShare{background:var(--glass);color:var(--fg);box-shadow:var(--glass-rim),var(--glass-drop)}   /* only Invite people, under the line */
 #lvHands{margin-top:-16vh}   /* (her hands sit low in their frame: lifted, so the two of them and the line are in the middle) */
 #live .lv-sub{font-size:19px;line-height:1.4;opacity:.8;text-wrap:balance;padding:0 12px;margin-top:4px;min-height:54px}
-.netlive.off .nl-radar span{animation:none} .netlive.off .nl-radar i{background:rgba(255,255,255,.6);box-shadow:none}
+.netlive.off .nl-radar span{animation:none} .netlive.off .nl-radar i{background:currentColor;opacity:.5;box-shadow:none}
 .net-dot{width:40px;height:40px;border-radius:12px;background:var(--fill2);display:grid;place-items:center;font:600 18px/1 var(--serif);flex:none}
 .net-opt{display:flex;align-items:center;gap:16px;width:100%;padding:18px;border-radius:20px;background:var(--fill2);text-align:left;margin-bottom:12px}
 .net-opt svg{flex:none} .net-opt b{display:block;font-size:19px} .net-opt span{color:var(--sec);font-size:15px}
@@ -586,6 +586,8 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .sheet{background:var(--bg);width:100%;max-width:440px;height:420px;border-radius:32px 32px 0 0;display:flex;flex-direction:column;gap:16px;
   padding:24px 24px calc(14px + var(--safeB));animation:up .45s var(--spring)}
 .sheet .faces .av{box-shadow:0 0 0 2px var(--bg)}
+/* dark mode: Emma's white hands pass behind white words on the first pages; a soft dark halo keeps the words readable */
+@media (prefers-color-scheme: dark){ :is(#wTitle,#wSub,#gate h1,#gate .sec,#live .lv-sub,.ev-pill .ev-t){text-shadow:0 0 4px #000,0 0 14px #000,0 0 28px rgba(0,0,0,.8)} }
 @media (prefers-color-scheme: dark){ .sheet{background:var(--bg2)} .sheet .faces .av{box-shadow:0 0 0 2px var(--bg2)} }
 .sheet .faces .av + .av{margin-left:-12px}
 @keyframes up{from{transform:translateY(100%)}to{transform:none}}
