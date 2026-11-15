@@ -2116,28 +2116,8 @@ const Net = {
 };
 
 /* ---------------------------------------------------------------- 4. introduction */
-<<<<<<< Updated upstream
-function revealMatch() {
-  const r = S.result, p = r.mission.person, me = r.me;
-  $("#introPair").style.cssText = `--a:${esc(me.color)};--b:${esc(p.color)}`;
-  $("#faces").innerHTML = av(me, 92) + av(p, 92); $("#faces").classList.add("apart");
-  ["#introBody", "#introDock"].forEach(s => $(s).classList.remove("in"));
-  $("#iName").textContent = `Meet ${first(p)}.`; $("#iRole").textContent = p.role;
-  $("#iNote").textContent = r.mission.intro;
-  $("#iFacts").innerHTML = [["Building", p.building], ["Looking for", p.needs], ["Good at", p.offers]]
-    .filter(([, v]) => v).map(([k, v]) => `<div class="row fact"><div><b>${k}</b>${esc(v)}</div></div>`).join("");
-  socialRows(p, "#iSocials");
-  $("#talkBtn").innerHTML = `Talk with ${esc(first(p))}<small>See what you share, then talk</small>`;
-  show("intro"); startInbox(); ringTo("intro");
-  setTimeout(() => { $("#faces").classList.remove("apart"); ["#introBody", "#introDock"].forEach(s => $(s).classList.add("in")); }, 80);
-  buzz([60, 40, 60], "success");
-  if (r.say) Muse.finish().then(() => { if (S.result === r) Voice.say(r.say); });     // after the line she's on
-}
-/* An introduction found in a network or sent to you: straight to the two faces coming together, then Talk. */
-=======
 /* Whoever was searching gets the card (no name, no face; see Meet), not the two faces coming together. */
 function revealMatch() { Voice.stopSpeaking(); startInbox(); Meet.open(S.result.mission, true); }
->>>>>>> Stashed changes
 function introduce(mission, me = S.me) { S.result = {mission, me: me || S.me, say: ""}; revealMatch(); }
 function socialRows(p, sel) {
   const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
@@ -3694,7 +3674,7 @@ const Meet = {
   close() {
     clearTimeout(this.timer);
     if (this.ws) { this.ws.onopen = this.ws.onclose = this.ws.onmessage = null; try { this.ws.close(); } catch {} if (Room.ws === this.ws) Room.ws = null; this.ws = null; }
-    if (this.found) { if (Find.watch != null) { navigator.geolocation.clearWatch(Find.watch); Find.watch = null; } Find.person = Find.peer = null; Find.secret = false; }
+    if (this.found) { stopFind(true); Find.secret = false; }
     this.m = null; this.mine = this.found = false;
   },
 };
