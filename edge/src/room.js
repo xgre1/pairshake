@@ -1080,7 +1080,7 @@ export class PairShake extends DurableObject {
   // ---- the room: see what you share, chat, then each decides whether to meet ----------------------------------
   // Seed people are played by Emma: she chats and decides for them.
   roomFor(mid) {
-    if (!this.rooms.has(mid)) this.rooms.set(mid, { gps: {}, replying: false });
+    if (!this.rooms.has(mid)) this.rooms.set(mid, { gps: {}, replying: false, hold: {} });
     const m = this.missions[mid];
     m.chat ||= [];
     m.decide ||= {};
@@ -1101,7 +1101,9 @@ export class PairShake extends DurableObject {
 
   snapshot(mid, role) {
     const { m, bot } = this.roomFor(mid);
-    return { t: "state", you: role, chat: m.chat, decided: role in m.decide, meet: m.outcome ?? null, online: this.sockets(mid, other(role)).length > 0 || !!bot };
+    const { R } = this.roomFor(mid);
+    return { t: "state", you: role, chat: m.chat, decided: role in m.decide, meet: m.outcome ?? null, online: this.sockets(mid, other(role)).length > 0 || !!bot,
+             hold: !!R.hold[other(role)] };
   }
 
   decide(mid, role, yes) {
@@ -1158,6 +1160,9 @@ export class PairShake extends DurableObject {
       if (![lat, lon, acc].every(Number.isFinite)) return;
       R.gps[role] = { t: "gps", lat, lon, acc };
       this.broadcast(mid, R.gps[role], role);
+    } else if (d.t === "hold") {       // the two keys: each holds their button, the bar fills only while both do
+      R.hold[role] = !!d.on;
+      this.broadcast(mid, { t: "hold", on: R.hold[role] }, role);
     } else if (d.t === "decide") {
       const yes = !!d.yes;
       if (bot && yes) sleep(2500).then(() => this.decide(mid, "b", true));
@@ -1169,7 +1174,11 @@ export class PairShake extends DurableObject {
     const at = ws.deserializeAttachment();
     try { ws.close(code === 1005 || code === 1006 ? 1000 : code, reason); } catch {}
     if (!at) return;
-    if (!this.sockets(at.mid, at.role).some(x => x !== ws)) this.broadcast(at.mid, { t: "presence", online: false });
+    if (!this.sockets(at.mid, at.role).some(x => x !== ws)) {
+      const R = this.rooms.get(at.mid);
+      if (R?.hold?.[at.role]) { R.hold[at.role] = false; this.broadcast(at.mid, { t: "hold", on: false }); }   // gone: let go
+      this.broadcast(at.mid, { t: "presence", online: false });
+    }
   }
 
   async webSocketError(ws) { await this.webSocketClose(ws, 1011, "error"); }
