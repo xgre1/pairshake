@@ -70,7 +70,7 @@ export async function start(name, req, env) {
   const ret = url.searchParams.get("ret") || "";
   if (ret !== "app" && !RETURN_OK.test(ret)) return Response.json({ error: "Unknown return address." }, { status: 400 });
   const id = (url.searchParams.get("id") || "").replace(/[^a-z0-9]/gi, "").slice(0, 32);
-  const app = ret === "app" || (req.headers.get("user-agent") || "").includes("PairShakeApp");
+  const app = ret === "app" || /PairShakeApp|RoomieApp/.test(req.headers.get("user-agent") || "");
   const to = new URL(p.auth);
   to.search = new URLSearchParams({
     response_type: "code", client_id: p.id(env), redirect_uri: redirectUri(url, name), scope: "openid profile email",

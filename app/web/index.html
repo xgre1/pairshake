@@ -800,7 +800,7 @@ const av = (p, size) => `<div class="av" style="width:${size}px;height:${size}px
 const isDesk = () => matchMedia("(min-width: 900px)").matches;
 const demo = new URLSearchParams(location.search).has("demo");
 // Inside the PairShake iPhone app (the people on stage use it): real haptics, and finding by radio
-const APP = window.PairShakeApp?.native ? window.PairShakeApp : null;
+const APP = (b => b?.native ? b : null)(window.PairShakeApp || window.RoomieApp);   // (builds from before the rename call it RoomieApp)
 const Prefs = {                     // this device's settings
   get: (k, d) => { try { const v = localStorage.getItem("pairshake.pref." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem("pairshake.pref." + k, JSON.stringify(v)); } catch {} },
@@ -2479,7 +2479,7 @@ const PROVIDER = {linkedin: "LinkedIn", google: "Google"};
 function signIn(provider) {
   S.signingIn = provider;
   const id = encodeURIComponent(S.id || kept(ID_KEY) || "");
-  if (APP?.linkedin) APP.post({t: "signin", url: `${APP.server || location.origin}/auth/${provider}?ret=app&id=${id}`});
+  if (APP?.linkedin) APP.post({t: "linkedin", url: `${APP.server || location.origin}/auth/${provider}?ret=app&id=${id}`});
   else location.href = `/auth/${provider}?ret=${encodeURIComponent(location.origin)}&id=${id}`;
 }
 async function signedIn(id, err) {
