@@ -42,6 +42,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const str = v => (v == null ? "" : String(v)).trim();
 const firstName = n => String(n || "").split(/\s+/)[0];
 const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+// what someone can hide on the You page: off their card, and Emma never brings it up with anyone
+const HIDEABLE = ["role", "building", "needs", "offers", "line", "hooks"];
+const hideFrom = (p, hidden) => { const o = { ...p }; for (const k of hidden || []) if (k in o) o[k] = Array.isArray(o[k]) ? [] : ""; return o; };
+const hooksOf = v => (Array.isArray(v) ? v : String(v ?? "").split(/[,\n]/)).map(str).filter(Boolean).slice(0, 3).map(h => h.slice(0, 80));
 const json = (d, status = 200) => Response.json(d, { status, headers: { "cache-control": "no-store" } });
 class HttpError extends Error { constructor(status, msg) { super(msg || String(status)); this.status = status; } }
 const notFound = () => { throw new HttpError(404, "Not found."); };
@@ -184,8 +188,9 @@ export class PairShake extends DurableObject {
   }
 
   // ---- people ---------------------------------------------------------------------------------------------
-  /** Public card for anyone in the room, seed or real. */
-  person(pid) {
+  /** Public card for anyone in the room, seed or real. What they hid is left out, except for themselves
+      (`self`), who also get the list of what they hid. */
+  person(pid, self = false) {
     const s = SEED_BY_ID[pid];
     if (s) {
       const o = {};
@@ -195,11 +200,12 @@ export class PairShake extends DurableObject {
     const u = this.users[pid];
     if (!u) return null;
     const p = u.profile || {};
-    return {
+    const card = {
       id: pid, name: u.name || p.name || "Someone", role: p.role || "", color: u.color, building: p.building || "",
       needs: p.needs || "", offers: p.offers || "", spot: p.spot || "", line: p.line || "", hooks: p.hooks || [],
       socials: u.socials || {}, photo: u.photo || "",
     };
+    return self ? { ...card, hidden: u.hidden || [] } : hideFrom(card, u.hidden);
   }
 
   /** Who an attendee can meet. The iPhone app and the web page are separate rooms (so phones can find each
@@ -634,7 +640,7 @@ export class PairShake extends DurableObject {
     this.save();
     const say = SCRIPT ? scriptReveal(them) : r.say || "";
     this.said.add(say);
-    return { say, me: this.person(u.id), mission: this.missionFor(mid, u.id) };
+    return { say, me: this.person(u.id, true), mission: this.missionFor(mid, u.id) };
   }
 
   /** What Emma says while she looks (written as the search starts, ready when the page asks for it). */
@@ -670,10 +676,12 @@ export class PairShake extends DurableObject {
     state.total = who.length;
     state.sent = now();
     const pub = p => JSON.stringify(Object.fromEntries(Object.entries(M.card(p)).filter(([k]) => k !== "id" && k !== "avoid")));
-    const own = p => JSON.stringify(M.judgeCard({ ...p, persona: this.users[p.id]?.persona }));
-    const mine = own(me), myCard = pub(me), convo = this.convo(u);
+    // their agent's answer is shown to the attendee, so it knows nothing they hid (nor their AI's write-up then)
+    const own = (p, self) => { const h = self ? null : this.users[p.id]?.hidden;
+      return JSON.stringify(M.judgeCard({ ...hideFrom(p, h), persona: h?.length ? null : this.users[p.id]?.persona })); };
+    const mine = own(me, true), myCard = pub(me), convo = this.convo(u);
     const one = async (rank, pid) => {
-      const p = R.people[pid];
+      const p = hideFrom(R.people[pid], this.users[pid]?.hidden);     // (what they hid: their agent doesn't say it either)
       try {
         await this.agentsTurns.take(rank);
         let q, a;
@@ -704,10 +712,14 @@ export class PairShake extends DurableObject {
     return Object.fromEntries(state.talks.map(x => [x.person.id, x]));
   }
 
-  /** A card plus what only matching may know: whom they'd rather not meet. */
+  /** A card plus what only matching may know: whom they'd rather not meet, and what they hid (it still helps
+      pick who they meet, but nothing written for anyone else is made from it). */
   private(p) {
-    const avoid = this.users[p.id]?.profile?.avoid;
-    return avoid ? { ...p, avoid } : p;
+    const u = this.users[p.id], pr = u?.profile;
+    if (!pr) return p;
+    const o = { ...p };
+    for (const k of u.hidden || []) if (pr[k]) o[k] = pr[k];
+    return pr.avoid ? { ...o, avoid: pr.avoid } : o;
   }
 
   /** In a room (a Luma event or a network): write their card from what they told Emma and stop there. Nobody is
@@ -811,7 +823,10 @@ export class PairShake extends DurableObject {
         claim();
       }
       state.closed = true;
-      s = await M.spark(R, [u.id, p.b], p.recipe, prompt => ask(this.env, prompt, { model: MAIN }), talks[p.b],
+      for (const x of [u.id, p.b]) R.people[x] = hideFrom(R.people[x], this.users[x]?.hidden);   // the intro is written from what's shown
+      R.index();
+      s = await M.spark(R, [u.id, p.b], p.recipe, prompt => ask(this.env, prompt, { model: MAIN }),
+        u.hidden?.length ? null : talks[p.b],         // (their agent's question came from everything they said)
         [this.traitsOf(u.id), this.traitsOf(p.b)]);     // (traits only shape the tone of the introduction)
     } finally {
       state.closed = true;
@@ -859,7 +874,7 @@ export class PairShake extends DurableObject {
       contacts.push({ ...mf, you: m.a === u.id ? "a" : "b", chat: chat.slice(-30), at: Math.max(m.created || 0, ...chat.map(c => c.at || 0)) });
     }
     contacts.sort((x, y) => y.at - x.at);
-    return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
+    return { me: u.profile ? this.person(u.id, true) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
              photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
              via: u.linkedin ? "LinkedIn" : u.google ? "Google" : "", login: u.linkedin?.email || u.google?.email || u.email || "",
              paused: !!u.paused, event: u.event || null,
@@ -1042,6 +1057,10 @@ export class PairShake extends DurableObject {
   /** Settings: your name and where people can follow you; and what Emma remembers, edited by hand. */
   profile(d) {
     const u = this.user(d.id) || notFound();
+    if (Array.isArray(d.hidden)) {          // the You page: what stays off their card
+      const h = HIDEABLE.filter(k => d.hidden.includes(k));
+      if (h.length) u.hidden = h; else delete u.hidden;
+    }
     if (typeof d.paused === "boolean") { if (d.paused) u.paused = true; else delete u.paused; }   // Settings > Pause introductions
     if (isObj(d.socials)) {
       u.socials = {};
@@ -1057,13 +1076,14 @@ export class PairShake extends DurableObject {
     }
     if (isObj(d.about) && u.profile) {       // what Emma remembers, fixed by hand
       for (const k of ["needs", "building", "offers", "role", "line", "spot"]) if (k in d.about) u.profile[k] = str(d.about[k]).slice(0, 400);
+      if ("hooks" in d.about) u.profile.hooks = hooksOf(d.about.hooks);
       delete u.back;                         // her welcome-back line was about the old one
     }
     const name = str(d.name).slice(0, 80);
     if (name) { u.name = name; if (u.profile) u.profile.name = name; }
     if (isObj(d.about) && u.profile) u.memory = { ...u.profile };    // the next match starts from what's written here
     this.save();
-    return { me: u.profile ? this.person(u.id) : null, socials: u.socials, name: u.name, email: u.email || null, paused: !!u.paused };
+    return { me: u.profile ? this.person(u.id, true) : null, socials: u.socials, name: u.name, email: u.email || null, paused: !!u.paused };
   }
 
   /** Settings > Send feedback: kept on the person (it travels with the export) and printed to the logs. */

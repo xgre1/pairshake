@@ -475,6 +475,29 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .sbody .row.you-fact{flex-direction:column;align-items:stretch;gap:2px;padding:11px 16px 12px}
 .you-fact .k{font-size:13px;color:var(--sec);letter-spacing:-.006em}
 #aView .primary{margin-top:30px} #aView .s-f{text-align:center}
+#aView .you-stats{margin-top:22px}
+/* your card, as the people you're introduced to see it */
+.you-card{padding:18px 16px 16px;display:flex;flex-direction:column;gap:14px}
+.yc-top{display:flex;align-items:center;gap:14px}
+.yc-top h2{font-size:26px;line-height:1.1} .yc-top p{margin-top:3px;font-size:15px}
+.yc-line{font-size:18px;line-height:1.4;opacity:.9}
+.yc-facts{border-radius:12px;background:var(--fill2);overflow:hidden}
+.you-card .yc-facts .row{padding:10px 14px;min-height:0}
+.yc-handles{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--sec)}
+.yc-handles>span{display:flex;align-items:center;gap:6px} .yc-handles .tile{width:20px;height:20px;border-radius:5px}
+.yc-handles .tile svg{width:11px;height:11px}
+.yc-empty{font-size:15px}
+/* what Emma remembers: every line changes in place, and most can come off the card */
+.you-edit .a-f{cursor:text}
+.you-edit .a-k{display:flex!important;align-items:center;justify-content:space-between;gap:10px;min-height:22px}
+.you-edit .a-k i{font-style:normal;color:var(--ter)}
+.you-edit .eye{display:flex;align-items:center;gap:5px;font:500 12px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--fill2);color:var(--fg);flex:none}
+.you-edit .off .eye{background:none;color:var(--sec);box-shadow:inset 0 0 0 1px var(--sep)}
+.you-edit .off textarea{color:var(--sec)}
+.you-edit textarea{padding-right:22px!important}
+.you-edit .pen{position:absolute;right:16px;bottom:15px;color:var(--ter);pointer-events:none;transition:opacity .15s}
+.you-edit .a-f:focus-within .pen{opacity:0}
+.you-edit .a-f:focus-within{background:var(--fill2)}
 /* You, before Emma knows you: one card for who you are, one row of AIs, one card of key points */
 .a-me{display:flex;align-items:center;gap:14px;padding:14px 16px}
 .a-me .n{font:600 19px/1.2 var(--sans);letter-spacing:-.02em} .a-me .e{font-size:14px;color:var(--sec);margin-top:2px}
@@ -2121,8 +2144,10 @@ function revealMatch() {
   show("intro"); startInbox(); ringTo("intro");
   setTimeout(() => { $("#faces").classList.remove("apart"); ["#introBody", "#introDock"].forEach(s => $(s).classList.add("in")); }, 80);
   buzz([60, 40, 60], "success");
-  Muse.finish().then(() => { if (S.result === r) Voice.say(r.say); });     // after the line she's on
+  if (r.say) Muse.finish().then(() => { if (S.result === r) Voice.say(r.say); });     // after the line she's on
 }
+/* An introduction found in a network or sent to you: straight to the two faces coming together, then Talk. */
+function introduce(mission, me = S.me) { S.result = {mission, me: me || S.me, say: ""}; revealMatch(); }
 function socialRows(p, sel) {
   const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
   const rows = SOCIALS.filter(([k]) => p.socials?.[k]).map(([k, label, g, url]) => {
@@ -2144,6 +2169,9 @@ $("#talkBtn").onclick = () => openRoom(S.result.mission);
 
 /* ---------------------------------------------------------------- home: what Emma remembers, people you've met */
 const CHEV = `<svg width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const EYE = `<svg width="15" height="11" viewBox="0 0 15 11"><path d="M1 5.5C2.6 2.6 4.9 1 7.5 1s4.9 1.6 6.5 4.5C12.4 8.4 10.1 10 7.5 10S2.6 8.4 1 5.5Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7.5" cy="5.5" r="2" fill="currentColor"/></svg>`;
+const EYE_OFF = `<svg width="15" height="13" viewBox="0 0 15 13"><path d="M1 6.5C2.6 3.6 4.9 2 7.5 2s4.9 1.6 6.5 4.5C12.4 9.4 10.1 11 7.5 11S2.6 9.4 1 6.5Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 12 13 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+const PEN = `<svg class="pen" width="13" height="13" viewBox="0 0 13 13"><path d="M8.6 2.2 10.8 4.4 4.3 10.9 1.6 11.4 2.1 8.7Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const factRows = rows => rows.filter(([, v]) => v).map(([k, v]) => `<div class="row fact"><div><b>${k}</b>${esc(v)}</div></div>`).join("");
 async function loadMe() {
   const id = S.id || kept(ID_KEY);
@@ -2377,7 +2405,7 @@ const About = {
     const me = S.me, fresh = !me;               // fresh: nothing yet, so the page is a form to fill in
     this.editing = fresh || edit; this.fresh = fresh;
     $("#aEmpty").style.display = "none"; $("#aStart").style.display = fresh ? "" : "none";
-    $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.editing ? "Done" : "Edit";
+    $("#aEdit").style.display = "none";          // (someone Emma knows edits right on the page)
     $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
     if (me && !this.editing) { this.view(); $("#aView").insertAdjacentHTML("beforeend", Traits.html(me)); }   // summary and, for the demo, the numbers
     if (fresh) $("#aMe").innerHTML = `${av({name: S.name || "?", color: "#B9A7FF", photo: S.photo}, 52)}` +
@@ -2394,9 +2422,10 @@ const About = {
     if (this.editing) $("#aFields").querySelectorAll("textarea").forEach(t => {
       this.fit(t); t.oninput = () => { this.fit(t); this.fresh ? this.ready() : this.saveSoon(); };
     });
+    else $("#aView").querySelectorAll("textarea").forEach(t => this.fit(t));
     if (fresh) this.ready();
   },
-  fields() { const o = {}; $("#aFields").querySelectorAll("textarea").forEach(t => o[t.dataset.k] = t.value.trim()); return o; },
+  fields() { const o = {}; $(this.editing ? "#aFields" : "#aView").querySelectorAll("textarea[data-k]").forEach(t => o[t.dataset.k] = t.value.trim()); return o; },
   // Save needs a name (LinkedIn's, or typed) and at least what they're working on or looking for
   ready() { const f = this.fields(); $("#aCreate").disabled = !((f.name || S.name) && (f.needs || f.building || f.offers || f.role)); },
   async create() {
@@ -2409,39 +2438,80 @@ const About = {
       S.me ||= r.me; this.open();
     } catch { oops("Couldn't save. Check the connection."); this.ready(); }
   },
+  /* Someone Emma knows: their card exactly as others get it, then everything she remembers, each line
+     changed right where it is and shown on the card or hidden from it. */
+  ROWS: [["name", "Name"], ["role", "What you do"], ["line", "In one sentence"], ["building", "Working on"], ["needs", "Looking for"],
+         ["offers", "You can offer"], ["hooks", "Things to ask you about"], ["spot", "Where to find you"]],
+  HIDEABLE: ["role", "building", "needs", "offers", "line", "hooks"],     // (the same list as the server's)
   view() {
-    const me = S.me, c = S.contacts || [], so = S.socials || {};
+    const me = S.me, c = S.contacts || [], so = S.socials || {}, hid = new Set(me.hidden || []);
     const sent = c.reduce((n, x) => n + x.chat.filter(m => m.from === x.you).length, 0);
-    const facts = [["Working on", me.building], ["You can offer", me.offers], ["Where to find you", me.spot]].filter(([, v]) => v);
     const handles = SOCIALS.filter(([k]) => so[k]);
+    const val = k => k === "hooks" ? (me.hooks || []).join(", ") : me[k] || "";
+    const NOTE = {spot: "Only after you both say yes", hooks: "Emma may bring these up", name: ""};
     $("#aView").innerHTML =
-      `<div class="group you-hero">${av(me, 88)}<h2 class="serif">${esc(me.name)}</h2>` +
-        (me.role ? `<p class="role">${esc(me.role)}</p>` : "") +
-        (me.line ? `<p class="serif you-line">${esc(me.line)}</p>` : "") +
-        (me.hooks?.length ? `<div class="you-tags">${me.hooks.map(h => `<span>${esc(h)}</span>`).join("")}</div>` : "") + `</div>` +
+      `<p class="s-h">Your card</p><div class="group you-card" id="aCard"></div>` +
+      `<p class="s-f">This is what people Emma introduces you to see.</p>` +
       `<div class="group you-stats"><div><b>${c.length}</b><span>Introduced</span></div><div><b>${c.filter(x => x.outcome).length}</b><span>Met</span></div><div><b>${sent}</b><span>Messages sent</span></div></div>` +
-      `<p class="s-h">Emma is looking for</p><div class="group you-need serif">${esc((me.needs || "Someone worth meeting").replace(/[.\s]+$/, ""))}</div>` +
-      (facts.length ? `<p class="s-h">About you</p><div class="group">${facts.map(([k, v]) => `<div class="row you-fact"><span class="k">${k}</span><span>${esc(v)}</span></div>`).join("")}</div>` : "") +
+      `<p class="s-h">What Emma remembers</p><div class="group a-form you-edit">` +
+        this.ROWS.map(([k, label]) => {
+          const can = this.HIDEABLE.includes(k), off = can && hid.has(k);
+          return `<div class="a-f${off ? " off" : ""}" data-row="${k}"><span class="a-k">${label}` +
+            (can ? `<button type="button" class="eye" data-eye="${k}" aria-pressed="${!off}">${off ? EYE_OFF + "Hidden" : EYE + "On your card"}</button>`
+                 : NOTE[k] ? `<i>${NOTE[k]}</i>` : "") + `</span>` +
+            `<textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="Not said yet. Tap to add">${esc(val(k))}</textarea>${PEN}</div>`;
+        }).join("") + `</div>` +
+      `<p class="s-f" id="aNote">Tap any line to change it. Hidden lines stay off your card, and Emma won't mention them to anyone.</p>` +
       `<p class="s-h">Where people can follow you</p><div class="group">` +
         (handles.length ? handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("")
                         : `<button class="row" id="aHandles"><span class="s-l">Add your handles</span><span class="s-chev">${CHEV}</span></button>`) + `</div>` +
       `<button class="primary soft" id="aRetell">Tell Emma again<small>With ChatGPT or by voice</small></button>` +
       `<p class="s-f">What you don't mention stays as it is.</p>`;
+    this.card();
+    $("#aView").querySelectorAll("textarea[data-k]").forEach(t => t.oninput = () => { this.fit(t); this.card(); this.saveSoon(); });
+    $("#aView").querySelectorAll("[data-eye]").forEach(b => b.onclick = () => this.hide(b.dataset.eye));
+    $("#aView").querySelectorAll(".you-edit .a-f").forEach(r => r.onclick = e => { if (!e.target.closest("button,textarea")) r.querySelector("textarea").focus(); });
     $("#aRetell").onclick = () => retell();
     if ($("#aHandles")) $("#aHandles").onclick = () => Tabs.go(3);
   },
+  /** The card as someone you're introduced to sees it (the person page), from what's typed right now. */
+  card() {
+    const me = S.me, f = this.fields(), hid = new Set(me.hidden || []);
+    const v = k => hid.has(k) ? "" : f[k] ?? me[k] ?? "";
+    const p = {...me, name: f.name || me.name};
+    const facts = factRows([["Building", v("building")], ["Looking for", v("needs")], ["Good at", v("offers")]]);
+    const handles = SOCIALS.filter(([k]) => S.socials?.[k]);
+    $("#aCard").innerHTML =
+      `<div class="yc-top">${av(p, 56)}<div><h2 class="serif">${esc(p.name)}</h2>${v("role") ? `<p class="sec">${esc(v("role"))}</p>` : ""}</div></div>` +
+      (v("line") ? `<p class="serif yc-line">${esc(v("line"))}</p>` : "") +
+      (facts ? `<div class="yc-facts">${facts}</div>` : "") +
+      (handles.length ? `<div class="yc-handles">${handles.map(([k, , g]) => `<span><span class="tile" style="background:${TINT[k]}">${g}</span>@${esc(S.socials[k])}</span>`).join("")}</div>` : "") +
+      (!facts && !v("line") ? `<p class="sec yc-empty">Only your name is on your card.</p>` : "");
+  },
+  async hide(k) {
+    const me = S.me, h = new Set(me.hidden || []);
+    h.has(k) ? h.delete(k) : h.add(k);
+    me.hidden = [...h]; buzz(8);
+    const row = $(`#aView [data-row="${k}"]`), off = h.has(k), b = row.querySelector(".eye");
+    row.classList.toggle("off", off); b.setAttribute("aria-pressed", !off); b.innerHTML = off ? EYE_OFF + "Hidden" : EYE + "On your card";
+    this.card();
+    this.note().textContent = off ? "Hidden. It's off your card, and Emma won't bring it up." : "Back on your card.";
+    try { const r = await api("/profile", {id: S.id, hidden: me.hidden}); if (r.me) S.me = {...S.me, hidden: r.me.hidden}; }
+    catch { this.note().textContent = "Couldn't save. Check the connection."; }
+  },
+  note() { return $(this.editing ? "#aSaved" : "#aNote"); },
   fit(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; },
-  saveSoon() { clearTimeout(this.t); $("#aSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
+  saveSoon() { clearTimeout(this.t); this.note().textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
   async save() {
     this.t = 0;
     const about = this.fields();
-    if (!S.me || !this.editing) return;
+    if (!S.me) return;
     const name = about.name; delete about.name;
     try {
       const r = await api("/profile", {id: S.id, about, name});
       if (r.me) S.me = r.me;
-      $("#aSaved").textContent = "Saved. Emma uses it for your next introduction.";
-    } catch { $("#aSaved").textContent = "Couldn't save. Check the connection."; }
+      this.note().textContent = "Saved. Emma uses it for your next introduction.";
+    } catch { this.note().textContent = "Couldn't save. Check the connection."; }
   },
   async leave() { if (this.t) { clearTimeout(this.t); await this.save(); } },
 };
@@ -2483,16 +2553,6 @@ const Traits = {
     const summary = t?.summary || me?.line || "";
     if (!me && !t) return "";
     let out = summary ? `<div class="group"><p class="tr-sum serif">${esc(summary)}</p></div>` : "";
-    if (!t) return out + `<p class="s-f">Working out your traits\u2026 They show up here in a minute.</p>`;
-    out += `<p class="s-h">How PairShake reads you <span class="tr-type">${esc(t.type)}</span></p>`;
-    for (const [g, name] of this.GROUPS) {
-      const rows = (S.dims || []).filter(d => d[1] === g).map(([k, , lo, hi]) => {
-        const v = t.v?.[k] ?? 0.5, c = t.c?.[k] ?? 0;
-        return `<div class="row tr-row" title="${esc(lo ? lo + " \u2194 " + hi : hi)}"><span class="tr-k">${esc(this.label(k))}</span>` +
-          `<span class="tr-bar"><i style="width:${Math.round(v * 100)}%;opacity:${(0.25 + 0.75 * c).toFixed(2)}"></i></span><span class="tr-v">${v.toFixed(2)}</span></div>`;
-      }).join("");
-      if (rows) out += `<p class="s-f tr-g">${name}</p><div class="group">${rows}</div>`;
-    }
     return out;
   },
 };
@@ -2710,7 +2770,7 @@ const Nets = {
       $("#lvFind").disabled = true;
       const m = await api("/match", {id: this.me(), socials: S.socials || {}});
       done = true; S.seen.add(m.mission.id);
-      if (document.body.dataset.screen === "live") Hunt.open(m.mission);
+      if (document.body.dataset.screen === "live") introduce(m.mission, m.me);     // the two faces come together (no voice in a crowd)
     } catch (e) {
       done = true; sub.textContent = e.status === 422 ? "Nobody new to meet here yet" : "No one this time. Try again in a moment";
       $("#lvFind").disabled = !this.ready;
@@ -3615,11 +3675,11 @@ function startInbox() {
       for (const m of r.missions) if (!S.seen.has(m.id)) {
         S.seen.add(m.id);
         if (!Prefs.get("alerts", true)) continue;                       // Settings > Alerts off: it just shows up in People
-        $("#banner").innerHTML = `<div class="av" style="width:40px;height:40px;background:${Hunt.color(m.id)};font-size:18px">?</div><div style="flex:1;min-width:0"><div class="sub semi">I found something for you</div><div class="foot sec" style="margin-top:1px">Tap to see what you share</div></div>`;
-        $("#banner").classList.add("on"); $("#banner").onclick = () => { $("#banner").classList.remove("on"); openRoom(m); };
+        $("#banner").innerHTML = `${av(m.person, 40)}<div style="flex:1;min-width:0"><div class="sub semi">Emma introduced you to ${esc(first(m.person))}</div><div class="foot sec" style="margin-top:1px">Tap to see what you share</div></div>`;
+        $("#banner").classList.add("on");
         buzz(80, "warning");
-        $("#banner").onclick = () => { $("#banner").classList.remove("on"); m.outcome == null ? Hunt.open(m) : openRoom(m); };
-        if (document.body.dataset.screen === "live" && m.outcome == null) { $("#banner").classList.remove("on"); clearInterval(Nets.poll); Hunt.open(m); }   // looking in a network: the mystery opens
+        $("#banner").onclick = () => { $("#banner").classList.remove("on"); m.outcome == null ? introduce(m) : openRoom(m); };
+        if (document.body.dataset.screen === "live" && m.outcome == null) { $("#banner").classList.remove("on"); clearInterval(Nets.poll); introduce(m); }   // looking in a network: straight to them
       }
     } catch {}
     await sleep(4000);
