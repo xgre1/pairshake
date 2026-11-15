@@ -1,3 +1,4 @@
+import ARKit
 import CoreBluetooth
 import CoreLocation
 import CoreMotion
@@ -7,11 +8,15 @@ import Combine
 import simd
 
 /// Where is your person? Built to keep working when things go wrong:
-/// - Ultra Wideband (Nearby Interaction) gives real distance and direction, like finding AirPods.
+/// - Ultra Wideband (Nearby Interaction) gives real distance. Direction comes the way Find My's Precision
+///   Finding gets it: camera assistance. ARKit tracks how the phone moves, NI fuses that with the radio and
+///   places the other person in the room, and the arrow is drawn from where the phone is now to that spot,
+///   so it stays right while you turn and while you walk. iPhone 15 Pro / 16 Pro (the U2 chip) give no
+///   direction at all without the camera; older ones give a 3D direction that the camera only improves.
 /// - The UWB token travels two ways at once: through the server and directly over Bluetooth,
 ///   so a bad venue Wi-Fi can't stop the two phones from finding each other.
-/// - The direction is pinned to the room using the gyroscope, so the arrow stays right when you turn
-///   or when the other person drops out of the narrow cone UWB can see.
+/// - Without world tracking (no camera assistance, camera still starting up) a direction is pinned to the
+///   room with the gyroscope instead, so it survives turning but not walking.
 /// - Sessions that stall, get suspended or die are restarted on their own.
 /// - When UWB isn't live (too far, or a phone without it) Bluetooth signal strength gives a rough distance.
 /// - A demo attendee with no phone falls back to a compass bearing and your step count.
@@ -29,8 +34,13 @@ final class Finder: NSObject, ObservableObject {
     var sendToken: ((Data) -> Void)?
     var onLog: ((String) -> Void)?             // for the app's diagnostics file
 
-    // how the radios are doing, logged every 5 s: UWB readings, how many had a direction
-    private var stat = (uwb: 0, dir: 0, horiz: 0, since: Date())
+    // how the radios are doing, logged every 5 s: UWB readings, how many placed the person or had a direction,
+    // and how horizontalAngle compares with NI's placement (its sign isn't documented)
+    private struct Stat {
+        var uwb = 0, world = 0, dir = 0, horiz = 0, since = Date()
+        var hSame = 0.0, hFlip = 0.0, hN = 0
+    }
+    private var stat = Stat()
 
     private var started = false
     private var watchdog: Timer?
@@ -44,13 +54,24 @@ final class Finder: NSObject, ObservableObject {
     private var lastRun: Date?
     private var lastRebuild = Date.distantPast
 
-    // Camera assistance: ARKit + UWB together see direction beyond UWB's narrow front cone and further away,
-    // but only once the phone has been moved around in enough light. Plain UWB works in the dark and is
-    // instant, but only for someone roughly in front of you. So: plain first; camera-assisted while no
-    // direction comes; back to plain if the camera can't work it out either.
-    private var assist = false
-    private var assistSince = Date.distantPast
-    private var plainSince = Date()
+    // Camera assistance, on for the whole search where the phone supports it. Switching it off and on
+    // restarts NI and throws away what it has worked out (on U2 phones that takes ~10 s of moving the phone),
+    // so it never toggles. Our own ARSession is handed to NI, so we can read where the phone is in the same
+    // world NI places the other person in.
+    // NI refuses our ARSession (NIERROR_INVALID_AR_SESSION_DESCRIPTION) until it delivers frames, so the
+    // first run waits for a frame. If NI still refuses it twice, NI runs its own camera session: direction
+    // then comes as horizontalAngle pinned with the gyroscope, and there is no camera picture to show.
+    private var assist = false                  // camera assistance on (ours or NI's own ARSession)
+    private(set) var ar: ARSession?             // our own, also drawn blurred behind the finding screen
+    var cameraLive: Bool { ar != nil && firstFrame }
+    private var arRefused = 0
+    private var pendingPeer: Data?              // a run waiting for the camera's first frame
+    private var firstFrame = false
+    private var peerAt: simd_double3?       // the other person in ARKit's world (y up), smoothed
+    private var peerSeen: Date?             // last reading that moved peerAt
+    private var farSince: Date?             // readings far from peerAt since (a bounce, or they really moved)
+    private var offSince: Date?             // the live distance disagreeing with peerAt since
+    private var rawAngle: Double?           // only for a phone with no motion data at all
     private var lastDirAt: Date?
     private var lastTokenSent = Date.distantPast
     private var recentDistances: [Double] = []
@@ -83,6 +104,10 @@ final class Finder: NSObject, ObservableObject {
         guard peer else { startEstimate(); return }
 
         startMotion()
+        let caps = NISession.deviceCapabilities
+        assist = caps.supportsCameraAssistance
+        ar = assist ? makeAR() : nil
+        onLog?("finder: uwb \(caps.supportsPreciseDistanceMeasurement), plain direction \(caps.supportsDirectionMeasurement), camera assistance \(caps.supportsCameraAssistance), world tracking \(ar != nil)")
         let l = PeerLink(room: room)
         l.onToken = { [weak self] data in Task { @MainActor in self?.received(data) } }
         l.onRSSI = { [weak self] v in Task { @MainActor in self?.gotRSSI(v) } }
@@ -109,8 +134,34 @@ final class Finder: NSObject, ObservableObject {
         motion.stopDeviceMotionUpdates()
         compass.stopUpdatingHeading()
         pedometer.stopUpdates()
-        runningWith = nil
+        dropAR()
+        peerAt = nil; target = nil; lastDirection = nil
+        runningWith = nil; pendingPeer = nil
         started = false
+    }
+
+    private func dropAR() {
+        ar?.delegate = nil                       // first, or ARKit keeps handing us frames after pause
+        ar?.pause(); ar = nil
+        firstFrame = false
+        peerAt = nil
+    }
+
+    /// World tracking for camera assistance. The configuration is the one NI accepts: gravity-aligned,
+    /// no collaboration, no face tracking, no saved world map.
+    private func makeAR() -> ARSession? {
+        guard NISession.deviceCapabilities.supportsCameraAssistance, ARWorldTrackingConfiguration.isSupported else { return nil }
+        let c = ARWorldTrackingConfiguration()
+        c.worldAlignment = .gravity
+        c.isCollaborationEnabled = false
+        c.userFaceTrackingEnabled = false
+        c.initialWorldMap = nil
+        c.planeDetection = []
+        c.environmentTexturing = .none
+        let s = ARSession()
+        s.delegate = self
+        s.run(c)
+        return s
     }
 
     // MARK: UWB session
@@ -121,6 +172,7 @@ final class Finder: NSObject, ObservableObject {
         session?.invalidate()
         let s = NISession()
         s.delegate = self
+        if let ar { s.setARSession(ar) }
         session = s
         runningWith = nil
         if let token = s.discoveryToken,
@@ -138,41 +190,28 @@ final class Finder: NSObject, ObservableObject {
     }
 
     private func run(with data: Data) {
-        onLog?("uwb run, camera assist \(assist ? "on" : "off")")
+        if ar != nil, !firstFrame {                       // NI won't take an ARSession with no frames yet
+            if pendingPeer == nil { onLog?("uwb run waits for the camera") }
+            pendingPeer = data
+            return
+        }
+        onLog?("uwb run, camera assistance \(assist ? ar != nil ? "on (ours)" : "on (NI's own)" : "off")")
         guard let s = session,
               let token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NIDiscoveryToken.self, from: data) else { return }
         let config = NINearbyPeerConfiguration(peerToken: token)
-        config.isCameraAssistanceEnabled = assist && NISession.deviceCapabilities.supportsCameraAssistance
+        config.isCameraAssistanceEnabled = assist
         s.run(config)
         runningWith = data
         lastRun = Date()
     }
 
-    private func chooseAssist(_ now: Date, _ peer: Data) {
-        let noDir = now.timeIntervalSince(max(lastDirAt ?? .distantPast, assist ? assistSince : plainSince))
-        if !assist {
-            // in front of you UWB answers within a second; quiet for 5 s means they're off to the side or behind
-            coach = noDir > 2 ? "turn" : nil
-            if noDir > 5, NISession.deviceCapabilities.supportsCameraAssistance {
-                assist = true; assistSince = now; coach = "sweep"; run(with: peer)
-            }
-        } else if noDir > 15 || (coach == "light" && now.timeIntervalSince(assistSince) > 8) {
-            assist = false; plainSince = now; coach = nil; run(with: peer)       // the camera can't help here
-        }
-    }
-
     /// Once a second: restart whatever has stalled, and decide what the screen shows.
     private func check() {
         let now = Date()
-        if now.timeIntervalSince(stat.since) >= 5 {
-            let t = now.timeIntervalSince(stat.since)
-            onLog?(String(format: "uwb %.1f/s, with direction %.1f/s, angle only %.1f/s, mode %@, distance %@, coach %@",
-                          Double(stat.uwb) / t, Double(stat.dir) / t, Double(stat.horiz) / t, "\(mode)",
-                          distance.map { String(format: "%.1f m", $0) } ?? "-", coach ?? "-"))
-            stat = (0, 0, 0, now)
-        }
+        if now.timeIntervalSince(stat.since) >= 5 { logStat(now) }
         let live = lastUWB.map { now.timeIntervalSince($0) < 2 } ?? false
-        if live, let p = peerToken { chooseAssist(now, p) }
+        // a gap of a few seconds keeps the last UWB distance: Bluetooth's guess is metres off and made the number jump
+        let recent = lastUWB.map { now.timeIntervalSince($0) < 6 } ?? false
 
         if session != nil, !live {
             // keep offering my token until we're ranging; it's tiny
@@ -181,12 +220,24 @@ final class Finder: NSObject, ObservableObject {
             if let p = peerToken, now.timeIntervalSince(lastRun ?? .distantPast) > 5 { run(with: p) }
             if quiet > 20, now.timeIntervalSince(lastRebuild) > 20 { buildSession() }
         }
+        // without camera assistance, direction only comes for someone roughly in front of you
+        if !assist { coach = live && now.timeIntervalSince(lastDirAt ?? .distantPast) > 2 ? "turn" : nil }
 
-        // an old direction is still useful for a while because it's pinned to the room
-        if let d = lastDirection, now.timeIntervalSince(d) > 45 { target = nil; lastDirection = nil }
+        // The spot we placed them on stops being true once they walk off: the live distance says so.
+        if let p = peerAt, let pose = camera(), let r = distance, live {
+            let est = simd_distance(flat(p), flat(pose.position))
+            if abs(est - r) > max(1.0, 0.35 * r) {
+                offSince = offSince ?? now
+                if now.timeIntervalSince(offSince!) > 1.5 { dropPeer(String(format: "placed %.1f m away, radio says %.1f m", est, r)) }
+            } else { offSince = nil }
+        }
+        if let s = peerSeen, peerAt != nil, now.timeIntervalSince(s) > 30 { dropPeer("no reading for 30 s") }
+        // a gyroscope-pinned direction survives turning, not walking: keep it only briefly
+        if let d = lastDirection, now.timeIntervalSince(d) > 15 { target = nil; lastDirection = nil }
+        if let d = lastDirAt, now.timeIntervalSince(d) > 2 { rawAngle = nil }
 
         let bt = lastRSSI.map { now.timeIntervalSince($0) < 4 } ?? false
-        if live {
+        if recent {
             mode = .uwb
         } else if bt, let r = smoothedRSSI {
             mode = .bluetooth
@@ -195,17 +246,50 @@ final class Finder: NSObject, ObservableObject {
             mode = .searching
         }
         precise = live
-        if lastDirection == nil, pointing != nil, mode != .estimate { angle = nil }   // no direction pinned yet
         updateAngle()
     }
 
-    fileprivate func uwbUpdate(distance d: Double?, direction: simd_float3?, horizontalAngle: Double?) {
-        lastUWB = Date()
+    private func logStat(_ now: Date) {
+        let t = now.timeIntervalSince(stat.since)
+        var line = String(format: "uwb %.1f/s, placed by NI %.1f/s, 3D direction %.1f/s, angle only %.1f/s, mode %@, distance %@, arrow %@, coach %@, camera %@",
+                          Double(stat.uwb) / t, Double(stat.world) / t, Double(stat.dir) / t, Double(stat.horiz) / t, "\(mode)",
+                          distance.map { String(format: "%.1f m", $0) } ?? "-",
+                          angle.map { String(format: "%.0f°", $0 * 180 / .pi) } ?? "-", coach ?? "-", arState())
+        if stat.hN > 0 {
+            line += String(format: ", horizontalAngle vs NI: as is %.0f°, flipped %.0f° (n %d)",
+                           stat.hSame / Double(stat.hN) * 180 / .pi, stat.hFlip / Double(stat.hN) * 180 / .pi, stat.hN)
+        }
+        onLog?(line)
+        stat = Stat(since: now)
+    }
+
+    fileprivate func uwbUpdate(distance d: Double?, direction: simd_float3?, horizontalAngle: Double?, world: simd_float4x4?) {
+        let now = Date()
+        if let last = lastUWB, now.timeIntervalSince(last) > 2 { recentDistances.removeAll() }   // old values from before a gap
+        lastUWB = now
         stat.uwb += 1
+        if world != nil { stat.world += 1 }
         if direction != nil { stat.dir += 1 } else if horizontalAngle != nil { stat.horiz += 1 }
-        if direction != nil || horizontalAngle != nil { lastDirAt = Date() }
+        if world != nil || direction != nil || horizontalAngle != nil { lastDirAt = now }
         if let d { distance = steady(d) }
-        if let p = pointing, let q = currentAttitude {
+
+        if let pose = camera() {
+            // Where they are in the room. NI's own placement is best; failing that, the radio's direction
+            // and distance from where the phone is right now.
+            var spot: simd_double3?
+            if let w = world {
+                spot = simd_double3(Double(w.columns.3.x), Double(w.columns.3.y), Double(w.columns.3.z))
+                if let h = horizontalAngle {
+                    let a = pose.angle(to: spot!)
+                    stat.hSame += abs(wrap(h - a)); stat.hFlip += abs(wrap(-h - a)); stat.hN += 1
+                }
+            } else if let r = distance, let dir = direction {
+                spot = pose.position + (pose.right * Double(dir.x) + pose.top * Double(dir.y) + pose.screen * Double(dir.z)) * r
+            } else if let r = distance, let h = horizontalAngle {
+                spot = pose.position + (pose.ahead * cos(h) + pose.side * sin(h)) * r      // positive = to the right
+            }
+            if let spot { place(spot, now) }
+        } else if let p = pointing, let q = currentAttitude {
             if let dir = direction {
                 let w = toWorld(simd_double3(dir), q)
                 if hypot(w.x, w.y) > 0.25 { pin(atan2(w.y, w.x)) }
@@ -213,19 +297,41 @@ final class Finder: NSObject, ObservableObject {
                 pin(p - h)
             }
         } else if let dir = direction {
-            angle = Double(atan2(dir.x, -dir.z))          // no motion data: show it raw
+            rawAngle = Double(atan2(dir.x, -dir.z))          // no motion data: show it raw
         } else if let h = horizontalAngle {
-            angle = h
+            rawAngle = h
         }
         if mode != .uwb { mode = .uwb; precise = true }
         updateAngle()
     }
 
-    /// Median of the last three readings, so one bad bounce can't make the number jump.
+    /// Median of the last five readings (0.1 s), so a bounce off a wall can't make the number jump.
     private func steady(_ d: Double) -> Double {
         recentDistances.append(d)
-        if recentDistances.count > 3 { recentDistances.removeFirst() }
+        if recentDistances.count > 5 { recentDistances.removeFirst() }
         return recentDistances.sorted()[recentDistances.count / 2]
+    }
+
+    /// Move the estimate toward a new reading. A reading far from it is a bounce unless the next ones
+    /// agree for 0.7 s, so one reflection can't swing the arrow but a real move still gets through.
+    private func place(_ s: simd_double3, _ now: Date) {
+        guard let p = peerAt else { peerAt = s; peerSeen = now; return }
+        let r = distance ?? simd_distance(flat(p), flat(s))
+        if simd_distance(flat(p), flat(s)) > max(1.0, 0.4 * r) {
+            farSince = farSince ?? now
+            guard now.timeIntervalSince(farSince!) > 0.7 else { return }
+            peerAt = s
+        } else {
+            let dt = min(1, now.timeIntervalSince(peerSeen ?? now))
+            peerAt = p + (s - p) * (1 - exp(-dt / 0.25))         // ~0.25 s smoothing, whatever the reading rate
+        }
+        farSince = nil
+        peerSeen = now
+    }
+
+    private func dropPeer(_ why: String) {
+        onLog?("direction dropped: \(why)")
+        peerAt = nil; farSince = nil; offSince = nil
     }
 
     private func pin(_ azimuth: Double) {
@@ -237,8 +343,64 @@ final class Finder: NSObject, ObservableObject {
     }
 
     private func updateAngle() {
-        guard let t = target, let p = pointing else { return }
-        angle = wrap(p - t)
+        guard mode != .estimate else { return }                 // the compass drives a demo attendee's arrow
+        if let p = peerAt, let pose = camera() { angle = pose.angle(to: p); return }
+        if let t = target, let p = pointing { angle = wrap(p - t); return }
+        angle = pointing == nil ? rawAngle : nil
+    }
+
+    // MARK: world tracking
+
+    /// The phone in ARKit's world (y up). ARKit's camera axes are the landscape sensor's: x runs from the
+    /// front camera toward the bottom of the phone, y to its right side, z out of the screen.
+    private struct Pose {
+        let position, top, right, screen: simd_double3
+        let ahead, side: simd_double3                  // horizontal: where the phone points, and its right
+
+        /// Horizontal angle to a spot, radians: 0 = ahead, positive = to the right.
+        func angle(to p: simd_double3) -> Double {
+            let v = p - position
+            return atan2(simd_dot(v, side), simd_dot(v, ahead))
+        }
+    }
+
+    private func camera() -> Pose? {
+        guard let frame = ar?.currentFrame else { return nil }
+        let cam = frame.camera
+        guard ProcessInfo.processInfo.systemUptime - frame.timestamp < 1 else { return nil }   // AR stalled
+        switch cam.trackingState {
+        case .normal, .limited(.excessiveMotion), .limited(.insufficientFeatures): break
+        default: return nil                                      // starting up, relocalising, or lost
+        }
+        let m = cam.transform
+        func v(_ c: simd_float4) -> simd_double3 { simd_double3(Double(c.x), Double(c.y), Double(c.z)) }
+        let top = -v(m.columns.0), right = v(m.columns.1), screen = v(m.columns.2)
+        // where the phone points: its top when held flat, its back when held upright; both agree in between
+        var ahead = top - screen
+        ahead.y = 0
+        guard simd_length(ahead) > 0.2 else { return nil }
+        ahead = simd_normalize(ahead)
+        return Pose(position: v(m.columns.3), top: top, right: right, screen: screen,
+                    ahead: ahead, side: simd_double3(-ahead.z, 0, ahead.x))
+    }
+
+    private func flat(_ p: simd_double3) -> simd_double2 { simd_double2(p.x, p.z) }
+
+    private func arState() -> String {
+        guard let ar else { return "off" }
+        guard let cam = ar.currentFrame?.camera else { return "no frames" }
+        switch cam.trackingState {
+        case .normal: return "tracking"
+        case .notAvailable: return "not tracking"
+        case .limited(let why):
+            switch why {
+            case .initializing: return "starting"
+            case .excessiveMotion: return "moving too fast"
+            case .insufficientFeatures: return "too dark or plain"
+            case .relocalizing: return "relocalising"
+            @unknown default: return "limited"
+            }
+        }
     }
 
     // MARK: motion
@@ -338,7 +500,8 @@ extension Finder: NISessionDelegate {
         let d = o.distance.map(Double.init)
         let dir = o.direction
         let h = o.horizontalAngle.map(Double.init)
-        Task { @MainActor in self.uwbUpdate(distance: d, direction: dir, horizontalAngle: h) }
+        let world = session.worldTransform(for: o)              // nil until camera assistance has converged
+        Task { @MainActor in self.uwbUpdate(distance: d, direction: dir, horizontalAngle: h, world: world) }
     }
 
     nonisolated func session(_ session: NISession, didRemove nearbyObjects: [NINearbyObject], reason: NINearbyObject.RemovalReason) {
@@ -361,14 +524,55 @@ extension Finder: NISessionDelegate {
 
     nonisolated func session(_ session: NISession, didInvalidateWith error: Error) {
         Task { @MainActor in
-            self.onLog?("uwb session ended: \(error.localizedDescription)")
+            self.onLog?("uwb session ended: \(error.localizedDescription), camera \(self.arState())")
             guard self.started, self.session === session else { return }
             self.precise = false
             self.session = nil
+            if (error as? NIError)?.code == .invalidARConfiguration, self.ar != nil {
+                self.arRefused += 1
+                if self.arRefused >= 2 {                       // NI won't take ours: let it run its own camera
+                    self.onLog?("NI refused our ARSession twice, camera state \(self.arState()); using NI's own")
+                    self.dropAR()
+                }
+            }
             // a dead session can't be revived: start a new one (new token) after a short pause
             try? await Task.sleep(for: .seconds(1))
             if self.started, self.session == nil { self.buildSession(); if let p = self.peerToken { self.run(with: p) } }
         }
+    }
+}
+
+extension Finder: ARSessionDelegate {
+    // Called for every camera frame; only the first one matters here, and no frame is kept
+    // (holding ARFrames starves the camera).
+    nonisolated func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        MainActor.assumeIsolated {
+            guard self.ar === session, !self.firstFrame else { return }
+            self.firstFrame = true
+            self.onLog?("camera: first frame")
+            if let p = self.pendingPeer { self.pendingPeer = nil; self.run(with: p) }
+        }
+    }
+
+    nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
+        let msg = error.localizedDescription
+        let denied = (error as? ARError)?.code == .cameraUnauthorized
+        Task { @MainActor in
+            guard self.ar === session else { return }
+            self.onLog?("camera failed: \(msg)")
+            self.dropAR()
+            if denied { self.assist = false }              // no camera at all: plain UWB
+            // the NISession was bound to that ARSession: a fresh one (new token) goes without it
+            if self.started, self.session != nil { self.buildSession(); if let p = self.peerToken { self.run(with: p) } }
+        }
+    }
+
+    nonisolated func sessionWasInterrupted(_ session: ARSession) {
+        Task { @MainActor in self.onLog?("camera interrupted") }
+    }
+
+    nonisolated func sessionInterruptionEnded(_ session: ARSession) {
+        Task { @MainActor in self.onLog?("camera back") }
     }
 }
 

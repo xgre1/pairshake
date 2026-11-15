@@ -1,7 +1,9 @@
 import AuthenticationServices
+import ARKit
 import AVFoundation
 import CoreBluetooth
 import CoreLocation
+import SceneKit
 import SwiftUI
 import UIKit
 import WebKit
@@ -21,6 +23,12 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     private var pushTimer: Timer?
     private var lastFix = ""
     private var lastFixAt = Date.distantPast
+    // The finding screen sits on the live camera, blurred, like Precision Finding: the camera Finder runs for
+    // camera assistance is drawn behind the (transparent) page while that screen is open.
+    private let camLayer = UIView()
+    private var camView: ARSCNView?
+    private var findShown = false
+    private var camShown = false
     private let gps = Locator()
     private let local = LocalServer()
     private var useLocal = false
@@ -70,6 +78,16 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         hideFormBar(web)
         let root = UIView()
         root.backgroundColor = .systemBackground
+        camLayer.frame = root.bounds
+        camLayer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        camLayer.backgroundColor = .black
+        camLayer.isHidden = true
+        camLayer.alpha = 0
+        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        blur.frame = camLayer.bounds
+        blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        camLayer.addSubview(blur)
+        root.addSubview(camLayer)
         web.frame = root.bounds
         root.addSubview(web)
         // The tab bar is the system's; which screen each tab opens is the page's business (PairShakeApp.onTab).
@@ -246,6 +264,9 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         switch t {
         case "find":                                        // both said yes: start the radios
             if let room = d["room"] as? String { startFinding(room: room) }
+        case "findView":                                    // the finding screen opened or closed
+            findShown = d["on"] as? Bool ?? false
+            updateCamera()
         case "ni":                                          // the other iPhone's UWB token, relayed by the server
             if let s = d["token"] as? String, let data = Data(base64Encoded: s) { finderFor(nil).received(data) }
         case "geo":
@@ -332,6 +353,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             return f
         }
         finder?.stop()                                      // a different introduction: start fresh
+        camView?.removeFromSuperview(); camView = nil
         let f = Finder()
         f.onLog = { [weak self] line in self?.note(line) }
         f.sendToken = { [weak self] data in
@@ -354,15 +376,48 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     /// What the radios say, 15 times a second (or once a second if nothing changed, so the page knows it's live).
     private func pushFix() {
         guard let f = finder else { return }
+        updateCamera()
         let num: (Double?, Int) -> String = { v, p in
             guard let v, v.isFinite else { return "null" }
             return String(format: "%.\(p)f", v)
         }
-        let fix = "{d:\(num(f.distance, 2)),a:\(num(f.angle, 3)),mode:'\(f.mode)',coach:\(f.coach.map { "'\($0)'" } ?? "null")}"
+        let fix = "{d:\(num(f.distance, 2)),a:\(num(f.angle, 3)),mode:'\(f.mode)',coach:\(f.coach.map { "'\($0)'" } ?? "null"),cam:\(camShown)}"
         guard fix != lastFix || Date().timeIntervalSince(lastFixAt) > 1 else { return }
         lastFix = fix
         lastFixAt = Date()
         js("window.PairShakeApp && PairShakeApp.onFix && PairShakeApp.onFix(\(fix))")
+    }
+
+    /// Show the blurred camera behind the page while the finding screen is open and the camera is live.
+    /// The ARSCNView stays alive for the whole search (only shown or hidden), so it can never pause the
+    /// ARSession that camera assistance depends on.
+    private func updateCamera() {
+        let ar = finder?.cameraLive == true ? finder?.ar : nil
+        let show = findShown && ar != nil
+        if show, let ar, camView?.session !== ar {
+            camView?.removeFromSuperview()
+            let v = ARSCNView(frame: camLayer.bounds)
+            v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            v.session = ar
+            v.scene = SCNScene()
+            v.rendersCameraGrain = false
+            v.automaticallyUpdatesLighting = false
+            v.preferredFramesPerSecond = 30
+            camLayer.insertSubview(v, at: 0)
+            camView = v
+        }
+        guard show != camShown else { return }
+        camShown = show
+        let clear: UIColor = show ? .clear : .systemBackground
+        web.backgroundColor = clear
+        web.scrollView.backgroundColor = clear
+        if show { camLayer.isHidden = false }
+        UIView.animate(withDuration: 0.5, delay: 0, options: [.beginFromCurrentState, .curveEaseInOut]) {
+            self.camLayer.alpha = show ? 1 : 0
+        } completion: { _ in
+            if !self.camShown { self.camLayer.isHidden = true }
+        }
+        note("finding camera \(show ? "shown" : "hidden")")
     }
 
     private func haptic(_ k: String) {

@@ -439,11 +439,33 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .findcard{display:flex;flex-direction:column;gap:14px;padding:18px;width:100%;text-align:left;border-radius:var(--r);
   background:var(--mat);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
 .mini{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--fill2);font-size:26px;font-weight:700}
-#find{background:#121212;color:#fff;transition:background .35s}
-#find.aligned{background:var(--c)} #find.aligned .cover{color:#000}
-#find .xbtn{background:rgba(255,255,255,.15);color:inherit;width:32px;height:32px}
-#arrow{transition:transform .5s var(--spring),opacity .3s}
-#find.live #arrow{transition:transform .15s linear,opacity .3s}   /* radio readings come ~15 times a second: follow them */
+/* Finding. In the app it sits on the live camera, blurred by the app behind the transparent page (.cam);
+   elsewhere on a dark base. While no direction is known, soft dots drift round the middle; when one comes
+   they fold away and the arrow sharpens out of a blur. Pointing at them floods the screen with their colour
+   from the arrow outwards. The arrow's turning and the distance are eased every frame (see Stage). */
+#find{background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.1) 36%,rgba(0,0,0,.16) 62%,rgba(0,0,0,.52));color:#fff;overflow:hidden}
+#find::before{content:"";position:absolute;inset:0;z-index:0;background:#121212;transition:opacity .6s var(--smooth)}
+#find.cam::before{opacity:0}
+html.camfind,html.camfind body{background:transparent!important}
+html.camfind body>*:not(#find){visibility:hidden}
+#findFlood{position:absolute;inset:0;z-index:1;background:var(--c);clip-path:circle(0 at 50% var(--fy,46%));transition:clip-path .45s cubic-bezier(.4,0,.6,1)}
+#find.aligned #findFlood{clip-path:circle(150% at 50% var(--fy,46%));transition:clip-path .75s cubic-bezier(.2,.75,.25,1)}
+#find .cover{z-index:2;transition:color .35s var(--smooth)}
+#find.aligned .cover{color:#000}
+#find .xbtn{background:rgba(255,255,255,.16);color:inherit;width:32px;height:32px}
+#find.aligned .xbtn{background:rgba(0,0,0,.1)}
+#findAv .av{transition:box-shadow .35s} #find.aligned #findAv .av{box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
+#findStage{position:relative;height:300px;display:grid;place-items:center}
+#findDots{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px 0 0 -170px;pointer-events:none;
+  transition:opacity .6s var(--smooth),transform .8s var(--smooth),filter .6s var(--smooth)}
+#find.dir #findDots{opacity:0;transform:scale(.5);filter:blur(8px)}
+#arrowWrap{opacity:0;transform:scale(.8);filter:blur(18px);
+  transition:opacity .5s var(--smooth),transform .7s var(--spring),filter .6s var(--smooth)}
+#find.dir #arrowWrap{opacity:1;transform:none;filter:blur(0)}
+#find.dir.aligned #arrowWrap{transform:scale(1.07)}
+#arrow{display:block;will-change:transform}
+#findDir{transition:opacity .18s var(--smooth)}
+@media (prefers-reduced-motion:reduce){#findDots{display:none}#findFlood,#arrowWrap{transition-duration:.01s}}
 .dist{font:600 72px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 
 /* Notification banner */
@@ -847,6 +869,7 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Finding -->
 <div class="overlay" id="find">
+  <div id="findFlood"></div>
   <div class="cover">
     <div style="display:flex;align-items:center;gap:12px;padding:calc(12px + var(--safeT)) var(--gut) 0">
       <div id="findAv"></div>
@@ -854,8 +877,9 @@ body:not(.in-app) .app-only{display:none!important}
       <button class="xbtn" id="findClose" aria-label="Close"><svg width="11" height="11" viewBox="0 0 11 11"><path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="spacer"></div>
-    <div style="height:300px;display:grid;place-items:center">
-      <svg id="arrow" width="170" height="190" viewBox="0 0 170 190" style="opacity:.25"><path d="M85 178V18M18 85 85 18l67 67" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div id="findStage">
+      <canvas id="findDots" width="340" height="340"></canvas>
+      <div id="arrowWrap"><svg id="arrow" width="170" height="190" viewBox="0 0 170 190"><path d="M85 178V18M18 85 85 18l67 67" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
     <div class="spacer"></div>
     <div style="padding:0 28px calc(24px + var(--safeB));display:flex;flex-direction:column;gap:6px">
@@ -2563,39 +2587,97 @@ function gpsDir(real) {
 }
 function radio() { const h = Find.hw; return h && Date.now() - h.t < 3000 && h.d != null && (h.mode === "uwb" || h.mode === "bluetooth") ? h : null; }
 function pointAt(d) {                                   // d: degrees, 0 = ahead, positive = to the right
-  // keep the rotation continuous so the arrow never spins the long way round
-  Find.shown = Find.shown == null ? d : Find.shown + wrap180(d - Find.shown);
-  $("#arrow").style.transform = `rotate(${Find.shown}deg)`; $("#arrow").style.opacity = 1;
-  const ok = Math.abs(d) < 16; $("#find").classList.toggle("aligned", ok);
+  Find.aim = d; $("#find").classList.add("dir");
+  // pointing at them: in under 12°, out past 20°, so the colour doesn't flicker on the edge
+  const ok = Math.abs(d) < (Find.was ? 20 : 12); $("#find").classList.toggle("aligned", ok);
   if (ok && !Find.was) buzz(30, "light"); Find.was = ok;
-  $("#findDir").textContent = ok ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left";
+  findDir(ok ? "ahead" : Math.abs(d) > 135 ? "behind you" : d > 0 ? "to your right" : "to your left");
 }
+function noDir(tip) {                                   // no direction yet: the dots come back, the arrow blurs away
+  Find.aim = null; Find.was = false;
+  $("#find").classList.remove("dir", "aligned"); findDir(tip);
+}
+function findDir(text) {                                // the line under the distance, crossfaded when it changes
+  const el = $("#findDir"); if (Find.dirText === text) return;
+  Find.dirText = text; clearTimeout(Find.dirT);
+  el.style.opacity = 0; Find.dirT = setTimeout(() => { el.textContent = text; el.style.opacity = ""; }, 180);
+}
+function findDist(d) { Find.distAim = d; if (Find.distShown == null) { Find.distShown = d; $("#findDist").textContent = fmtDist(d); } }
+function findCam(on) {                                  // the app's blurred camera is behind the page
+  $("#find").classList.toggle("cam", on); document.documentElement.classList.toggle("camfind", on && Find.open);
+}
+
+/* Every frame while the finding screen is open: the arrow turns on a critically damped spring toward the
+   latest reading (15 a second from the app), the distance eases toward the latest number, and the
+   searching dots drift. Nothing jumps, however the readings arrive. */
+const Stage = {
+  raf: 0, last: 0, v: 0, dots: null, ctx: null, dpr: 1,
+  start() {
+    if (this.raf) return;
+    const c = $("#findDots"); this.dpr = Math.min(3, devicePixelRatio || 1);
+    c.width = c.height = 340 * this.dpr; this.ctx = c.getContext("2d");
+    if (!this.dots) this.dots = Array.from({length: 46}, (_, i) => ({ a: Math.random() * 6.283, r: 46 + Math.random() * 110,
+      w: (.12 + Math.random() * .3) * (i % 3 ? 1 : -1), z: Math.random(), ph: Math.random() * 6.283 }));
+    this.last = performance.now();
+    const tick = now => { this.step(Math.min(.05, (now - this.last) / 1000), now / 1000); this.last = now;
+      this.raf = Find.open ? requestAnimationFrame(tick) : 0; };
+    this.raf = requestAnimationFrame(tick);
+  },
+  step(dt, t) {
+    if (Find.aim != null) {
+      if (Find.shown == null) { Find.shown = Find.aim; this.v = 0; }
+      const goal = Find.shown + wrap180(Find.aim - Find.shown), w = 11;     // never the long way round
+      this.v += (w * w * (goal - Find.shown) - 2 * w * this.v) * dt; Find.shown += this.v * dt;
+      $("#arrow").style.transform = `rotate(${Find.shown.toFixed(2)}deg)`;
+    }
+    if (Find.distAim != null) {
+      Find.distShown += (Find.distAim - Find.distShown) * (1 - Math.exp(-dt / .22));
+      const s = fmtDist(Find.distShown); if (s !== Find.distText) { Find.distText = s; $("#findDist").textContent = s; }
+    }
+    if (Find.aim == null) Find.dirAt = t;
+    if (t - (Find.dirAt || 0) < 1) this.drawDots(t);                     // and for a second while they fold away
+  },
+  drawDots(t) {
+    const g = this.ctx, s = this.dpr, col = Find.person?.color || "#fff";
+    g.setTransform(s, 0, 0, s, 0, 0); g.clearRect(0, 0, 340, 340);
+    // a slow ping from the middle, like a radio listening
+    const p = (t % 2.2) / 2.2; g.globalAlpha = .22 * (1 - p); g.strokeStyle = col; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(170, 170, 18 + p * 150, 0, 6.283); g.stroke();
+    for (const d of this.dots) {
+      const a = d.a + d.w * t, r = d.r + 9 * Math.sin(t * .7 + d.ph), x = 170 + r * Math.cos(a), y = 170 + r * Math.sin(a) * .92;
+      g.globalAlpha = (.25 + .55 * (.5 + .5 * Math.sin(t * 1.4 + d.ph))) * (1 - Math.max(0, r - 140) / 30);
+      g.fillStyle = d.z > .55 ? col : "#fff"; g.shadowColor = g.fillStyle; g.shadowBlur = 4 + d.z * 10;
+      g.beginPath(); g.arc(x, y, 1.6 + d.z * 3.2, 0, 6.283); g.fill();
+    }
+    g.shadowBlur = 0; g.globalAlpha = 1;
+  },
+};
 function draw() {
   const h = radio();
   if (h) {
     const card = $("#findCardDist"); if (card) card.textContent = fmtDist(h.d);
     if (!Find.open) return;
-    $("#find").classList.add("live");
-    $("#findDist").textContent = fmtDist(h.d);
+    $("#find").classList.add("live"); findCam(!!h.cam);
+    findDist(h.d);
     const how = h.mode === "uwb" ? "Ultra Wideband, phone to phone" : "Bluetooth, rough distance";
     if (h.a != null) { $("#findNote").textContent = how; return pointAt(h.a * 180 / Math.PI); }
-    // No radio direction (too far, or outside the narrow cone UWB sees): say what helps the phone work it
-    // out, and meanwhile point by GPS if the two positions are good enough to give a direction at all.
-    const tip = COACH[h.coach] || (h.mode === "uwb" ? COACH.turn : COACH.move), g = gpsDir(h.d);
+    // No radio direction yet (the camera is still working it out, or they're out of range): say what helps,
+    // and meanwhile point by GPS if the two positions are good enough to give a direction at all.
+    const tip = COACH[h.coach] || (h.mode === "uwb" ? COACH.sweep : COACH.move), g = gpsDir(h.d);
     if (g != null) { $("#findNote").textContent = `${how} · direction from GPS, rough · ${tip}`; return pointAt(g); }
     $("#findNote").textContent = how;
-    $("#findDir").textContent = tip; $("#arrow").style.opacity = .25; $("#find").classList.remove("aligned"); Find.was = false; return;
+    return noDir(tip);
   }
-  $("#find").classList.remove("live");
+  $("#find").classList.remove("live"); if (Find.open) findCam(!!(Find.hw?.cam && Date.now() - Find.hw.t < 3000));
   const m = Find.me, t = target(), card = $("#findCardDist");
-  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; } return; }
+  if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { if (Find.distAim == null) $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; noDir("Finding direction…"); } return; }
   const p = enu(m, t.lat, t.lon), dist = Math.hypot(p.x, p.y), bearing = (Math.atan2(p.x, p.y) / RAD + 360) % 360;
   const err = Math.sqrt(m.v + t.acc * t.acc);
   if (card) card.textContent = fmtDist(dist);
   if (!Find.open) return;
-  $("#findDist").textContent = fmtDist(dist);
+  findDist(dist);
   $("#findNote").textContent = `Location accurate to about ${Math.round(err)} m${Find.person?.seed ? ` · ${first(Find.person)} is a demo attendee` : ""}`;
-  if (Find.yaw == null || Find.offset == null) { $("#findDir").textContent = "Finding direction…"; return; }
+  if (Find.yaw == null || Find.offset == null) return noDir("Finding direction…");
   pointAt(wrap180(bearing - (Find.yaw + Find.offset)));
 }
 
@@ -2607,10 +2689,18 @@ async function findOpen(p) {
   $("#find").style.setProperty("--c", p.color);
   $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = first(p); $("#findSpot").textContent = p.spot;
   Find.open = true; $("#find").classList.add("on");
+  Find.aim = Find.shown = Find.distAim = Find.distShown = Find.distText = Find.dirText = null; Find.was = false;
+  $("#find").classList.remove("dir", "aligned"); $("#findDist").textContent = "–";
+  APP?.post({t: "findView", on: true});
+  // the colour floods out from the arrow's middle
+  const r = $("#findStage").getBoundingClientRect(); $("#find").style.setProperty("--fy", Math.round(r.top + r.height / 2) + "px");
+  Stage.start();
   try { if (DeviceOrientationEvent?.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {}
   draw();
 }
-$("#findClose").onclick = () => { Find.open = false; $("#find").classList.remove("on"); };
+$("#findClose").onclick = () => {
+  Find.open = false; $("#find").classList.remove("on"); findCam(false); APP?.post({t: "findView", on: false});
+};
 
 /* ---------------------------------------------------------------- someone matched with you */
 let inboxOn = false;
