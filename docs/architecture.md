@@ -9,7 +9,7 @@ flowchart TB
     LS["LocalServer<br/>localhost:47213"]
     F["Finder<br/>UWB, Bluetooth, motion"]
     WV -- "page, API, WebSocket" --> LS
-    WV <-- "window.RoomieApp bridge" --> F
+    WV <-- "window.PairShakeApp bridge" --> F
   end
   LS --> W["Cloudflare Worker (edge/)"]
   W -- "page, hands" --> EA["static assets"]
@@ -80,7 +80,7 @@ One page, no build step, served by Cloudflare only to the app (a browser gets a 
 
 The app shows its page (`app/web/`) full screen; the Swift side adds what a page cannot do.
 
-- **`WebShell.swift`** hosts the WKWebView. It injects `window.RoomieApp` (the bridge), replaces the page's GPS with Core Location, grants microphone and motion without web prompts, plays haptics, keeps the screen awake, and shrinks the page above the keyboard (see the iOS 26 note in [running.md](running.md)). If the server can't be reached it shows "Connecting…" and retries every 2 seconds. Shaking the phone opens the server address.
+- **`WebShell.swift`** hosts the WKWebView. It injects `window.PairShakeApp` (the bridge), replaces the page's GPS with Core Location, grants microphone and motion without web prompts, plays haptics, keeps the screen awake, and shrinks the page above the keyboard (see the iOS 26 note in [running.md](running.md)). If the server can't be reached it shows "Connecting…" and retries every 2 seconds. Shaking the phone opens the server address.
 - **`LocalServer.swift`** serves the page from `http://localhost:47213`. Localhost counts as a secure page, so the microphone works. The hands' models and three.js ship inside the app; each model is still checked against Cloudflare's copy with one small `If-None-Match` request (both sides use the file's mtime-size as the ETag), so a re-baked model wins at once. Everything else, including the room's WebSocket, is passed through to the server.
 - **`Server.swift`** chooses the server: an address typed in by hand if it answers, otherwise the Cloudflare address.
 - **`Finder.swift`** finds the other phone with Nearby Interaction (Ultra Wideband), a Bluetooth link between the two phones, and the gyroscope. Its readings reach the page about 15 times a second.

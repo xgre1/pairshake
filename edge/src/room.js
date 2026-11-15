@@ -931,7 +931,7 @@ export class PairShake extends DurableObject {
   // ---- HTTP -------------------------------------------------------------------------------------------------
   async fetch(req) {
     const url = new URL(req.url), q = url.searchParams, path = url.pathname;
-    const app = (req.headers.get("user-agent") || "").includes("RoomieApp");     // the iPhone app (WKWebView)
+    const app = (req.headers.get("user-agent") || "").includes("PairShakeApp");     // the iPhone app (WKWebView)
     try {
       if (req.method === "GET") {
         switch (path) {

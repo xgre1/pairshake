@@ -64,7 +64,7 @@ make edge        # deploy to pairshake.binjto.workers.dev
 make backup      # save a copy of the room
 ```
 
-To build the iPhone app, run `make app` and open `app/Roomie.xcodeproj` in Xcode. `make help` lists every command. The full setup, including secrets, logs and installing the app on phones, is in [docs/running.md](docs/running.md).
+To build the iPhone app, run `make app` and open `app/PairShake.xcodeproj` in Xcode. `make help` lists every command. The full setup, including secrets, logs and installing the app on phones, is in [docs/running.md](docs/running.md).
 
 ## Documentation
 

@@ -27,14 +27,14 @@ curl https://pairshake.binjto.workers.dev/room      # numbers for the room
 
 ```sh
 make app                    # cd app && xcodegen
-open app/Roomie.xcodeproj
+open app/PairShake.xcodeproj
 ```
 
 Pick your team in Signing & Capabilities if it differs, choose a connected iPhone, and run. Or from the command line:
 
 ```sh
-xcodebuild -project app/Roomie.xcodeproj -scheme Roomie -destination 'id=<device udid>' -allowProvisioningUpdates build
-xcrun devicectl device install app --device <device id> <DerivedData>/Build/Products/Debug-iphoneos/Roomie.app
+xcodebuild -project app/PairShake.xcodeproj -scheme PairShake -destination 'id=<device udid>' -allowProvisioningUpdates build
+xcrun devicectl device install app --device <device id> <DerivedData>/Build/Products/Debug-iphoneos/PairShake.app
 ```
 
 First time on a phone:
@@ -58,7 +58,7 @@ To read a phone's diagnostics afterwards:
 
 ```sh
 xcrun devicectl device copy from --device <device id> --domain-type appDataContainer \
-  --domain-identifier com.jtobin.roomie --source Documents/web.log --destination web.log
+  --domain-identifier com.jtobin.pairshake --source Documents/web.log --destination web.log
 ```
 
 ## Troubleshooting

@@ -347,7 +347,7 @@ final class PeerLink: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDel
     private var lastToken: Data?
 
     init(room: String) {
-        let h = Array(SHA256.hash(data: Data("roomie-find-\(room)".utf8)).prefix(16))
+        let h = Array(SHA256.hash(data: Data("pairshake-find-\(room)".utf8)).prefix(16))
         let hex = h.map { String(format: "%02X", $0) }.joined()
         let s = Array(hex)
         let uuid = [s[0..<8], s[8..<12], s[12..<16], s[16..<20], s[20..<32]].map { String($0) }.joined(separator: "-")

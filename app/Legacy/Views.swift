@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct RoomieApp: App {
+struct PairShakeApp: App {
     @StateObject private var flow = Flow()
     var body: some Scene {
         WindowGroup {

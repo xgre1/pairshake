@@ -1,4 +1,4 @@
-"""Draws PairShake's icon layers (Roomie/AppIcon.icon/Assets/*.svg, 1024 x 1024).
+"""Draws PairShake's icon layers (PairShake/AppIcon.icon/Assets/*.svg, 1024 x 1024).
 
 The idea: two drops about to merge, the way the matching screen draws you meeting your person. You (the
 bigger drop, white) and them (the smaller, warm) are joined by a liquid neck: the same metaball connector
@@ -9,7 +9,7 @@ neck reaching out to you behind.
 """
 import math, os
 
-OUT = os.path.join(os.path.dirname(__file__), "..", "Roomie", "AppIcon.icon", "Assets")
+OUT = os.path.join(os.path.dirname(__file__), "..", "PairShake", "AppIcon.icon", "Assets")
 R1, R2, GAP, ANGLE = 168, 116, 104, math.radians(0)         # sizes, space between, direction (level, them on the right)
 V, HANDLE = 0.42, 2.4
 

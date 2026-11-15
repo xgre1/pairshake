@@ -44,7 +44,7 @@ export default {
       }
       if (API.has(path)) return room(env).fetch(req);
       if (path === "/" || path === "/index.html") {
-        if (!(req.headers.get("user-agent") || "").includes("RoomieApp")) return appOnly();
+        if (!(req.headers.get("user-agent") || "").includes("PairShakeApp")) return appOnly();
         const r = await env.ASSETS.fetch(req);
         const out = new Response(r.body, r);
         out.headers.set("cache-control", "no-store");      // never cached: a deploy shows at once

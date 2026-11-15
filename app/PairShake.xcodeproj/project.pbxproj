@@ -7,125 +7,125 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7B85CF5760DD42AA2D173446 /* Finder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC688F2B85BA987B361D42B /* Finder.swift */; };
-		7DC7D430C31380F2FC9769C1 /* WebShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E761134F746C1380CBE4DF5 /* WebShell.swift */; };
-		7F2FB6B96CE63DD01CF7A6A4 /* Server.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A3361EA1CAEEE3115F89FE6 /* Server.swift */; };
-		81D7C701971C4159A15E6481 /* RoomieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7485286477B072A3BD85E815 /* RoomieApp.swift */; };
-		B886986D6807FEA46CE249D1 /* LocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25C4CB4597142C13A4845B /* LocalServer.swift */; };
-		E24C589249FA034987E9A5F2 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */; };
+		1E359FB99B0E67CF91E618A5 /* Server.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709905FF689E00DB3F1C9C3 /* Server.swift */; };
+		27956E4C364CDD4C0902041B /* LocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20A80BB3FCAEA95ACFA7EE7D /* LocalServer.swift */; };
+		3B3FD50F4B38041D3EF06370 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2E064E1422E30DD72C6CC96A /* AppIcon.icon */; };
+		44B2800BED128BF986AE53FC /* PairShakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF619B32F4135A9A19A94309 /* PairShakeApp.swift */; };
+		7F0397AA7ABC6C57A6257214 /* Finder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B049230A2667B7F3DFA66C /* Finder.swift */; };
+		C9E9EFC2052778CC8B5A1328 /* WebShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA2F342DDD86D830E74CF61 /* WebShell.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1A3361EA1CAEEE3115F89FE6 /* Server.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Server.swift; sourceTree = "<group>"; };
-		1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
-		3E761134F746C1380CBE4DF5 /* WebShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebShell.swift; sourceTree = "<group>"; };
-		4CC688F2B85BA987B361D42B /* Finder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Finder.swift; sourceTree = "<group>"; };
-		5F25C4CB4597142C13A4845B /* LocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServer.swift; sourceTree = "<group>"; };
-		72192AB4CAC2852CF9FAEC92 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		7485286477B072A3BD85E815 /* RoomieApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomieApp.swift; sourceTree = "<group>"; };
-		C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roomie.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		11B049230A2667B7F3DFA66C /* Finder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Finder.swift; sourceTree = "<group>"; };
+		1AA2F342DDD86D830E74CF61 /* WebShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebShell.swift; sourceTree = "<group>"; };
+		20A80BB3FCAEA95ACFA7EE7D /* LocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServer.swift; sourceTree = "<group>"; };
+		2E064E1422E30DD72C6CC96A /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		A709905FF689E00DB3F1C9C3 /* Server.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Server.swift; sourceTree = "<group>"; };
+		EDCF82EE205B08AC0D2E9D23 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EF5B5DA77264E6CE53306C63 /* PairShake.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PairShake.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF619B32F4135A9A19A94309 /* PairShakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairShakeApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		3B69FADA36F416287C664371 /* Products */ = {
+		82ADA1A92BA70F3A2B418722 /* PairShake */ = {
 			isa = PBXGroup;
 			children = (
-				C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */,
+				2E064E1422E30DD72C6CC96A /* AppIcon.icon */,
+				11B049230A2667B7F3DFA66C /* Finder.swift */,
+				EDCF82EE205B08AC0D2E9D23 /* Info.plist */,
+				20A80BB3FCAEA95ACFA7EE7D /* LocalServer.swift */,
+				EF619B32F4135A9A19A94309 /* PairShakeApp.swift */,
+				A709905FF689E00DB3F1C9C3 /* Server.swift */,
+				1AA2F342DDD86D830E74CF61 /* WebShell.swift */,
+			);
+			path = PairShake;
+			sourceTree = "<group>";
+		};
+		A4F904BE0F0ED9D3F6C7C3B4 = {
+			isa = PBXGroup;
+			children = (
+				82ADA1A92BA70F3A2B418722 /* PairShake */,
+				D589A1FB067ED22BB3D378CC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D589A1FB067ED22BB3D378CC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EF5B5DA77264E6CE53306C63 /* PairShake.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		5F3C9E8D9B42EA8CB8C5B384 = {
-			isa = PBXGroup;
-			children = (
-				9E12DFE66965AEBAD79A19B7 /* Roomie */,
-				3B69FADA36F416287C664371 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		9E12DFE66965AEBAD79A19B7 /* Roomie */ = {
-			isa = PBXGroup;
-			children = (
-				1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */,
-				4CC688F2B85BA987B361D42B /* Finder.swift */,
-				72192AB4CAC2852CF9FAEC92 /* Info.plist */,
-				5F25C4CB4597142C13A4845B /* LocalServer.swift */,
-				7485286477B072A3BD85E815 /* RoomieApp.swift */,
-				1A3361EA1CAEEE3115F89FE6 /* Server.swift */,
-				3E761134F746C1380CBE4DF5 /* WebShell.swift */,
-			);
-			path = Roomie;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		14385ECF2184169A7DF1B601 /* Roomie */ = {
+		DBD10AE4BC3C08E107D79B69 /* PairShake */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AD6BE66C24FD9428756B30DC /* Build configuration list for PBXNativeTarget "Roomie" */;
+			buildConfigurationList = A964C4E2A03A2A5C55B6D1AB /* Build configuration list for PBXNativeTarget "PairShake" */;
 			buildPhases = (
-				9449AC61AFA907EBB73DE0AD /* Sources */,
-				19361183783C68205BA96640 /* Bundle the hands' models and three.js */,
-				A34EC853055C2AC40F380438 /* Resources */,
+				F85926C19C12CDFB03DC197C /* Sources */,
+				0F5F7F46C86B15240449B6FC /* Bundle the hands' models and three.js */,
+				FE1114CB093F6724D6BEA999 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = Roomie;
+			name = PairShake;
 			packageProductDependencies = (
 			);
-			productName = Roomie;
-			productReference = C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */;
+			productName = PairShake;
+			productReference = EF5B5DA77264E6CE53306C63 /* PairShake.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		BE58FE337449897E08B780E3 /* Project object */ = {
+		D6BEEB07EE1865336270A46C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					14385ECF2184169A7DF1B601 = {
+					DBD10AE4BC3C08E107D79B69 = {
 						DevelopmentTeam = ZZYK46YQNL;
 						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = 071E52B0B471F4B02B18CA54 /* Build configuration list for PBXProject "Roomie" */;
+			buildConfigurationList = BF6ECAB1CE54416A2F68E875 /* Build configuration list for PBXProject "PairShake" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
 				en,
 			);
-			mainGroup = 5F3C9E8D9B42EA8CB8C5B384;
+			mainGroup = A4F904BE0F0ED9D3F6C7C3B4;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 3B69FADA36F416287C664371 /* Products */;
+			productRefGroup = D589A1FB067ED22BB3D378CC /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				14385ECF2184169A7DF1B601 /* Roomie */,
+				DBD10AE4BC3C08E107D79B69 /* PairShake */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A34EC853055C2AC40F380438 /* Resources */ = {
+		FE1114CB093F6724D6BEA999 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E24C589249FA034987E9A5F2 /* AppIcon.icon in Resources */,
+				3B3FD50F4B38041D3EF06370 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		19361183783C68205BA96640 /* Bundle the hands' models and three.js */ = {
+		0F5F7F46C86B15240449B6FC /* Bundle the hands' models and three.js */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -147,58 +147,40 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		9449AC61AFA907EBB73DE0AD /* Sources */ = {
+		F85926C19C12CDFB03DC197C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7B85CF5760DD42AA2D173446 /* Finder.swift in Sources */,
-				B886986D6807FEA46CE249D1 /* LocalServer.swift in Sources */,
-				81D7C701971C4159A15E6481 /* RoomieApp.swift in Sources */,
-				7F2FB6B96CE63DD01CF7A6A4 /* Server.swift in Sources */,
-				7DC7D430C31380F2FC9769C1 /* WebShell.swift in Sources */,
+				7F0397AA7ABC6C57A6257214 /* Finder.swift in Sources */,
+				27956E4C364CDD4C0902041B /* LocalServer.swift in Sources */,
+				44B2800BED128BF986AE53FC /* PairShakeApp.swift in Sources */,
+				1E359FB99B0E67CF91E618A5 /* Server.swift in Sources */,
+				C9E9EFC2052778CC8B5A1328 /* WebShell.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		069A14376D60FFB5C54BBC4A /* Release */ = {
+		21F5B86F119BC786CFDB3C37 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Roomie/Info.plist;
+				INFOPLIST_FILE = PairShake/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.roomie;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.pairshake;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
-		49D941B1825CB1C9505F21F9 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Roomie/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.roomie;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		7B988F10F1BF3AA860518CE4 /* Debug */ = {
+		4CC0488B720E4BB35F4F37B7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -263,7 +245,7 @@
 			};
 			name = Debug;
 		};
-		A2BA3C2A6C54AFEA42301EC8 /* Release */ = {
+		D7F352BF4D0FD14BF0A53BA3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -321,28 +303,46 @@
 			};
 			name = Release;
 		};
+		D840F7E9B5A8D555981C923B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PairShake/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.pairshake;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		071E52B0B471F4B02B18CA54 /* Build configuration list for PBXProject "Roomie" */ = {
+		A964C4E2A03A2A5C55B6D1AB /* Build configuration list for PBXNativeTarget "PairShake" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				7B988F10F1BF3AA860518CE4 /* Debug */,
-				A2BA3C2A6C54AFEA42301EC8 /* Release */,
+				D840F7E9B5A8D555981C923B /* Debug */,
+				21F5B86F119BC786CFDB3C37 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		AD6BE66C24FD9428756B30DC /* Build configuration list for PBXNativeTarget "Roomie" */ = {
+		BF6ECAB1CE54416A2F68E875 /* Build configuration list for PBXProject "PairShake" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				49D941B1825CB1C9505F21F9 /* Debug */,
-				069A14376D60FFB5C54BBC4A /* Release */,
+				4CC0488B720E4BB35F4F37B7 /* Debug */,
+				D7F352BF4D0FD14BF0A53BA3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = BE58FE337449897E08B780E3 /* Project object */;
+	rootObject = D6BEEB07EE1865336270A46C /* Project object */;
 }

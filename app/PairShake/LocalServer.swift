@@ -15,7 +15,7 @@ final class LocalServer: NSObject, URLSessionDelegate {
 
     private var listener: NWListener?
     private var everReady = false
-    private let queue = DispatchQueue(label: "roomie.localserver")
+    private let queue = DispatchQueue(label: "pairshake.localserver")
     private lazy var session: URLSession = {
         let c = URLSessionConfiguration.ephemeral
         c.timeoutIntervalForRequest = 120

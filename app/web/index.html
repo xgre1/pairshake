@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>PairShake</title>
 <style>
-/* Same screens, sizes and colours as the iPhone app (app/Roomie). iOS system colours, SF + New York. */
+/* Same screens, sizes and colours as the iPhone app (app/PairShake). iOS system colours, SF + New York. */
 :root{
   --bg:#fff; --bg2:#f2f2f7; --gbg:#f2f2f7; --gcell:#fff;
   --fg:#000; --sec:rgba(60,60,67,.6); --ter:rgba(60,60,67,.3);
@@ -801,10 +801,10 @@ const av = (p, size) => `<div class="av" style="width:${size}px;height:${size}px
 const isDesk = () => matchMedia("(min-width: 900px)").matches;
 const demo = new URLSearchParams(location.search).has("demo");
 // Inside the PairShake iPhone app (the people on stage use it): real haptics, and finding by radio
-const APP = window.RoomieApp?.native ? window.RoomieApp : null;
+const APP = window.PairShakeApp?.native ? window.PairShakeApp : null;
 const Prefs = {                     // this device's settings
-  get: (k, d) => { try { const v = localStorage.getItem("roomie.pref." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set: (k, v) => { try { localStorage.setItem("roomie.pref." + k, JSON.stringify(v)); } catch {} },
+  get: (k, d) => { try { const v = localStorage.getItem("pairshake.pref." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem("pairshake.pref." + k, JSON.stringify(v)); } catch {} },
   voice() { return this.get("voice", 0); }, buzz() { return this.get("buzz", true); },     // Emma is silent until sound is turned on
 };
 const buzz = (pattern, kind) => !Prefs.buzz() ? null : APP ? APP.post({t: "haptic", k: kind}) : navigator.vibrate?.(pattern);
@@ -1073,7 +1073,7 @@ addEventListener("scroll", () => {
   root.style.setProperty("--pull", Math.min(0, scrollY) + "px");
   root.style.setProperty("--push", Math.max(0, over) + "px");
 }, {passive: true});
-const ID_KEY = "roomie.id";
+const ID_KEY = "pairshake.id";
 const keep = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const kept = k => { try { return localStorage.getItem(k); } catch { return null; } };
 /* How you answer Emma: push to talk. Nothing is recorded until you hold the mic button; you talk for exactly
@@ -1242,8 +1242,8 @@ $("#testBtn").onclick = async () => {
   Voice.init(); Voice.ctx.resume();
   try {
     while (Test.on) {
-      const r = await api("/test/match", {id: kept("roomie.testId")});
-      keep("roomie.testId", r.me.id);
+      const r = await api("/test/match", {id: kept("pairshake.testId")});
+      keep("pairshake.testId", r.me.id);
       if (r.mission) {
         S.id = r.me.id; S.result = r; S.me = r.me; S.seen.add(r.mission.id);
         buzz([60, 40, 60], "success"); openRoom(r.mission);             // (it already says you both said yes)
@@ -1252,7 +1252,7 @@ $("#testBtn").onclick = async () => {
       }
       await sleep(2000);
     }
-    if (!Test.on) await api("/test/match", {id: kept("roomie.testId"), cancel: true}).catch(() => {});
+    if (!Test.on) await api("/test/match", {id: kept("pairshake.testId"), cancel: true}).catch(() => {});
   } catch { oops("Can't reach the PairShake server."); }
   Test.on = false; b.innerHTML = Test.label;
 };
@@ -1882,7 +1882,7 @@ $("#aBack").onclick = async () => { await About.leave(); goHome(); };
 document.addEventListener("screen", () => { if (document.body.dataset.screen !== "about") About.leave(); });   // (leaving by the tab bar)
 $("#aRetell").onclick = async () => { await About.leave(); retell(); };
 $("#forgetBtn").onclick = () => {
-  keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null);
+  keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("pairshake.outcomes", null);
   location.reload();
 };
 
@@ -1892,7 +1892,7 @@ $("#forgetBtn").onclick = () => {
    An account is an email and a password that bring back the same person (what Emma knows, the people
    you've met) on any phone or computer; without one you're who this device remembers. */
 function forgetDevice() {
-  keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null); keep("roomie.testId", null);
+  keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("pairshake.outcomes", null); keep("pairshake.testId", null);
   location.reload();
 }
 const twoTaps = (btn, label, act) => {          // dangerous rows ask once more (no browser dialogs: the app has none)
@@ -2026,7 +2026,7 @@ My personality: how I come across and how I work (big picture or details, fast o
 I could talk for an hour about: 2 or 3 topics
 Not a good match for me: who would waste my time
 In one sentence: one memorable line about me, in third person`;
-const GPT_KEY = "roomie.gptAt";          // when they went off to ChatGPT (the sheet is open again if the page reloads)
+const GPT_KEY = "pairshake.gptAt";          // when they went off to ChatGPT (the sheet is open again if the page reloads)
 
 function copyText(t) {
   const ta = document.createElement("textarea");
@@ -2133,7 +2133,7 @@ $("#pForm").onsubmit = e => {                                       // write her
 /* ---------------------------------------------------------------- 5. the room */
 const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0, mission: null, from: "intro", queue: null, direct: false };
 const openChat = c => openRoom(c, {chat: true});                    // a person in your list: straight to your messages
-const outcomesSeen = new Set((kept("roomie.outcomes") || "").split(",").filter(Boolean));
+const outcomesSeen = new Set((kept("pairshake.outcomes") || "").split(",").filter(Boolean));
 function openRoom(m, opts = {}) {
   Room.mission = m; Room.chat = m.chat ? [...m.chat] : []; if (m.you) Room.you = m.you; Room.rung = 0;   // (what we have, until the room says more) Room.decided = false; Room.meet = null; Room.queue = opts.send || null;
   Room.from = {intro: "intro", person: "person", tabPeople: "people"}[document.body.dataset.screen] || "home";
@@ -2251,7 +2251,7 @@ $("#noBtn").onclick = () => decide(false);
 
 function outcome(yes) {
   const p = Room.mission.person, me = S.result?.me || S.me;
-  outcomesSeen.add(Room.mission.id); keep("roomie.outcomes", [...outcomesSeen].join(","));
+  outcomesSeen.add(Room.mission.id); keep("pairshake.outcomes", [...outcomesSeen].join(","));
   const pair = `<div class="pair" style="--a:${esc(me?.color || "#B9A7FF")};--b:${esc(p.color)}"></div>`;
   $("#outcomeBody").innerHTML = yes ? `${pair}
     <div style="position:relative;display:flex;flex-direction:column;gap:22px;padding:calc(40px + var(--safeT)) var(--gut) 0">
@@ -2477,7 +2477,7 @@ if (APP) {
 }
 /* Continue with LinkedIn (edge/src/linkedin.js): a real name and face, the same person on any device. On the
    web the page goes to LinkedIn and comes back with ?li=<id>; in the app Apple's sign-in sheet opens and the
-   app hands the id to RoomieApp.onLogin. */
+   app hands the id to PairShakeApp.onLogin. */
 const PROVIDER = {linkedin: "LinkedIn", google: "Google"};
 function signIn(provider) {
   S.signingIn = provider;

@@ -70,7 +70,7 @@ export async function start(name, req, env) {
   const ret = url.searchParams.get("ret") || "";
   if (ret !== "app" && !RETURN_OK.test(ret)) return Response.json({ error: "Unknown return address." }, { status: 400 });
   const id = (url.searchParams.get("id") || "").replace(/[^a-z0-9]/gi, "").slice(0, 32);
-  const app = ret === "app" || (req.headers.get("user-agent") || "").includes("RoomieApp");
+  const app = ret === "app" || (req.headers.get("user-agent") || "").includes("PairShakeApp");
   const to = new URL(p.auth);
   to.search = new URLSearchParams({
     response_type: "code", client_id: p.id(env), redirect_uri: redirectUri(url, name), scope: "openid profile email",
@@ -101,7 +101,7 @@ export async function callback(name, req, env, room) {
     const u = await me.json();
     const r = await room.fetch(new Request("https://room/internal/login", {
       method: "POST",
-      headers: { "content-type": "application/json", "user-agent": st.app ? "RoomieApp" : "web" },
+      headers: { "content-type": "application/json", "user-agent": st.app ? "PairShakeApp" : "web" },
       body: JSON.stringify({ provider: name, id: st.id, sub: u.sub, name: u.name, picture: u.picture, email: u.email }),
     }));
     if (!r.ok) throw new Error(`room ${r.status}: ${(await r.text()).slice(0, 200)}`);

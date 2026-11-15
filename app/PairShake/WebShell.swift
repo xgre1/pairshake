@@ -31,7 +31,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     // Diagnostics: what the page reports (errors, load times, whether the hands came up), one file per
     // launch in the app's Documents. Read on the Mac with
     // xcrun devicectl device copy from --device <id> --domain-type appDataContainer
-    //   --domain-identifier com.jtobin.roomie --source Documents/web.log --destination web.log
+    //   --domain-identifier com.jtobin.pairshake --source Documents/web.log --destination web.log
     private let logURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("web.log")
     private let started = Date()
     private func note(_ line: String) {
@@ -43,7 +43,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
 
     override func loadView() {
         let content = WKUserContentController()
-        content.add(WeakHandler(self), name: "roomie")
+        content.add(WeakHandler(self), name: "pairshake")
         content.addUserScript(WKUserScript(source: Self.bridge, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         content.addUserScript(WKUserScript(source: Self.feel, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
 
@@ -51,7 +51,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         config.userContentController = content
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        config.applicationNameForUserAgent = "RoomieApp"
+        config.applicationNameForUserAgent = "PairShakeApp"
 
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
@@ -71,7 +71,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         root.backgroundColor = .systemBackground
         web.frame = root.bounds
         root.addSubview(web)
-        // The tab bar is the system's; which screen each tab opens is the page's business (RoomieApp.onTab).
+        // The tab bar is the system's; which screen each tab opens is the page's business (PairShakeApp.onTab).
         tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("You", "person.crop.circle.fill"),
                       ("Settings", "gearshape.fill")].enumerated().map { i, t in
             UITabBarItem(title: t.0, image: UIImage(systemName: t.1), tag: i)
@@ -237,7 +237,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
 
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
         UISelectionFeedbackGenerator().selectionChanged()
-        js("window.RoomieApp && RoomieApp.onTab && RoomieApp.onTab(\(item.tag))")
+        js("window.PairShakeApp && PairShakeApp.onTab && PairShakeApp.onTab(\(item.tag))")
     }
 
     // MARK: messages from the page
@@ -303,7 +303,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         let f = Finder()
         f.onLog = { [weak self] line in self?.note(line) }
         f.sendToken = { [weak self] data in
-            self?.js("window.RoomieApp && RoomieApp.onToken && RoomieApp.onToken('\(data.base64EncodedString())')")
+            self?.js("window.PairShakeApp && PairShakeApp.onToken && PairShakeApp.onToken('\(data.base64EncodedString())')")
         }
         finder = f
         findRoom = room
@@ -330,7 +330,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         guard fix != lastFix || Date().timeIntervalSince(lastFixAt) > 1 else { return }
         lastFix = fix
         lastFixAt = Date()
-        js("window.RoomieApp && RoomieApp.onFix && RoomieApp.onFix(\(fix))")
+        js("window.PairShakeApp && PairShakeApp.onFix && PairShakeApp.onFix(\(fix))")
     }
 
     private func haptic(_ k: String) {
@@ -349,7 +349,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         waiting.isHidden = true
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
-        js("window.RoomieApp && (RoomieApp.server = '\(Server.active)', RoomieApp.version = '\(version)')")
+        js("window.PairShakeApp && (PairShakeApp.server = '\(Server.active)', PairShakeApp.version = '\(version)')")
     }
     func webView(_ w: WKWebView, didFinish n: WKNavigation!) { note("page finished") }
 
@@ -424,14 +424,14 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     /// Runs before the page: tells it it's in the app, and serves GPS from Core Location.
     private static let bridge = """
     (() => {
-      const post = m => { try { webkit.messageHandlers.roomie.postMessage(m); } catch (e) {} };
+      const post = m => { try { webkit.messageHandlers.pairshake.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
-      window.RoomieApp = {
+      window.PairShakeApp = {
         native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {
-        watchPosition(ok) { const id = next++; watchers.set(id, ok); post({t: "geo", on: true}); if (last) setTimeout(() => RoomieApp.geo(last)); return id; },
+        watchPosition(ok) { const id = next++; watchers.set(id, ok); post({t: "geo", on: true}); if (last) setTimeout(() => PairShakeApp.geo(last)); return id; },
         clearWatch(id) { watchers.delete(id); if (!watchers.size) post({t: "geo", on: false}); },
         getCurrentPosition(ok) { const id = geo.watchPosition(p => { geo.clearWatch(id); ok(p); }); },
       };
@@ -504,7 +504,7 @@ final class Locator: NSObject, CLLocationManagerDelegate {
         guard let l = locations.last, l.horizontalAccuracy >= 0 else { return }
         let speed = l.speed >= 0 ? String(l.speed) : "null"
         let course = l.course >= 0 ? String(l.course) : "null"
-        onFix?("window.RoomieApp && RoomieApp.geo({latitude:\(l.coordinate.latitude),longitude:\(l.coordinate.longitude),accuracy:\(l.horizontalAccuracy),speed:\(speed),heading:\(course)})")
+        onFix?("window.PairShakeApp && PairShakeApp.geo({latitude:\(l.coordinate.latitude),longitude:\(l.coordinate.longitude),accuracy:\(l.horizontalAccuracy),speed:\(speed),heading:\(course)})")
     }
 }
 

@@ -10,7 +10,7 @@ When both people say yes, PairShake shows an arrow and a distance until they mee
 
 ## In the app: Ultra Wideband
 
-`app/Roomie/Finder.swift` runs a Nearby Interaction session with the other phone.
+`app/PairShake/Finder.swift` runs a Nearby Interaction session with the other phone.
 
 - **Token exchange.** Each phone's discovery token travels two ways at once: through the room's WebSocket (`ni` messages) and directly over Bluetooth, through a service only the two phones know (derived from the introduction's id). Bad Wi-Fi can't stop them from finding each other.
 - **Distance.** The median of the last three readings, so one bounce off a wall can't make the number jump. Readings arrive about 50 times a second.
@@ -21,7 +21,7 @@ When both people say yes, PairShake shows an arrow and a distance until they mee
 - **Bluetooth.** Out of Ultra Wideband range, the signal strength of the Bluetooth link gives a rough distance.
 - **Recovery.** Sessions that stall, get suspended or end are restarted on their own, and tokens are offered again until ranging starts.
 
-The page draws the reading: `RoomieApp.onFix({d, a, mode, coach})` arrives about 15 times a second; while one is less than 3 seconds old it wins over GPS.
+The page draws the reading: `PairShakeApp.onFix({d, a, mode, coach})` arrives about 15 times a second; while one is less than 3 seconds old it wins over GPS.
 
 ## On the web: GPS, compass, gyroscope
 
