@@ -113,9 +113,9 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 body.known #home{display:flex} body.known #againBtn{display:flex}
 body.known .new-only{display:none!important}
 /* Update: someone Emma knows back on the first page to tell her again (ChatGPT or voice); X goes home */
-#updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn,body.updating #devSkip{display:none!important}
+#updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn,body.updating #devBtn{display:none!important}
 body.known #welcome>.spacer{display:none}
-body.known #welcomeHands{height:180px}
+body.known #welcomeHands{height:230px}
 body.known #wTitle{margin-top:-6px!important}
 body.known #wFoot{position:sticky;bottom:0;margin-top:auto;padding-top:28px;z-index:2;
   background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 28px)}   /* solid behind every button, however many */
@@ -271,7 +271,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
    belong to the screen (top bar, back and close buttons, message box, bottom buttons) stay where they are. */
 .topbar,.leave{translate:0 var(--pull,0px)}
 .dock,.composer,body.known #wFoot,#tabbar{translate:0 var(--push,0px)}
-/* Tab bar (phones, once Emma knows you): Home, People, You, Settings. In the app it is iOS's own bar
+/* Tab bar (phones, always): Home, People, You, Settings. In the app it is iOS's own bar
    (WebShell.swift draws it and the page only leaves room); in a browser it is this one. */
 #tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;padding:6px 8px var(--safeB);
   background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
@@ -283,7 +283,7 @@ body:is([data-screen="settings"],[data-screen="about"],[data-screen="tabPeople"]
 body.tabs:not(.native-tabs) #tabbar{display:flex}
 body.tabs{--tabH:49px} body.tabs.native-tabs{--tabH:60px}
 body.tabs .screen.on{padding-bottom:calc(var(--tabH) + var(--safeB) + 12px)}
-body.tabs.known #wFoot{bottom:calc(var(--tabH) + var(--safeB));padding-bottom:12px!important}
+body.tabs.known #wFoot{bottom:calc(var(--tabH) + var(--safeB))} body.tabs #wFoot{padding-bottom:12px!important}
 body.tabs #peopleBox,body.tabs #forgetBtn,body.tabs #gearBtn{display:none!important}
 #aHead,#sHead{display:none} body.tabs #aHead,body.tabs #sHead{display:flex}
 body.tabs #about,body.tabs #settings{padding-top:var(--safeT)} body.tabs #about .topbar,body.tabs #settings .topbar{display:none}
@@ -484,9 +484,10 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- Welcome -->
 <section class="screen on" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
+  <button class="leave" id="devBtn" aria-label="Test tools"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M14.200 9.800 4.800 19.200" stroke-width="2.800"/><path d="M12 5.500 18.500 12" stroke-width="5.600" stroke-linecap="butt"/><path d="M12 5.500 18.500 12" stroke-width="5.600" stroke-dasharray="0 9.200"/></svg></button>
   <button class="leave" id="updBack" aria-label="Back"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
-  <div class="orb-wrap hands-stage" id="welcomeHands"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
+  <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.36,0.29"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
   <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center;margin-top:52px">Hi, I'm Emma.</h1>
   <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">I'll introduce you to the one person here you should meet.</p>
   <p class="foot ter new-only" style="text-align:center;margin-top:12px;padding:0 44px" id="micNote"></p>
@@ -505,7 +506,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -558,7 +559,8 @@ body:not(.in-app) .app-only{display:none!important}
 <section class="screen" id="about">
   <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
   <h1 class="serif tab-h" id="aHead">You</h1>
-  <div class="sbody">
+  <p class="tab-empty" id="aEmpty">Emma doesn't know you yet. Talk to her on the first tab, and what she remembers shows up here.</p>
+  <div class="sbody" id="aBody">
     <div id="aFields"></div>
     <p class="s-f" id="aSaved">Saved as you type.</p>
     <p class="s-h">Start over</p>
@@ -703,6 +705,17 @@ body:not(.in-app) .app-only{display:none!important}
   </div>
 </div>
 <!-- No talking: ChatGPT, which already knows you, answers Emma's questions -->
+<!-- Test tools (the hammer on the first page): shortcuts for trying things out, kept off the real screens -->
+<div class="scrim" id="devScrim">
+  <div class="sheet" style="height:auto;gap:12px">
+    <h3 class="serif" style="font-size:30px;line-height:1.15">Test tools</h3>
+    <p class="sec" style="margin-bottom:4px">Shortcuts for trying things out.</p>
+    <button class="primary app-only" id="testBtn" style="background:var(--fill2);color:var(--fg)">Find another phone<small>Pairs with another test phone and points to it</small></button>
+    <button class="primary" id="devSkip" style="background:var(--fill2);color:var(--fg)">Skip the talk<small>Straight to matching as a made-up attendee</small></button>
+    <button class="plainbtn" id="devClose" style="margin-top:2px">Close</button>
+  </div>
+</div>
+
 <div class="scrim" id="gptScrim">
   <div class="sheet">
     <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT introduce you</h3>
@@ -1123,7 +1136,12 @@ Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; 
 if (!SR && !APP) $("#micNote").textContent = "This browser can't hear you, so you'll type your answers.";
 const setLine = t => { const el = $("#emmaLine"); if (el.textContent === t) return; el.style.opacity = 0; setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 180); };
 $("#startBtn").onclick = () => { Voice.init(); Voice.ctx.resume(); Ears.setup(Voice.ctx); demo ? rehearse() : interview(); };
-$("#devSkip").onclick = () => { Voice.init(); Voice.ctx.resume(); rehearse(); };
+$("#devSkip").onclick = () => { Dev.close(); Voice.init(); Voice.ctx.resume(); rehearse(); };
+const Dev = { open() { $("#devScrim").classList.add("on"); }, close() { $("#devScrim").classList.remove("on"); } };
+$("#devBtn").onclick = () => Dev.open();
+$("#devClose").onclick = () => Dev.close();
+$("#devScrim").onclick = e => { if (e.target.id === "devScrim") Dev.close(); };
+document.addEventListener("screen", () => Dev.close());           // (a test that opened another screen)
 $("#talkOrbWrap").onclick = () => { if (S.mode === "speaking") Voice.stopSpeaking(); };   // tap Emma to skip her
 {
   const mic = $("#micBtn"); let down = false, timer = 0, y0 = 0;
@@ -1200,7 +1218,6 @@ async function interview() {
    each as a made-up attendee, straight into the room; say yes on both to try finding each other by Ultra
    Wideband. The made-up person is kept per phone, apart from your real one. Tap again to stop waiting. */
 const Test = { on: false, label: $("#testBtn").innerHTML };
-if (APP) $("#testBtn").hidden = false;
 $("#testBtn").onclick = async () => {
   const b = $("#testBtn");
   if (Test.on) { Test.on = false; return; }
@@ -1752,18 +1769,21 @@ function renderHome() {
   Tabs.sync();
 }
 async function goHome() { await loadMe(); show("welcome"); }
-/* Tabs: on a phone, once Emma knows you, the first page is split in four so nothing piles up: Home (Emma
+/* Tabs: on a phone the first page is split in four so nothing piles up: Home (Emma
    and who you're looking for), People, You (what she remembers), Settings. A computer has room for
    it all on one page and keeps that. */
+addEventListener("DOMContentLoaded", () => Tabs.sync());
 const Tabs = {
   ids: ["welcome", "tabPeople", "about", "settings"], last: 0,
-  on() { const b = document.body.classList; return b.contains("known") && !b.contains("updating") && !isDesk() && this.ids.includes(document.body.dataset.screen); },
+  // on a phone the bar is always there, also before Emma knows you (People and You are simply empty then)
+  on() { return !document.body.classList.contains("updating") && !isDesk() && !demo && this.ids.includes(document.body.dataset.screen); },
   sync() {
     const on = this.on(), i = this.ids.indexOf(document.body.dataset.screen);
     if (on) this.last = i;
     document.body.classList.toggle("tabs", on); document.body.classList.toggle("native-tabs", !!APP?.tabs);
     $("#tabbar").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
-    if (APP?.tabs) APP.post({t: "tabs", on, sel: Math.max(0, i)});
+    // (the app's bar sits over the page: it steps aside while a sheet is up, or it would cover the sheet's buttons)
+    if (APP?.tabs) APP.post({t: "tabs", on: on && !document.querySelector(".scrim.on"), sel: Math.max(0, i)});
   },
   go(i) {
     if (i === 1) this.lists();
@@ -1780,10 +1800,11 @@ const Tabs = {
       $(box).querySelectorAll(".prow").forEach(b => b.onclick = () => openChat(S.contacts[b.dataset.i]));
     };
     // (the last message when you've written to each other, else what they do)
-    fill("#tpList", "#tpEmpty", S.contacts.map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
+    fill("#tpList", "#tpEmpty", (S.contacts || []).map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
   },
 };
 document.addEventListener("screen", () => Tabs.sync());
+document.querySelectorAll(".scrim").forEach(el => new MutationObserver(() => Tabs.sync()).observe(el, {attributes: true, attributeFilter: ["class"]}));
 addEventListener("resize", () => Tabs.sync());
 $("#tabbar").querySelectorAll("button").forEach(b => b.onclick = () => { buzz(8); Tabs.go(+b.dataset.i); });
 if (APP) APP.onTab = i => Tabs.go(i);
@@ -1810,6 +1831,9 @@ const About = {
   FIELDS: [["needs", "Looking for"], ["building", "Working on"], ["offers", "You can offer"], ["role", "What you do"],
            ["line", "In one sentence"], ["spot", "Where to find you"]],
   open() {
+    const me = S.me;
+    $("#aEmpty").style.display = me ? "none" : ""; $("#aBody").style.display = me ? "" : "none";
+    if (!me) return show("about");
     $("#aFields").innerHTML = this.FIELDS.map(([k, label]) =>
       `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="400" placeholder="Not said yet">${esc(S.me[k] || "")}</textarea></div>`).join("");
     $("#aSaved").textContent = "Saved as you type.";
@@ -1822,6 +1846,7 @@ const About = {
     this.t = 0;
     const about = {};
     $("#aFields").querySelectorAll("textarea").forEach(t => about[t.dataset.k] = t.value.trim());
+    if (!S.me) return;
     try {
       const r = await api("/profile", {id: S.id, about});
       if (r.me) S.me = r.me;
@@ -2429,6 +2454,7 @@ if (APP) {
   });
 }
 if (!demo) loadMe().catch(() => {}).finally(() => {
+  Tabs.sync();
   // back from ChatGPT and the page was reloaded meanwhile: the paste sheet is open again
   if (Date.now() - (+kept(GPT_KEY) || 0) < 20 * 60e3 && $("#welcome").classList.contains("on")) {
     if (document.body.classList.contains("known")) retell();     // they were updating

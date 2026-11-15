@@ -159,8 +159,9 @@ class EmmaHands {
     // on a computer the hands fill the whole window behind the page; on a phone they sit in el
     // (unless el asks to keep them inline: the home page of someone Emma already knows)
     const wide = matchMedia('(min-width: 900px)').matches, full = wide && !el.dataset.inline;
-    // el can frame the hands closer on a computer ("width,height" in meters, data-fit-wide)
-    const fit = !full && wide && el.dataset.fitWide ? el.dataset.fitWide.split(',').map(Number) : null;
+    // el can frame the hands closer ("width,height" in meters): data-fit on a phone, data-fit-wide on a computer
+    const want = full ? '' : wide ? el.dataset.fitWide : el.dataset.fit;
+    const fit = want ? want.split(',').map(Number) : null;
     if (String(fit) !== String(this.fit)) { this.fit = fit; this.size = ''; }
     const host = full ? document.body : el;
     this.canvas.classList.toggle('hands-full', full);
