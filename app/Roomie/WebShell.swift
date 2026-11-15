@@ -253,7 +253,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             askForServer(problem: nil)
         case "log":
             note(d["m"] as? String ?? "")
-        case "linkedin":                                    // Continue with LinkedIn: Apple's sign-in sheet, not the page
+        case "signin", "linkedin":                          // Continue with LinkedIn or Google: Apple's sign-in sheet, not the page
             if let s = d["url"] as? String, let url = URL(string: s) { signInWithLinkedIn(url) }
         case "haptic":
             haptic(d["k"] as? String ?? "light")
@@ -262,13 +262,15 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         }
     }
 
-    /// LinkedIn in Apple's sign-in sheet (it shares Safari's LinkedIn session, so usually one tap). The server
-    /// ends the sign-in by sending the sheet to pairshake://linkedin?id=... (or ?error=...), handed to the page.
+    /// LinkedIn or Google in Apple's sign-in sheet (it shares Safari's session, so usually one tap). The server
+    /// ends the sign-in by sending the sheet to pairshake://signin?id=... (or ?error=...), handed to the page.
     private func signInWithLinkedIn(_ url: URL) {
         let s = ASWebAuthenticationSession(url: url, callbackURLScheme: "pairshake") { [weak self] back, error in
             DispatchQueue.main.async {
                 self?.signIn = nil
                 if let me = self, me.keyboard != 0 { me.keyboard = 0; me.view.setNeedsLayout(); me.view.layoutIfNeeded() }
+                self?.note("signin done err=\(String(describing: error)) kb=\(self?.keyboard ?? -1) web=\(self?.web.frame ?? .zero) hidden=\(self?.web.isHidden ?? false) alpha=\(self?.web.alpha ?? -1)")
+                self?.js("APP?.post({t:'log', m:'page screen=' + document.body.dataset.screen + ' on=' + [...document.querySelectorAll('.screen.on')].map(e=>e.id) + ' vh=' + innerHeight + ' sy=' + scrollY + ' vis=' + document.visibilityState})")
                 let q = back.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
                 let id = q.first { $0.name == "id" }?.value ?? ""
                 let err = q.first { $0.name == "error" }?.value ?? (error == nil ? "" : "cancelled")
