@@ -18,16 +18,16 @@ const COL = { sky: C('#8FD3FF'), blush: C('#FFB8CF'), iris: C('#6E6BF2'), lilac:
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 // White skin, edges shaded a touch darker so the hands still read on a white page, and the
-// forearm cut off cleanly just below the wrist (the forearm runs up +Y to the wrist at 0.26 m).
+// forearm fading out below the wrist (the forearm runs up +Y to the wrist at 0.26 m): no hard cut.
 export function handMaterial(color = 0xffffff) {
-  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, side: THREE.DoubleSide, transparent: true });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\n  if (vBind.y < 0.236) discard;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  if (vBind.y < 0.15) discard;\n  diffuseColor.a *= smoothstep(0.15, 0.236, vBind.y);')
       // the inside of the cut wrist, seen through the opening, is lit as a flat solid end
       .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n  if (!gl_FrontFacing) normal = vec3(0.0, 0.0, 1.0);')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
