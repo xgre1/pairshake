@@ -128,6 +128,19 @@ export class PairShake extends DurableObject {
     for (const r of ms.results) { this.missions[r.id] = JSON.parse(r.data); this.written.set("m:" + r.id, r.data); }
     for (const r of meta.results) if (r.key === "stats") { Object.assign(this.stats, JSON.parse(r.value)); this.written.set("meta:stats", r.value); }
     for (const r of meta.results) if (r.key === "networks") { this.networks = JSON.parse(r.value); this.written.set("meta:networks", r.value); }
+    // once (15/11): everyone out of the old Luma events and out of the networks made from Luma events, to start clean
+    if (!(await this.ctx.storage.get("cleanup:events-1"))) {
+      let n = 0;
+      for (const u of Object.values(this.users)) {
+        if (u.event) { delete u.event; n++; }
+        if (u.live && this.networks[u.live.network]?.luma) delete u.live;
+        if (u.networks) u.networks = u.networks.filter(id => !this.networks[id]?.luma);
+      }
+      for (const [id, x] of Object.entries(this.networks)) if (x.luma) delete this.networks[id];
+      console.log(`cleanup: ${n} people out of their events`);
+      await this.ctx.storage.put("cleanup:events-1", Date.now());
+      this.save();
+    }
     if (us.results.length || ms.results.length) return;
     // an empty database: the room was kept in this object's own storage before D1; bring it over once
     const old = [];
