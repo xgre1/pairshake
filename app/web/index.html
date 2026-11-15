@@ -63,6 +63,9 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .primary.li svg{flex:none}
 .primary.g{flex-direction:row;gap:10px;background:#fff;color:#1f1f1f;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
 #gate{justify-content:center}
+.ais{display:flex;flex-direction:column;gap:10px}
+.primary.ai[data-ai="claude"]{background:#D97757;color:#fff}
+.primary.ai[data-ai="gemini"]{background:#1A73E8;color:#fff}
 .primary[disabled]{opacity:.35;cursor:default}
 .plainbtn{display:block;width:100%;padding:10px;color:var(--sec);text-align:center}
 .plainbtn:active{opacity:.5}
@@ -112,6 +115,7 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .follow.on{color:var(--sec);background:var(--fill2)}
 
 /* Welcome */
+#welcomeHands{display:none!important}
 #welcome .orb-wrap{align-self:center}
 /* Home: the same page for someone Emma already knows, plus what she remembers and the people they've met */
 #home,#againBtn{display:none}
@@ -501,9 +505,8 @@ body:not(.in-app) .app-only{display:none!important}
   <button class="leave" id="updBack" aria-label="Back"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.36,0.29"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
-  <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center;margin-top:52px">Hi, I'm Emma.</h1>
-  <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">I'll introduce you to the one person here you should meet.</p>
-  <p class="foot ter new-only" style="text-align:center;margin-top:12px;padding:0 44px" id="micNote"></p>
+  <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center">Introduce yourself.</h1>
+  <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">Your AI already knows you. Ask it.</p>
   <!-- only for someone Emma already knows -->
   <div id="home">
     <!-- one thing big: what Emma looks for next; the rest small under it -->
@@ -519,7 +522,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="primary ai" data-ai="chatgpt">Ask ChatGPT</button><button class="primary ai" data-ai="claude">Ask Claude</button><button class="primary ai" data-ai="gemini">Ask Gemini</button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -731,15 +734,10 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- No talking: ChatGPT answers Emma's questions for you -->
 <div class="scrim" id="gptScrim">
   <div class="sheet">
-    <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT introduce you</h3>
-    <p class="sec">ChatGPT already knows what you've been working on. Ask it with our prompt, then paste its answer here.</p>
-    <div>
-      <a class="primary gpt-open" id="gptOpen" target="_blank" rel="noopener">1. Ask ChatGPT<small id="gptOpenSub">Copies the prompt and opens ChatGPT</small></a>
-      <button class="plainbtn foot" id="gptShow">See the prompt</button>
-      <pre class="gpt-prompt" id="gptPrompt" hidden></pre>
-    </div>
+    <h3 class="serif" style="font-size:30px;line-height:1.15" id="gptTitle">Paste the answer</h3>
+    <button class="plainbtn foot" id="gptAgain" style="align-self:flex-start;padding-left:0">Open ChatGPT again</button>
     <div class="gpt-paste">
-      <textarea id="gptText" placeholder="2. Paste ChatGPT's answer here" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+      <textarea id="gptText" placeholder="Paste the answer here" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
       <button class="pill" id="gptPasteBtn" type="button">Paste</button>
     </div>
     <input class="field" id="gptSpot" placeholder="Where are you in the room? (optional)" autocomplete="off" enterkeyhint="done">
@@ -829,7 +827,7 @@ matchMedia("(min-width: 900px)").addEventListener("change", () => { const s = do
 function handsOff() { document.querySelectorAll(".hands-stage").forEach(e => e.classList.add("hands-off")); }
 setTimeout(() => { if (!window.Hands?.ok) handsOff(); }, 10000);
 // the hands canvas lives in whichever screen shows Emma big
-function mountHands() { if (!window.Hands?.ok) return; const el = {welcome: "#welcomeHands", interview: "#talkOrbWrap"}[document.body.dataset.screen]; el ? Hands.mount($(el)) : Hands.unmount(); }
+function mountHands() { if (!window.Hands?.ok) return; const el = {interview: "#talkOrbWrap"}[document.body.dataset.screen]; el ? Hands.mount($(el)) : Hands.unmount(); }
 const PLUS = `<svg width="11" height="11" viewBox="0 0 11 11"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const CHECK = `<svg width="12" height="11" viewBox="0 0 12 11"><path d="M1.5 5.8 4.6 9 10.5 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -1147,9 +1145,7 @@ function setMode(m) {
 Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; };
 
 /* ---------------------------------------------------------------- 1. talk to Emma */
-if (!SR && !APP) $("#micNote").textContent = "This browser can't hear you, so you'll type your answers.";
 const setLine = t => { const el = $("#emmaLine"); if (el.textContent === t) return; el.style.opacity = 0; setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 180); };
-$("#startBtn").onclick = () => { Voice.init(); Voice.ctx.resume(); Ears.setup(Voice.ctx); demo ? rehearse() : interview(); };
 $("#devSkip").onclick = () => { Dev.close(); Voice.init(); Voice.ctx.resume(); rehearse(); };
 const Dev = { open() { $("#devScrim").classList.add("on"); }, close() { $("#devScrim").classList.remove("on"); } };
 $("#devBtn").onclick = () => Dev.open();
@@ -1756,9 +1752,9 @@ async function loadMe() {
     const d = await r.json();
     S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed;
     document.body.classList.toggle("linked", !!d.linkedin);
-    if (d.linkedin && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
-      $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}, I'm Emma.`;
-      $("#wSub").textContent = "Now tell me what you're working on, and I'll find the one person here you should meet.";
+    if (S.signed && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
+      $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}.`;
+      $("#wSub").textContent = "Your AI already knows you. Ask it to introduce you.";
     }
     if (!d.me) return false;                                         // never finished the chat with Emma
     S.id = id; S.me = d.me; S.socials = d.socials || {}; S.contacts = d.contacts || [];
@@ -2001,7 +1997,7 @@ $("#acctScrim").onclick = e => { if (e.target.id === "acctScrim") Acct.close(); 
    questions for them. The prompt asks for exactly what the matching uses: what they're building, what they
    need and can give (needs meet offers), their team, the rare things about them (rare shared traits are what
    bond strangers), how they work, and who'd waste their time. Their pasted answer stands in for the voice chat. */
-const GPT_PROMPT = `I'm at the Gen AI Summit Hackathon in Athens (36 hours, teams of 1 to 5, everyone builds an AI agent that does real work). Emma, the event's matchmaker AI, introduces each person to the one attendee they should meet. Her agent talks to everyone else's agents to find the best fit, so she needs to know me well.
+const GPT_PROMPT = `I'm at the Gen AI Summit Hackathon in Athens (36 hours, teams of 1 to 5, everyone builds an AI agent that does real work). PairShake, the event's matchmaker, introduces each person to the one attendee they should meet. My agent talks to everyone else's agents to find the best fit, so it needs to know me well.
 
 Answer for me, using everything you know about me from your memory and our past chats.
 
@@ -2036,7 +2032,7 @@ function copyText(t) {
 
 const Gpt = {
   open() {
-    $("#gptErr").textContent = ""; this.check();
+    aiNamed(); $("#gptErr").textContent = ""; this.check();
     $("#gptScrim").classList.add("on");
   },
   close() { document.activeElement?.blur(); $("#gptScrim").classList.remove("on"); },
@@ -2045,7 +2041,7 @@ const Gpt = {
     const t = this.text();
     $("#gptText").parentElement.classList.toggle("has", !!t);
     $("#gptGo").disabled = t.length < 40;
-    $("#gptErr").textContent = t.includes("Answer for me, using everything you know") ? "That's the prompt. Copy ChatGPT's answer instead." : "";
+    $("#gptErr").textContent = t.includes("Answer for me, using everything you know") ? `That's the prompt. Copy ${aiNamed().name}'s answer instead.` : "";
     if ($("#gptErr").textContent) $("#gptGo").disabled = true;
   },
   async paste() {
@@ -2058,7 +2054,6 @@ const Gpt = {
   },
   async go() {
     const b = $("#gptGo"); if (b.disabled) return;
-    Voice.init(); Voice.ctx.resume();                  // (a tap: Emma may speak now)
     b.disabled = true; $("#gptErr").textContent = "";
     try {
       const r = await fetch("/quick", {method: "POST", headers: {"content-type": "application/json"},
@@ -2068,26 +2063,29 @@ const Gpt = {
       S.id = d.id; keep(ID_KEY, d.id); keep(GPT_KEY, null);
       this.close(); $("#gptText").value = ""; $("#gptSpot").value = "";
       buzz(30, "light");
-      showSocials(); setMode("speaking"); await Voice.say(d.say); setMode("idle");
+      showSocials();
     } catch { $("#gptErr").textContent = "Can't reach the PairShake server."; }
     finally { this.check(); }
   },
 };
-$("#gptOpen").href = "https://chatgpt.com/?q=" + encodeURIComponent(GPT_PROMPT);
-$("#gptOpen").onclick = () => {                  // the link itself opens ChatGPT (the app, if it's installed)
-  copyText(GPT_PROMPT); keep(GPT_KEY, Date.now());
-  $("#gptOpenSub").textContent = "Prompt copied. If ChatGPT opens empty, paste it there.";
+const AIS = {
+  chatgpt: {name: "ChatGPT", url: q => "https://chatgpt.com/?q=" + q},
+  claude:  {name: "Claude",  url: q => "https://claude.ai/new?q=" + q},
+  gemini:  {name: "Gemini",  url: () => "https://gemini.google.com/app"},     // (no prefill: the copied prompt is pasted there)
 };
-$("#gptPrompt").textContent = GPT_PROMPT;
-$("#gptShow").onclick = () => {
-  const p = $("#gptPrompt"); p.hidden = !p.hidden;
-  $("#gptShow").textContent = p.hidden ? "See the prompt" : "Hide the prompt";
-};
+function askAI(key) {
+  const ai = AIS[key] || AIS.chatgpt;
+  copyText(GPT_PROMPT); keep(GPT_KEY, Date.now()); keep("pairshake.ai", key);
+  window.open(ai.url(encodeURIComponent(GPT_PROMPT)), "_blank");    // the app opens it outside (their AI app, if installed)
+  Gpt.open();
+}
+function aiNamed() { const ai = AIS[kept("pairshake.ai")] || AIS.chatgpt; $("#gptTitle").textContent = `Paste ${ai.name}'s answer`; $("#gptAgain").textContent = `Open ${ai.name} again`; return ai; }
+document.querySelectorAll(".primary.ai").forEach(b => b.onclick = () => askAI(b.dataset.ai));
+$("#gptAgain").onclick = () => askAI(kept("pairshake.ai") || "chatgpt");
 $("#gptText").oninput = () => Gpt.check();
 $("#gptPasteBtn").onclick = () => Gpt.paste();
 $("#gptGo").onclick = () => Gpt.go();
 $("#gptSpot").onkeydown = e => { if (e.key === "Enter") e.target.blur(); };
-$("#gptBtn").onclick = () => Gpt.open();
 $("#gptScrim").onclick = e => { if (e.target.id === "gptScrim") Gpt.close(); };
 
 // the X on the handles and introduction screens goes home

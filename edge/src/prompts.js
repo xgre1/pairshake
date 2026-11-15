@@ -172,7 +172,7 @@ Reply with JSON only: {"start": "...", "looking": "..."}`;
 
 export const QUICK_ASK = `Tell me about yourself: what you're working on, what you need most, what you can give someone, and what you're like.`;
 
-export const QUICK_NOTE = `(Written for me by ChatGPT, from what it knows about me from our past chats.)
+export const QUICK_NOTE = `(Written for me by my AI assistant (ChatGPT, Claude or Gemini), from what it knows about me from our past chats.)
 `;
 
 export const SUGGEST = `You coach someone texting a person they were just introduced to at a hackathon.

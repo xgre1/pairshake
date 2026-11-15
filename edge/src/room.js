@@ -327,7 +327,7 @@ export class PairShake extends DurableObject {
       answer here. It stands in for the voice chat, and the matching starts at once. */
   async quick(d, app) {
     const text = str(d.text).slice(0, 6000);
-    if (text.length < 40) throw new HttpError(400, "That's too short. Paste ChatGPT's whole answer.");
+    if (text.length < 40) throw new HttpError(400, "That's too short. Paste your AI's whole answer.");
     const spot = str(d.spot).slice(0, 200);
     const u = this.user(d.id) || this.newUser(app);
     if (u.profile) u.memory = { ...u.profile };     // someone Emma knows: anything ChatGPT doesn't mention stays
