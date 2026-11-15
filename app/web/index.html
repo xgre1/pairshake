@@ -1069,7 +1069,6 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <h3 class="serif" style="font-size:30px;line-height:1.15">Test tools</h3>
     <p class="sec" style="margin-bottom:4px">Shortcuts for trying things out.</p>
     <button class="primary soft app-only" id="testBtn">Find another phone<small>Pairs with another test phone and points to it</small></button>
-    <button class="primary soft" id="devSkip">Skip the talk<small>Straight to matching as a made-up attendee</small></button>
     <button class="plainbtn" id="devClose" style="margin-top:2px">Close</button>
   </div>
 </div>
@@ -1562,7 +1561,6 @@ Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; 
 
 /* ---------------------------------------------------------------- 1. talk to Emma */
 const setLine = t => { const el = $("#emmaLine"); if (el.textContent === t) return; el.style.opacity = 0; setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 180); };
-$("#devSkip").onclick = () => { Dev.close(); Voice.init(); Voice.ctx.resume(); rehearse(); };
 const Dev = { open() { $("#devScrim").classList.add("on"); }, close() { $("#devScrim").classList.remove("on"); } };
 $("#devClose").onclick = () => Dev.close();
 $("#devScrim").onclick = e => { if (e.target.id === "devScrim") Dev.close(); };
@@ -2151,7 +2149,7 @@ function revealMatch() {
   $("#iName").textContent = `Meet ${first(p)}.`; $("#iRole").textContent = p.role;
   $("#iNote").textContent = r.mission.intro;
   $("#iFacts").innerHTML = [["Building", p.building], ["Looking for", p.needs], ["Good at", p.offers]]
-    .map(([k, v]) => `<div class="row fact"><div><b>${k}</b>${esc(v)}</div></div>`).join("");
+    .filter(([, v]) => v).map(([k, v]) => `<div class="row fact"><div><b>${k}</b>${esc(v)}</div></div>`).join("");
   socialRows(p, "#iSocials");
   $("#talkBtn").innerHTML = `Talk with ${esc(first(p))}<small>See what you share, then talk</small>`;
   show("intro"); startInbox(); ringTo("intro");
@@ -2192,7 +2190,7 @@ async function loadMe() {
     const r = await fetch("/me?id=" + encodeURIComponent(id));
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
-    const d = await r.json();
+    const d = await r.json(); S.id = id;
     S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused; S.traits = d.traits || null; S.dims = d.dims || null;
     S.event = d.event || null; Ev.pill();
     document.body.classList.toggle("linked", !!d.linkedin);
@@ -2201,7 +2199,7 @@ async function loadMe() {
       $("#wSub").textContent = "Your AI already knows you. Ask it to introduce you.";
     }
     if (!d.me) return false;                                         // never finished the chat with Emma
-    S.id = id; S.me = d.me; S.socials = d.socials || {}; S.contacts = d.contacts || [];
+    S.me = d.me; S.socials = d.socials || {}; S.contacts = d.contacts || [];
     S.contacts.forEach(c => S.seen.add(c.id));                       // no banner for people you already have
     renderHome(); startInbox();
     return true;
@@ -3219,12 +3217,13 @@ $("#pForm").onsubmit = e => {                                       // write her
 };
 
 /* ---------------------------------------------------------------- 5. the room */
-const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0, mission: null, from: "intro", queue: null, direct: false };
+const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0, mission: null, from: "intro", queue: [], direct: false };
 const openChat = c => openRoom(c, {chat: true});                    // a person in your list: straight to your messages
 const outcomesSeen = new Set((kept("pairshake.outcomes") || "").split(",").filter(Boolean));
 function openRoom(m, opts = {}) {
   Room.mission = m; Room.chat = m.chat ? [...m.chat] : [];   // what we have, until the room says more
-  if (m.you) Room.you = m.you; Room.rung = 0; Room.decided = false; Room.meet = null; Room.queue = opts.send || null;
+  if (m.you) Room.you = m.you; Room.rung = 0; Room.decided = false; Room.meet = null; Room.queue = opts.send ? [{t: "chat", text: opts.send}] : [];
+  Room.typing = false; Room.ideas = []; Room.online = false; stopFind(true);
   Room.from = {intro: "intro", person: "person", tabPeople: "people"}[document.body.dataset.screen] || "home";
   Room.direct = !!opts.chat;
   const p = m.person, me = S.result?.me || S.me, o = m.overlap;
@@ -3257,7 +3256,7 @@ $("#roomWho").onclick = () => {                                      // their pr
   openPerson({...c, chat: Room.chat, you: Room.you}, "room");
 };
 $("#roomClose").onclick = async () => {
-  Voice.stopSpeaking(); if (Room.ws) { Room.ws.onmessage = null; Room.ws.close(); Room.ws = null; }
+  Voice.stopSpeaking(); stopFind(true); if (Room.ws) { Room.ws.onmessage = null; Room.ws.close(); Room.ws = null; }
   if (Room.from === "intro" && S.result) return show("intro");
   if (Room.from === "people") { await loadMe(); return Tabs.go(1); }
   if (Room.from === "person") {                                     // back to their profile, with the new messages
@@ -3275,8 +3274,9 @@ function connect(m) {
     const d = JSON.parse(e.data);
     if (d.t === "state") {
       Room.you = d.you; Room.chat = d.chat; Room.decided = d.decided; Room.meet = d.meet; presence(d.online);
-      if (Room.queue) {                                    // the message written on their profile
-        ws.send(JSON.stringify({t: "chat", text: Room.queue})); Room.chat.push({from: Room.you, text: Room.queue}); Room.queue = null;
+      for (const o of Room.queue.splice(0)) {              // written on their profile, or while the room was away
+        ws.send(JSON.stringify(o));
+        if (o.t === "chat") Room.chat.push({from: Room.you, text: o.text}); else if (o.t === "decide") Room.decided = true;
       }
       renderChat();
       if (d.meet != null && !outcomesSeen.has(m.id)) outcome(d.meet);   // only the first time you hear it
@@ -3285,11 +3285,14 @@ function connect(m) {
     else if (d.t === "typing") { Room.typing = true; $("#presence").textContent = "typing…"; renderChat(); }
     else if (d.t === "presence") presence(d.online);
     else if (d.t === "meet") { Room.meet = d.yes; outcome(d.yes); }
-    else if (d.t === "gps") peerFix(d);
+    else if (d.t === "gps" && Find.room === m.id) peerFix(d);
     else if (d.t === "ni") APP?.post({t: "ni", token: d.token});   // the other iPhone's Ultra Wideband token
   };
+  // dropped (the app was in the background): again in a second, unless this room was left or opened on another device
+  ws.onclose = e => { if (Room.ws === ws && Room.mission === m && e.reason !== "opened again") setTimeout(() => { if (Room.ws === ws && Room.mission === m) connect(m); }, 1000); };
 }
-function presence(on) { $("#presence").textContent = on ? "Here now" : "Not here yet"; $("#presDot").classList.toggle("off", !on); }
+function roomSend(o) { if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify(o)); else Room.queue.push(o); }   // not connected: sent when it is
+function presence(on) { Room.online = on; $("#presence").textContent = on ? "Here now" : "Not here yet"; $("#presDot").classList.toggle("off", !on); }
 function renderChat() {
   const p = Room.mission.person, el = $("#chat");
   let html = "";
@@ -3302,7 +3305,7 @@ function renderChat() {
   if (Room.decided && Room.meet == null) html += `<p class="foot sec" style="text-align:center;padding:12px 20px 0">You said yes. If ${esc(first(p))} does too, Emma shows you where to find each other.</p>`;
   el.innerHTML = html; el.scrollTop = el.scrollHeight;
   el.querySelectorAll("[data-op]").forEach(b => b.onclick = () => { $("#chatInput").value = Room.mission.overlap.rare[b.dataset.op].opener; $("#chatSend").disabled = false; $("#chatInput").focus(); });
-  if (!Room.typing) presence(true);
+  if (!Room.typing) presence(Room.online);
   $("#meetBtn").textContent = Room.decided ? "Waiting…" : "Meet?"; $("#meetBtn").disabled = Room.decided;
   $("#meetBtn").classList.toggle("can", Room.meet == null);
   renderSuggest();
@@ -3320,21 +3323,23 @@ function renderSuggest(ideas, loading) {
   });
 }
 async function followUps() {
+  const mid = Room.mission.id; let ideas = [];
   Room.ideas = []; renderSuggest([], true);
-  try { const r = await api("/suggest", {id: S.id, mission: Room.mission.id}); Room.ideas = r.ideas; } catch { Room.ideas = []; }
-  renderSuggest();
+  try { ideas = (await api("/suggest", {id: S.id, mission: mid})).ideas; } catch {}
+  if (Room.mission.id !== mid) return;                               // another room opened meanwhile
+  Room.ideas = ideas; renderSuggest();
 }
 $("#chatInput").oninput = e => $("#chatSend").disabled = !e.target.value.trim();
 $("#chatForm").onsubmit = e => {
   e.preventDefault(); const t = $("#chatInput").value.trim(); if (!t || !Room.ws) return;
-  Room.ws.send(JSON.stringify({t: "chat", text: t})); Room.chat.push({from: Room.you, text: t});
+  roomSend({t: "chat", text: t}); Room.chat.push({from: Room.you, text: t});
   $("#chatInput").value = ""; $("#chatSend").disabled = true; Room.ideas = []; renderChat();
 };
 
 /* ---------------------------------------------------------------- 6. deciding, outcome, finding */
 $("#meetBtn").onclick = () => $("#meetScrim").classList.add("on");
 $("#meetScrim").onclick = e => { if (e.target.id === "meetScrim") $("#meetScrim").classList.remove("on"); };
-function decide(yes) { $("#meetScrim").classList.remove("on"); Room.decided = true; Room.ws.send(JSON.stringify({t: "decide", yes})); renderChat(); }
+function decide(yes) { $("#meetScrim").classList.remove("on"); Room.decided = true; roomSend({t: "decide", yes}); renderChat(); }
 $("#yesBtn").onclick = () => decide(true);
 $("#noBtn").onclick = () => decide(false);
 
@@ -3444,10 +3449,14 @@ function orient(e, absolute) {
 }
 
 function startFind(p) {
-  Find.person = p;
+  Find.person = p; Find.room = Room.mission?.id;
   if (APP && !p.seed && Room.mission && Find.hwRoom !== Room.mission.id) { Find.hwRoom = Room.mission.id; APP.post({t: "find", room: Room.mission.id}); }
   if (Find.watch == null && navigator.geolocation)
     Find.watch = navigator.geolocation.watchPosition(gpsFix, () => draw(), { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+function stopFind(done) {                               // done: that introduction is over (its room closed, or another opened)
+  if (Find.watch != null) { navigator.geolocation.clearWatch(Find.watch); Find.watch = null; }
+  if (done) Find.person = Find.peer = Find.fake = Find.room = null;
 }
 function peerFix(d) { Find.peer = { lat: d.lat, lon: d.lon, acc: d.acc || 30, t: Date.now() }; draw(); }
 
@@ -3458,7 +3467,7 @@ function target() { return Find.person?.seed ? Find.fake : (Find.peer && Date.no
    15 times a second; while one is fresh it wins, otherwise (your person is on the web page, or out of
    radio range) GPS takes over as below. */
 if (APP) {
-  APP.onToken = tok => { if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify({t: "ni", token: tok})); };
+  APP.onToken = tok => roomSend({t: "ni", token: tok});           // (not connected: sent when it is)
   APP.onFix = f => { Find.hw = {...f, t: Date.now()}; draw(); };
 }
 const COACH = { turn: "Hold your phone up and turn slowly until the arrow appears",
