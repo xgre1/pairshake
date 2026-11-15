@@ -72,8 +72,8 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         web.frame = root.bounds
         root.addSubview(web)
         // The tab bar is the system's; which screen each tab opens is the page's business (PairShakeApp.onTab).
-        // (You is part of Settings)
-        tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("Settings", "gearshape.fill")].enumerated().map { i, t in
+        tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("You", "person.crop.circle.fill"),
+                      ("Settings", "gearshape.fill")].enumerated().map { i, t in
             UITabBarItem(title: t.0, image: UIImage(systemName: t.1), tag: i)
         }
         tabs.delegate = self
