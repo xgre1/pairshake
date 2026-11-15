@@ -141,6 +141,14 @@ export class PairShake extends DurableObject {
       await this.ctx.storage.put("cleanup:events-1", Date.now());
       this.save();
     }
+    // once (15/11): every introduction so far forgotten (the testing ones), so everyone can meet everyone again
+    if (!(await this.ctx.storage.get("cleanup:missions-1"))) {
+      console.log(`cleanup: ${Object.keys(this.missions).length} introductions forgotten`);
+      this.missions = {};
+      for (const u of Object.values(this.users)) { u.inbox = []; u.match = null; }
+      await this.ctx.storage.put("cleanup:missions-1", Date.now());
+      this.save();             // (missions no longer here are deleted from D1 as it saves)
+    }
     if (us.results.length || ms.results.length) return;
     // an empty database: the room was kept in this object's own storage before D1; bring it over once
     const old = [];
