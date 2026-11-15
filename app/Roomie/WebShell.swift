@@ -196,9 +196,14 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         }
     }
 
-    private func load() {
+    private func load(query: URLQueryItem? = nil) {
         note("load")
-        let url = useLocal ? URL(string: "http://localhost:\(LocalServer.port)/")! : Server.url
+        var url = useLocal ? URL(string: "http://localhost:\(LocalServer.port)/")! : Server.url
+        if let query, var c = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            if c.path.isEmpty { c.path = "/" }
+            c.queryItems = [query]
+            url = c.url ?? url
+        }
         web.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30))
     }
 
@@ -267,15 +272,19 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     private func signInWithLinkedIn(_ url: URL) {
         let s = ASWebAuthenticationSession(url: url, callbackURLScheme: "pairshake") { [weak self] back, error in
             DispatchQueue.main.async {
-                self?.signIn = nil
-                if let me = self, me.keyboard != 0 { me.keyboard = 0; me.view.setNeedsLayout(); me.view.layoutIfNeeded() }
-                self?.note("signin done err=\(String(describing: error)) kb=\(self?.keyboard ?? -1) web=\(self?.web.frame ?? .zero) hidden=\(self?.web.isHidden ?? false) alpha=\(self?.web.alpha ?? -1)")
-                self?.js("APP?.post({t:'log', m:'page screen=' + document.body.dataset.screen + ' on=' + [...document.querySelectorAll('.screen.on')].map(e=>e.id) + ' vh=' + innerHeight + ' sy=' + scrollY + ' vis=' + document.visibilityState})")
+                guard let me = self else { return }
+                me.signIn = nil
+                me.keyboard = 0
                 let q = back.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
                 let id = q.first { $0.name == "id" }?.value ?? ""
                 let err = q.first { $0.name == "error" }?.value ?? (error == nil ? "" : "cancelled")
-                let safe = { (v: String) in v.filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" } }
-                self?.js("window.RoomieApp && RoomieApp.onLogin && RoomieApp.onLogin('\(safe(id))', '\(safe(err))')")
+                me.note("sign-in done: \(id.isEmpty ? "no id, " + err : "signed in")")
+                // WebKit stops painting the page once Apple's sheet has been up (the page is fine, the screen stays
+                // white): taking the web view out of the window and back in makes it draw again. The page is then
+                // loaded with the result: ?li=<id> or ?li_error=<why>
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                me.view.window?.endEditing(true)
+                me.load(query: id.isEmpty ? (err == "cancelled" ? nil : URLQueryItem(name: "li_error", value: err)) : URLQueryItem(name: "li", value: id))
             }
         }
         s.presentationContextProvider = self
