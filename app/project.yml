@@ -27,7 +27,10 @@ targets:
         NSLocalNetworkUsageDescription: PairShake talks to the PairShake server on this network.
         NSBluetoothAlwaysUsageDescription: Finds your person's phone nearby, even when the Wi-Fi is bad.
         NSNearbyInteractionUsageDescription: Points you toward your person when you both agree to meet.
-        NSCameraUsageDescription: Helps point you toward your person more precisely.
+        NSCameraUsageDescription: Scans a network's QR code to join it, and helps point you toward your person.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.pairshake.join
+            CFBundleURLSchemes: [pairshake]
         NSMotionUsageDescription: Counts your steps toward your person.
         NSLocationWhenInUseUsageDescription: Shows you and your person which way to walk when Ultra Wideband can't reach.
         NSAppTransportSecurity:

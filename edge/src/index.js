@@ -13,7 +13,7 @@ import * as Auth from "./auth.js";
 
 export { PairShake };
 
-const API = new Set(["/start", "/turn", "/quick", "/onboard", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
+const API = new Set(["/start", "/turn", "/quick", "/onboard", "/network/create", "/network/join", "/networks", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
   "/inbox", "/talk", "/ws", "/scan", "/me", "/suggest", "/room"]);
 // what costs money per call (the model, the voice, the ears): limited per address, generously (a venue's Wi-Fi is one address)
 const COSTLY = new Set(["/hear", "/speak", "/start", "/turn", "/quick", "/onboard", "/again", "/suggest", "/account", "/feedback"]);
@@ -38,6 +38,7 @@ export default {
         return room(env).fetch(req);
       }
       if (path === "/health") return json({ ok: true });
+      { const j = path.match(/^\/join\/([A-Za-z0-9]{4,12})$/); if (j) return joinPage(j[1].toUpperCase()); }
       {                                   // Sign in with LinkedIn or Google (auth.js)
         const m = path.match(/^\/auth\/(linkedin|google)(\/callback)?$/);
         if (m) return m[2] ? await Auth.callback(m[1], req, env, room(env)) : await Auth.start(m[1], req, env);
@@ -66,6 +67,17 @@ export default {
     }
   },
 };
+
+/** A network's share link, opened by the phone's camera or a browser: straight into the app with the code. */
+function joinPage(code) {
+  const app = `pairshake://join/${code}`;
+  return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join on PairShake</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;font:17px -apple-system,system-ui,sans-serif;background:#000;color:#fff;text-align:center">
+<div style="padding:24px"><h1 style="font-size:30px;margin:0 0 10px">You're invited</h1><p style="margin:0 0 28px;opacity:.6">Join this network on PairShake. Code ${code}</p>
+<a href="${app}" style="display:inline-block;padding:16px 32px;border-radius:999px;background:#fff;color:#000;font-weight:600;text-decoration:none">Open in PairShake</a></div>
+<script>location.href = ${JSON.stringify(app)};</script>`,
+    { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
 
 /** PairShake lives in the iPhone app; a browser gets a short note instead of the page. */
 function appOnly() {

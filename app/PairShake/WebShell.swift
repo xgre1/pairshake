@@ -19,6 +19,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     private let tabs = UITabBar()                      // iOS's own tab bar, shown when the page asks ("tabs")
     private var finder: Finder?
     private var signIn: ASWebAuthenticationSession?     // LinkedIn's sign-in sheet while it is open
+    private var pendingJoin: String?                    // a network code from pairshake://join/<code>, for the page
     private var findRoom: String?
     private var pushTimer: Timer?
     private var lastFix = ""
@@ -133,6 +134,11 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         }
         NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.settle() }
+        }
+        NotificationCenter.default.addObserver(forName: .pairShakeOpenURL, object: nil, queue: .main) { [weak self] n in
+            guard let url = n.object as? URL, url.host == "join" else { return }
+            let code = url.lastPathComponent.uppercased().filter { $0.isLetter || $0.isNumber }
+            MainActor.assumeIsolated { self?.pendingJoin = code; self?.handJoin() }
         }
         NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.note("back in front"); self?.local.restart() }
@@ -438,7 +444,14 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
         js("window.PairShakeApp && (PairShakeApp.server = '\(Server.active)', PairShakeApp.version = '\(version)')")
     }
-    func webView(_ w: WKWebView, didFinish n: WKNavigation!) { note("page finished") }
+    func webView(_ w: WKWebView, didFinish n: WKNavigation!) { note("page finished"); handJoin() }
+
+    /** The network code goes to the page; if the page isn't there yet it waits in PairShakeApp.pendingJoin. */
+    private func handJoin() {
+        guard let code = pendingJoin, !code.isEmpty else { return }
+        js("window.PairShakeApp && (PairShakeApp.pendingJoin = '\(code)', PairShakeApp.onJoin && PairShakeApp.onJoin('\(code)'))")
+        if !web.isLoading { pendingJoin = nil }
+    }
 
     func webView(_ w: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError error: Error) {
         note("failed: \(error.localizedDescription)")
@@ -514,7 +527,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.pairshake.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.PairShakeApp = {
-        native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null,
+        native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null, onJoin: null, pendingJoin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {

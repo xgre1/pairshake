@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.1</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.pairshake.join</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pairshake</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSAppTransportSecurity</key>
@@ -30,7 +41,7 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Finds your person's phone nearby, even when the Wi-Fi is bad.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Helps point you toward your person more precisely.</string>
+	<string>Scans a network's QR code to join it, and helps point you toward your person.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>PairShake talks to the PairShake server on this network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

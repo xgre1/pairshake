@@ -9,6 +9,12 @@ struct PairShakeApp: App {
             WebShellView()
                 .ignoresSafeArea()
                 .background(Color(.systemBackground))
+                // pairshake://join/<code>: a network's link or QR, opened from the camera, Safari or a message
+                .onOpenURL { NotificationCenter.default.post(name: .pairShakeOpenURL, object: $0) }
         }
     }
+}
+
+extension Notification.Name {
+    static let pairShakeOpenURL = Notification.Name("PairShakeOpenURL")
 }

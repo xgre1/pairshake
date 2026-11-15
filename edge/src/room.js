@@ -85,6 +85,7 @@ export class PairShake extends DurableObject {
     this.written = new Map(); // "u:<id>", "m:<id>", "meta:stats" -> the JSON last written to D1
     this.pending = new Map(); // user id -> the match being worked out
     this.enriching = new Set(); // user ids whose persona and traits are being written
+    this.networks = {};         // network id -> {id, code, name, owner, created, members: [user ids]}  (D1: meta "networks")
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
     this.talkTasks = new Map();
@@ -115,6 +116,7 @@ export class PairShake extends DurableObject {
     for (const r of us.results) { this.users[r.id] = JSON.parse(r.data); this.written.set("u:" + r.id, r.data); }
     for (const r of ms.results) { this.missions[r.id] = JSON.parse(r.data); this.written.set("m:" + r.id, r.data); }
     for (const r of meta.results) if (r.key === "stats") { Object.assign(this.stats, JSON.parse(r.value)); this.written.set("meta:stats", r.value); }
+    for (const r of meta.results) if (r.key === "networks") { this.networks = JSON.parse(r.value); this.written.set("meta:networks", r.value); }
     if (us.results.length || ms.results.length) return;
     // an empty database: the room was kept in this object's own storage before D1; bring it over once
     const old = [];
@@ -167,7 +169,9 @@ export class PairShake extends DurableObject {
     }
     const s = changed("meta:stats", this.stats);
     if (s) puts.push(db.prepare("INSERT INTO meta (key, value) VALUES ('stats', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(s));
-    const gone = [...this.written.keys()].filter(k => !live.has(k));
+    const n = changed("meta:networks", this.networks);
+    if (n) puts.push(db.prepare("INSERT INTO meta (key, value) VALUES ('networks', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(n));
+    const gone = [...this.written.keys()].filter(k => !live.has(k) && !k.startsWith("meta:"));
     for (const k of gone) dels.push(db.prepare(`DELETE FROM ${k[0] === "u" ? "users" : "missions"} WHERE id = ?1`).bind(k.slice(2)));
     const all = [...dels, ...puts];             // deletes first: a deleted account's email may be signed up again
     for (let i = 0; i < all.length; i += 100) await db.batch(all.slice(i, i + 100));
@@ -329,6 +333,45 @@ export class PairShake extends DurableObject {
 
   /** No talking: the attendee asked ChatGPT, which already knows them, to answer Emma's questions and pasted its
       answer here. It stands in for the voice chat, and the matching starts at once. */
+  // ---- networks: a lobby for one event or group. Created with a name, joined by its QR code or link ----------
+  // Who is in which network is kept on both sides: network.members and user.networks. Matching within a
+  // network is the matching's business (members are this.networks[id].members).
+
+  networkCard(n, viewer) {
+    return { id: n.id, code: n.code, name: n.name, members: n.members.length, mine: n.owner === viewer, created: n.created };
+  }
+
+  networkCreate(d) {
+    const u = this.user(d.id) || notFound();
+    const name = str(d.name).slice(0, 60);
+    if (!name) throw new HttpError(400, "Give it a name.");
+    const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";       // (no 0/O or 1/I to mistype)
+    let code;
+    do { code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => ABC[b % ABC.length]).join(""); }
+    while (Object.values(this.networks).some(n => n.code === code));
+    const id = hexId(8);
+    this.networks[id] = { id, code, name, owner: u.id, created: now(), members: [u.id] };
+    u.networks = [...new Set([...(u.networks || []), id])];
+    this.save();
+    return { network: this.networkCard(this.networks[id], u.id) };
+  }
+
+  networkJoin(d) {
+    const u = this.user(d.id) || notFound();
+    const code = str(d.code).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(-6);
+    const n = Object.values(this.networks).find(x => x.code === code);
+    if (!n) throw new HttpError(404, "No network with that code.");
+    if (!n.members.includes(u.id)) n.members.push(u.id);
+    u.networks = [...new Set([...(u.networks || []), n.id])];
+    this.save();
+    return { network: this.networkCard(n, u.id) };
+  }
+
+  networksOf(q) {
+    const u = this.user(q.get("id")) || notFound();
+    return { networks: (u.networks || []).map(id => this.networks[id]).filter(Boolean).map(n => this.networkCard(n, u.id)) };
+  }
+
   /** No AI of their own: our agent asks the profile's questions (prompts.js ONBOARD). The page keeps the chat
       and sends it whole each turn; when done, it gets the same PAIRSHAKE PROFILE text the AIs write, for /quick. */
   async onboard(d) {
@@ -1040,6 +1083,7 @@ export class PairShake extends DurableObject {
           case "/ws": return this.openSocket(q);
           case "/scan": return json(this.scan(q));
           case "/me": return json(this.me(q));
+          case "/networks": return json(this.networksOf(q));
           case "/inbox": return json(this.inbox(q));
           case "/talk": return json(await this.talk(q));
           case "/room": return json({ stats: this.stats, people: SEED.length + Object.values(this.users).filter(u => u.profile).length, intros: Object.keys(this.missions).length });
@@ -1054,6 +1098,8 @@ export class PairShake extends DurableObject {
           case "/turn": return json(await this.turn(d));
           case "/quick": return json(await this.quick(d, app));
           case "/onboard": return json(await this.onboard(d));
+          case "/network/create": return json(this.networkCreate(d));
+          case "/network/join": return json(this.networkJoin(d));
           case "/match": { const r = await this.match(d); return r instanceof Response ? r : json(r); }
           case "/match/cancel": return json(this.cancel(d));
           case "/again": return json(this.again(d));
