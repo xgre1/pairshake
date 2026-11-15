@@ -187,12 +187,26 @@ def check():
     room = M.Room(people(30), old, rng=random.Random(8))
     assert not room.open.get("p12") and room.intros["p12"] == 2
 
-    # whom the agents talk to: the people their words point at, never more than SCAN, never themselves
-    words = "I'm building a voice agent for my language school and I need speech recognition"
-    who = M.shortlist(people(30) * 1, "p5", words, rng=random.Random(9))
-    assert len(who) == M.SCAN and all(p["id"] != "p5" for p in who)
-    assert {"p2", "p10"} & {p["id"] for p in who[:6]}, [p["name"] for p in who[:6]]
-    assert len(M.shortlist(people(6), "p1", words)) == 5
+    # whom the agents talk to: the people the cards point at, never more than asked, never themselves
+    room = M.Room(people(30), rng=random.Random(9))
+    who = M.shortlist(room, "p5")              # Dimitra needs someone who can build a voice agent
+    assert len(who) == M.SCAN and "p5" not in who
+    assert {"p2", "p10"} & set(who[:6]), [room.people[i]["name"] for i in who[:6]]
+    assert len(M.shortlist(room, "p5", k=3)) == 3
+    assert len(M.shortlist(M.Room(people(6)), "p1")) == 5
+
+    # an introduction to a demo attendee: not repeated, but that person is still first in line
+    room = M.Room(people(30), [{"a": "p12", "b": "p1", "outcome": None, "demo": True}])
+    assert not room.intros.get("p12") and room.fair("p12") > 0 and "p1" not in room.candidates("p12")
+
+    # someone who said they'd rather not meet recruiters isn't sent one, however well the words fit
+    ps = people(12) + [{"id": "ben", "name": "Ben Katz", "role": "Backend engineer", "building": "A job agent.",
+                        "needs": "Users.", "offers": "Backend engineers, databases.", "avoid": "Recruiters and salespeople."},
+                       {"id": "dana", "name": "Dana", "role": "Recruiter", "building": "An agent that sources engineers.",
+                        "needs": "Backend engineers to talk to.", "offers": "Recruiting."}]
+    room = M.Room(ps, rng=random.Random(10))
+    assert room.links("dana", "ben")["unwanted"] and run(M.match_one(room, "dana"))["ids"][1] != "ben"
+    assert M.shortlist(room, "dana")[0] != "ben"
 
     # a big room: some wildcards, still everyone once
     big = [dict(p, id=f"{p['id']}-{k}") for k in range(3) for p in people(30)]

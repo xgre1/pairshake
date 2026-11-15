@@ -40,18 +40,23 @@ Rooms (who is connected to which introduction right now) are kept only in memory
 | Step | When | What it asks for |
 | --- | --- | --- |
 | Interview | each answer | Emma's next line, and whether she has heard enough |
-| Scan | after the interview, one call per candidate (up to 14, in parallel) | your agent's question, their agent's reply, a fit score |
+| Scan | once the profile is written, one call per candidate (up to 8) | your agent's question, their agent's reply, a fit score |
 | Profile | after the interview | the attendee's card, with the odd details worth asking about |
 | Spark | once the pair is chosen, two calls in parallel | Emma's line to each of them, a small mission, three questions, what the two share |
 | Agent talk, suggestions, welcome back | later | the opening exchange, follow-up questions, Emma's greeting next time |
 
 **Choosing the pair** (`server/matching.py`). The pair is chosen in code; the model only judges and writes.
 
-1. The agents are sent to the 14 people most worth a talk: the attendee's own words against every card (rare words count more), people nobody has introduced yet first, people already holding two unanswered introductions and the seed attendees last.
-2. Each agent talk ends in a fit score. The person with the best score wins, after the same fairness adjustment, so the match agrees with what the matching screen showed. Agents that are late don't hold things up: after 10 seconds the cards decide.
-3. An introduction nobody answered for 20 minutes no longer counts against that person.
-4. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the agents found a strong fit.
-5. If the model fails at any step, the code still pairs people and writes a plain introduction.
+1. The attendee's profile is written first (in English whatever they spoke; what they can offer is read from their work if they didn't say).
+2. Their agent is sent to the people most worth a talk: 8 when the room is quiet, 4 or 3 when others are matching too. The order comes from the cards (rare words count more), with people nobody has introduced yet first, and people already holding two unanswered introductions and the seed attendees last. Talks take turns by rank, so everyone's first choices are heard before anyone's fifth, and a talk still waiting after 7 seconds is dropped.
+3. Each talk ends in a fit score. The best one wins, steadied by the cards and after the same fairness adjustment, so the match agrees with what the matching screen showed. Emma waits 9 seconds for the agents (13 if fewer than two are back); after that the cards decide.
+4. Someone who said whom they'd rather not meet isn't sent that kind of person, and isn't sent to them.
+5. An introduction to a seed attendee doesn't count: whoever only got one of those is first in line when a real person arrives. An introduction nobody answered for 20 minutes no longer counts against that person either.
+6. People matching at the same moment see each other's choices, so they don't all pick the same person.
+7. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the agents found a strong fit.
+8. If the model fails at any step, the code still pairs people and writes a plain introduction.
+
+At most 12 agent talks and 8 other model calls run at once, however many people are matching.
 
 `matching.py` also has rounds (everyone paired at once, a trio for an odd count), not yet used by the server. Its rules are checked by `server/test_matching.py`.
 

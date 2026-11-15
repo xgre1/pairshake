@@ -11,6 +11,7 @@ small server inside the app. API: ../docs/api.md.
 """
 import asyncio
 import hashlib
+import heapq
 import hmac
 import json
 import os
@@ -176,7 +177,50 @@ def candidates(exclude, app=False, seeds=True):
 # ---------------------------------------------------------------------------------------------
 # Language model: one-shot `claude -p` calls on the subscription (no tools, no MCP, no CLAUDE.md).
 
+_gates = {}
+
+
+def gate(name, n):
+    """At most `n` model calls of one kind at a time: a full room must not start hundreds of processes."""
+    if name not in _gates:
+        _gates[name] = asyncio.Semaphore(n)
+    return _gates[name]
+
+
+class Turns:
+    """Like a semaphore, but whoever holds the lowest number goes first. The agents' talks queue here by
+    rank: when many people are matching at once, everyone's first choices are talked to before anyone's
+    fifth, so each attendee gets a verdict on the people who matter most."""
+    def __init__(self, n):
+        self.free, self.waiting, self.seq = n, [], 0
+
+    async def take(self, rank):
+        if self.free > 0:
+            self.free -= 1
+            return
+        fut = asyncio.get_running_loop().create_future()
+        self.seq += 1
+        heapq.heappush(self.waiting, (rank, self.seq, fut))
+        await fut
+
+    def give(self):
+        while self.waiting:
+            fut = heapq.heappop(self.waiting)[2]
+            if not fut.cancelled():
+                return fut.set_result(None)
+        self.free += 1
+
+
+agents_turns = Turns(12)
+claims = []       # pairs just chosen whose introduction isn't made yet: [{"a", "b", "outcome", "created"}]
+
+
 async def ask_llm(prompt, timeout=40):
+    async with gate("llm", 8):
+        return await _ask_llm(prompt, timeout)
+
+
+async def _ask_llm(prompt, timeout):
     if llm.GEMINI_KEY:                 # Gemini when its key is set (llm.py)
         return await llm.ask(prompt, timeout)
     env = dict(os.environ, CLAUDE_CODE_DISABLE_CLAUDE_MDS="1")
@@ -469,40 +513,66 @@ SCAN = """At the Gen AI Summit Hackathon in Athens every attendee has an AI agen
 Agent A represents the attendee below and is talking to agent B, who represents {name}, to decide whether
 the two humans should meet.
 
-Attendee's chat with Emma:
+The attendee (JSON): {me}
+
+What the attendee told Emma:
 {convo}
 
 {name} (JSON): {other}
 
 Write their exchange: agent A asks or pitches, specific to {first} (under 14 words); agent B replies
-honestly about fit (under 14 words, may say no). Then a fit score 0-100. Be discerning: most people are
-weak fits; only a clear two-way fit scores above 75.
+honestly about fit (under 14 words, may say no). Then a fit score 0-100: how much it is worth the attendee
+walking over. Be discerning, most people are weak fits. One of them clearly having what the other needs
+scores 55 to 75, even if nothing was said about what comes back; a need met both ways, or one way plus
+something rare in common, scores above 75. A shared topic alone stays under 50. If either one has said who
+they'd rather not meet ("avoid") and the other is that, score under 20.
 
 Reply with JSON only: {{"ask": "...", "reply": "...", "fit": 0}}"""
 
 
 def start_scan(u):
+    """The matching screen can start at once; the agents go out when run_match has the profile (send_agents)."""
     if u["id"] in scans:
         return
-    seen = met(u["id"])
-    room = candidates(u["id"], bool(u.get("app")))
-    room = [p for p in room if p["id"] not in seen] or room            # people they haven't met yet
-    room = M.shortlist(room, u["id"], said(u), missions.values())      # the 14 most worth a talk
-    state = {"talks": [], "total": len(room)}
+    state = {"talks": [], "total": 0, "sent": 0, "closed": False}
     scans[u["id"]] = state
 
-    async def one(p):
-        other = json.dumps({k: p[k] for k in ("role", "building", "needs", "offers")}, ensure_ascii=False)
+
+def send_agents(u, me, R, room):
+    """The attendee's agent talks to the people most worth it (matching.shortlist), fewer when the room is
+    busy matching. A talk still waiting for its turn when the match is made, or after 7 seconds, is dropped."""
+    state = scans[u["id"]]
+    if state["sent"]:
+        return state
+    busy = sum(1 for st in scans.values() if st["sent"] and not st["closed"])
+    who = M.shortlist(R, u["id"], [p["id"] for p in room], 8 if not busy else 4 if busy < 5 else 3)
+    state.update(total=len(who), sent=time.time())
+    mine = json.dumps(M.card(me), ensure_ascii=False)
+
+    async def one(rank, pid):
+        p = R.people[pid]
+        other = json.dumps({k: p[k] for k in ("role", "building", "needs", "offers", "hooks", "avoid") if p.get(k)},
+                           ensure_ascii=False)
         try:
-            out = await ask_llm(SCAN.format(convo=convo(u), name=p["name"], first=p["name"].split()[0], other=other))
-            state["talks"].append({"person": p, "ask": str(out.get("ask", "")), "reply": str(out.get("reply", "")),
+            await agents_turns.take(rank)
+            try:
+                if state["closed"] or time.time() - state["sent"] > 7:
+                    raise RuntimeError("no longer needed")
+                out = await _ask_llm(SCAN.format(me=mine, convo=convo(u), name=p["name"],
+                                                 first=p["name"].split()[0], other=other), 30)
+            finally:
+                agents_turns.give()
+            state["talks"].append({"person": person(pid), "ask": str(out.get("ask", "")),
+                                   "reply": str(out.get("reply", "")),
                                    "fit": max(0, min(100, _int(out.get("fit"), 30)))})
         except Exception as e:
-            print("scan error:", e, flush=True)
+            if str(e) != "no longer needed":
+                print("scan error:", e, flush=True)
             state["total"] -= 1
 
-    for p in room:
-        asyncio.ensure_future(one(p))
+    for rank, pid in enumerate(who):
+        asyncio.ensure_future(one(rank, pid))
+    return state
 
 
 async def h_scan(req):
@@ -584,60 +654,75 @@ def _int(v, default):
         return default
 
 
-def said(u):
-    """The attendee's own words (and what Emma remembers of them), before there is a profile."""
-    mem = u.get("memory") or {}
-    return " ".join([t for r, t in u["transcript"] if r != "emma"]
-                    + [str(mem.get(k, "")) for k in ("role", "building", "needs", "offers")])
-
-
-async def ask_quick(prompt, timeout=25):
+async def ask_quick(prompt, timeout=15):
     """For the short writing jobs of a match: the quickest model call there is."""
-    return await ask_llm(prompt)
+    return await ask_llm(prompt, 25)
 
 
-async def verdicts(u, ids, until):
-    """What the agents concluded about the people in `ids` (the scan's talks), waiting until `until` for
-    the ones still talking. The match is chosen from these, so it agrees with what the screen shows."""
-    st = scans.get(u["id"])
-    while st and len(st["talks"]) < st["total"] and time.time() < until:
+async def verdicts(state, t):
+    """What the agents concluded (the scan's talks). Waits for the ones still talking: 9 seconds when at
+    least two are back by then, 13 at most. The match is chosen from these, so it agrees with the screen."""
+    while len(state["talks"]) < state["total"] and time.time() < t + (9 if len(state["talks"]) >= 2 else 13):
         await asyncio.sleep(.25)
-    return {t["person"]["id"]: t for t in (st or {}).get("talks", []) if t["person"]["id"] in ids}
+    return {t["person"]["id"]: t for t in state["talks"]}
+
+
+def private(p):
+    """A card plus what only matching may know: whom they'd rather not meet."""
+    avoid = (users.get(p["id"], {}).get("profile") or {}).get("avoid")
+    return {**p, "avoid": avoid} if avoid else p
 
 
 async def run_match(u):
     """Who they meet (matching.py): their profile, the agents' verdicts, the pair, then the spark."""
     t0 = time.time()
-    app = bool(u.get("app"))
-    # on the app: another app user if there is one (the first one in gets a demo attendee for now,
-    # and is introduced to the next app user through their inbox)
-    # and always someone new: people they've already met are left out (unless they've met everyone)
-    seen = met(u["id"])
-    new = lambda ps: [p for p in ps if p["id"] not in seen]
-    room = (app and new(candidates(u["id"], True, seeds=False))) or new(candidates(u["id"], app)) \
-        or candidates(u["id"], app)
-    if not room:
-        raise RuntimeError("nobody else in the room")
+    start_scan(u)
+    state = scans[u["id"]]
     try:
-        me = await M.profile(convo(u), ask_quick)
-    except Exception as e:                    # the chat already gave Emma the basics
-        print("profile error:", e, flush=True)
-        me = {k: str(v) for k, v in (u.get("known") or {}).items() if v}
-    if u.get("memory"):                       # back again: what they didn't mention stays as it was
-        me = {**u["memory"], **{k: v for k, v in me.items() if v}}
-    R = M.Room(room + [{**me, "id": u["id"]}], list(missions.values()))
-    t1 = time.time()
-    talks = await verdicts(u, {p["id"] for p in room}, t0 + 10)
-    t2 = time.time()
-    # the model rates a shortlist only when no agents were sent out; agents that are merely late don't cost
-    # the attendee a second wait: the cards decide
-    p = await M.pick(R, u["id"], None if u["id"] in scans else ask_llm, {i: t["fit"] for i, t in talks.items()})
-    b = p["b"]
-    s = await M.spark(R, [u["id"], b], p["recipe"], ask_quick, talks.get(b))
-    print(f"match {u['id']} -> {b}: {s['recipe']}, {p['mode']}, by {p['by']}, "
+        app = bool(u.get("app"))
+        # on the app: another app user if there is one (the first one in gets a demo attendee for now,
+        # and is introduced to the next app user through their inbox)
+        # and always someone new: people they've already met are left out (unless they've met everyone)
+        seen = met(u["id"])
+        new = lambda ps: [p for p in ps if p["id"] not in seen]
+        room = (app and new(candidates(u["id"], True, seeds=False))) or new(candidates(u["id"], app)) \
+            or candidates(u["id"], app)
+        if not room:
+            raise RuntimeError("nobody else in the room")
+        try:
+            me = await M.profile(convo(u), ask_quick)
+        except Exception as e:                    # the chat already gave Emma the basics
+            print("profile error:", e, flush=True)
+            me = {k: str(v) for k, v in (u.get("known") or {}).items() if v}
+        if u.get("memory"):                       # back again: what they didn't mention stays as it was
+            me = {**u["memory"], **{k: v for k, v in me.items() if v}}
+        me = {**me, "id": u["id"]}
+        # an introduction to a demo attendee doesn't count as having met someone: whoever only got one of
+        # those is first in line when a real person arrives
+        past = [{"a": m["a"], "b": m["b"], "outcome": m.get("outcome"), "created": m.get("created", 0),
+                 "demo": m["a"] not in users or m["b"] not in users} for m in missions.values()]
+        R = M.Room([private(p) for p in room] + [me], past)
+        t1 = time.time()
+        send_agents(u, me, R, room)
+        talks = await verdicts(state, t1)
+        t2 = time.time()
+        # people matching at the same moment see each other's choices, so they don't all pick one person
+        claims[:] = [c for c in claims if t2 - c["created"] < 90]
+        for c in claims:
+            R.record(c["a"], c["b"])
+        p = await M.pick(R, u["id"], None, {i: t["fit"] for i, t in talks.items()})
+        state["closed"] = True
+        b = p["b"]
+        if b in users:
+            claims.append({"a": u["id"], "b": b, "outcome": None, "created": time.time()})
+        s = await M.spark(R, [u["id"], b], p["recipe"], ask_quick, talks.get(b))
+    finally:
+        state["closed"] = True
+    print(f"match {u['id']} -> {b}: {s['recipe']}, {p['mode']}, by {p['by']}, {len(talks)}/{state['total']} talks, "
           f"profile {t1 - t0:.1f} s, agents {t2 - t1:.1f} s, spark {time.time() - t2:.1f} s", flush=True)
     sh = s["share"]
     note = lambda pid: f"{s['teases'][pid]} Your mission together: {s['mission']}"
+    me.pop("id")
     return {"me": me, "match_id": b, "intro_me": note(u["id"]), "intro_them": note(b), "say": s["say"],
             "overlap": {"rare": sh["rare"], "you_only": sh["first_only"], "them_only": sh["second_only"],
                         "give": sh["give"], "get": sh["get"], "ladder": s["ladder"],

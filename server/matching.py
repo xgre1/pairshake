@@ -6,8 +6,8 @@ had no introduction yet. How strongly two people pull comes from their agents' t
 else from the cards alone. The model then writes the spark. If the model fails, the code still pairs
 people and writes a plain spark, so there is always a match.
 
-    room = Room(people, missions)                 # people: profile dicts, missions: [{"a","b","outcome","created"}]
-    who = shortlist(people, me, words, missions)  # before a profile exists: whom the agents should talk to
+    room = Room(people, missions)                 # people: profile dicts, missions: [{"a","b","outcome","created","demo"}]
+    who = shortlist(room, my_id, ids, k)          # whom my agent should talk to: the k most worth it
     m = await match_one(room, my_id, llm, fits)   # someone just finished talking to Emma; fits: {id: 0-100}
     ms = await match_round(room, llm)             # everyone at once (a round); an odd one out joins a trio
 
@@ -32,8 +32,9 @@ BIG = 40          # above this the model only sees a shortlist, and some matches
 SHORT = 8         # shortlist size
 MAX_OPEN = 2      # open introductions one person can hold at a time
 WILD = 0.25       # share of wildcard matches in a big room
-SCAN = 14         # how many people one attendee's agent talks to
+SCAN = 8          # how many people one attendee's agent talks to
 STRONG = 60       # an agents' verdict this high is never passed over for a wildcard
+UNWANTED = 8      # taken off a pair's card score when one said they'd rather not meet people like the other
 OPEN_FOR = 1200   # seconds an unanswered introduction keeps someone busy; after that they count as free
 
 STOP = set("""a an and the of to in on at for with from by is are was be been it its this that these those i me my
@@ -85,6 +86,9 @@ class Room:
         self._index()
         now = time.time()
         for m in missions:
+            if m.get("demo"):                  # met a demo attendee: not again, but it doesn't count as an introduction
+                self.met.add(frozenset((m["a"], m["b"])))
+                continue
             self.record(m["a"], m["b"], open_=m.get("outcome") is None and now - m.get("created", now) < OPEN_FOR)
 
     def add(self, p, index=True):
@@ -96,7 +100,7 @@ class Room:
         self.ix, self.df = {}, {}
         for pid, p in self.people.items():
             e = {"about": toks(p.get("role"), p.get("building"), p.get("line"), p.get("hooks")),
-                 "needs": toks(p.get("needs")), "offers": toks(p.get("offers"))}
+                 "needs": toks(p.get("needs")), "offers": toks(p.get("offers")), "avoid": toks(p.get("avoid"))}
             self.ix[pid] = e
             for t in e["about"] | e["needs"] | e["offers"]:
                 self.df[t] = self.df.get(t, 0) + 1
@@ -131,7 +135,9 @@ class Room:
         shared = A["about"] & B["about"]
         twin = w(shared)
         recipe = "useful" if useful and useful >= twin else "twin" if twin else "wildcard"
-        return {"score": useful + .8 * twin, "recipe": recipe, "get": sorted(get), "give": sorted(give),
+        # one of them said they'd rather not meet people like the other
+        unwanted = bool(A["avoid"] & B["about"] or B["avoid"] & A["about"])
+        return {"score": useful + .8 * twin - (UNWANTED if unwanted else 0), "unwanted": unwanted, "recipe": recipe, "get": sorted(get), "give": sorted(give),
                 "shared": sorted(shared, key=lambda t: -self.idf(t))[:4]}
 
     def fair(self, pid):
@@ -140,15 +146,16 @@ class Room:
         return (12 if not self.intros.get(pid) else 0) - 15 * self.open.get(pid, 0) - (20 if p.get("seed") else 0)
 
 
-def shortlist(people, me, words, missions=(), k=SCAN, rng=None):
-    """Whom an attendee's agent should talk to, before their profile is written: their own words against
-    every card, with the same fairness as pick() (nobody-yet first, busy and demo people last), best
-    first. In a room larger than `k`, the last two are drawn from further down so it never closes up."""
-    people = [p for p in people if p["id"] != me]
-    rng = rng or random.Random()
-    room = Room(people + [{"id": me, "line": words, "needs": words, "offers": words}], missions, rng)
-    rank = sorted(people, key=lambda p: (-(room.links(me, p["id"])["score"] + room.fair(p["id"]) / 4), rng.random()))
-    return rank if len(rank) <= k else rank[: k - 2] + rng.sample(rank[k - 2:], 2)
+def shortlist(room, me, ids=None, k=SCAN):
+    """Whom `me`'s agent should talk to: the `k` most worth it among `ids` (default: everyone they could
+    meet), by their cards and the same fairness as pick() (nobody-yet first, busy and demo people last).
+    When there are more than `k`, the last two are drawn from further down so it never closes up."""
+    rng = room.rng
+    ids = [i for i in (ids or room.candidates(me)) if i != me]
+    rank = sorted(ids, key=lambda c: (-(room.links(me, c)["score"] + room.fair(c) / 4), rng.random()))
+    if len(rank) <= k or k < 4:
+        return rank[:k]
+    return rank[: k - 2] + rng.sample(rank[k - 2:], 2)
 
 
 RATE = """You are Emma, the matchmaker at a hackathon. Your job is not to find the most similar person. It is to
@@ -217,7 +224,9 @@ Reply with JSON only:
 PROFILE = """Below is what one hackathon attendee told Emma: a voice chat (speech recognition, so some words
 come out garbled; take the obvious meaning), or a write-up about them that they pasted in. If it starts
 with what Emma remembers from last time, keep all of that unless they changed it. Write their profile in
-short plain sentences, only from what is there. Leave a field "" if they didn't say it.
+short plain sentences, in English whatever language they spoke, only from what is there. Leave a field ""
+if they didn't say it, except "offers": if they didn't say what they can help with, write what their work
+plainly shows (an iOS developer can help with iOS apps), and nothing beyond that.
 
 {convo}
 
@@ -255,9 +264,12 @@ async def pick(room, me, llm=None, fits=None):
     links = {c: room.links(me, c) for c in cands}
     fits = {c: _int(v, 50) for c, v in (fits or {}).items() if c in links}
     by = "agents" if fits else "cards"
-    # the agents' verdict where they talked; else the cards, a little lower when others were looked at closely
-    pulls = {c: (fits[c] if c in fits else min(100, 20 + 8 * links[c]["score"]) - (10 if fits else 0),
-                 links[c]["recipe"]) for c in cands}
+    cards = {c: max(0, min(100, 20 + 8 * links[c]["score"])) - (40 if links[c]["unwanted"] else 0) for c in cands}
+    # the agents' verdict where they talked, steadied by the cards (one verdict is one opinion: a few points
+    # either way shouldn't decide it); else the cards, a little lower when others were looked at closely
+    pulls = {c: (.8 * fits[c] + .2 * cards[c] if c in fits else cards[c] - (10 if fits else 0),
+                 "useful" if fits.get(c, 0) >= STRONG and links[c]["recipe"] == "wildcard" else links[c]["recipe"])
+             for c in cands}
     if n <= TINY:                                   # a few people: go round, least-introduced first
         b = min(cands, key=lambda c: (room.intros.get(c, 0), -pulls[c][0], rng.random()))
         return {"a": me, "b": b, "recipe": pulls[b][1], "mode": "tiny", "by": by}
@@ -286,7 +298,7 @@ async def pick(room, me, llm=None, fits=None):
         except Exception as e:
             print("rate error:", e, flush=True)
     b = max(pool, key=lambda c: (pulls[c][0] + room.fair(c), rng.random()))
-    return {"a": me, "b": b, "recipe": pulls[b][1], "mode": mode, "by": by}
+    return {"a": me, "b": b, "recipe": pulls[b][1], "mode": mode, "by": "agents" if b in fits else by}
 
 
 def plain_spark(people, recipe):
