@@ -292,9 +292,20 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             sendPermissions()
         case "openSettings":                                // ...and a tap there opens PairShake's page in iOS Settings
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        case "ask":                                         // "Are you sure?" as Apple's own alert; the answer goes back to the page
+            ask(id: d["id"] as? Int ?? 0, title: d["title"] as? String ?? "", message: d["message"] as? String,
+                ok: d["ok"] as? String ?? "OK", destructive: d["destructive"] as? Bool ?? false)
         default:
             break
         }
+    }
+
+    /// An alert with Cancel and one action (red when it can't be undone); PairShakeApp.onAsk(id, yes) gets the answer.
+    private func ask(id: Int, title: String, message: String?, ok: String, destructive: Bool) {
+        let a = UIAlertController(title: title, message: message?.isEmpty == false ? message : nil, preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in self?.js("PairShakeApp.onAsk && PairShakeApp.onAsk(\(id), false)") })
+        a.addAction(UIAlertAction(title: ok, style: destructive ? .destructive : .default) { [weak self] _ in self?.js("PairShakeApp.onAsk && PairShakeApp.onAsk(\(id), true)") })
+        (presentedViewController ?? self).present(a, animated: true)
     }
 
     /// on, off (refused, fixed only in iOS Settings) or ask (not asked yet: PairShake asks when it needs it)
@@ -527,7 +538,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.pairshake.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.PairShakeApp = {
-        native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null, onJoin: null, pendingJoin: null,
+        native: true, tabs: true, linkedin: true, asks: true, post, onAsk: null, onTab: null, onFix: null, onToken: null, onLogin: null, onJoin: null, pendingJoin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {

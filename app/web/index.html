@@ -2275,6 +2275,15 @@ $("#againBtn").onclick = async () => {
 };
 /* Events: each Luma event is its own room. Choose yours (Luma's events near you, a search, or a pasted link),
    join it, and Emma only introduces you to people who joined it too. Its room lists who's there. */
+/* "Are you sure?": Apple's own alert in the app (WebShell.swift, "ask"), the browser's confirm() on the web. An app
+   build from before the alert existed just goes ahead. */
+const Asks = {seq: 0, wait: new Map()};
+function askApple({title, message = "", ok = "OK", destructive = false}) {
+  if (APP?.asks) return new Promise(res => { const id = ++Asks.seq; Asks.wait.set(id, res); APP.post({t: "ask", id, title, message, ok, destructive}); });
+  if (!APP) return Promise.resolve(confirm(message ? `${title}\n\n${message}` : title));
+  return Promise.resolve(true);
+}
+if (APP) APP.onAsk = (id, yes) => { const r = Asks.wait.get(id); Asks.wait.delete(id); if (r) r(!!yes); };
 const Ev = {
   list: [], q: "", seq: 0, t: null, poll: null, from: "welcome",
   CH: `<svg class="ch" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -2353,8 +2362,10 @@ const Ev = {
     catch { oops("Couldn't join that event. Try again."); this.room({people: this.people, count: this.count, online: 0}); }
   },
   async leave() {
-    try { await api("/event", {id: S.id, leave: true}); } catch { return oops("Can't reach PairShake. Try again."); }
-    S.event = null; this.pill(); this.refresh(); this.room({people: this.people, count: Math.max(0, this.count - 1), online: 0});
+    try { await api("/event", {id: S.id, leave: true}); } catch { oops("Can't reach PairShake. Try again."); return false; }
+    buzz(20, "light"); clearInterval(this.poll);
+    S.event = null; this.pill(); this.render();
+    return true;
   },
   room(r) {
     const e = this.cur; if (!e) return;
@@ -2411,7 +2422,12 @@ $("#evLinkForm").onsubmit = e => { e.preventDefault(); Ev.byLink($("#evLink").va
 $("#evLink").onpaste = () => setTimeout(() => Ev.byLink($("#evLink").value), 0);
 $("#erChange").onclick = () => Ev.open("event");
 $("#erLuma").onclick = () => Ev.cur?.url && window.open("https://lu.ma/" + encodeURIComponent(Ev.cur.url), "_blank");
-$("#erLeave").onclick = () => { buzz(20, "light"); Ev.leave(); };   // stays on this page, now with Join
+// Leave: Apple's alert asks first (the browser's own in a browser); then on to the search for another event
+$("#erLeave").onclick = async () => {
+  const e = Ev.cur; if (!e) return;
+  if (!await askApple({title: "Leave this event?", message: `You'll leave ${e.name}. You can join it again later.`, ok: "Leave", destructive: true})) return;
+  if (await Ev.leave()) Ev.open("welcome");
+};
 $("#erFind").onclick = () => !Ev.joined() ? Ev.ask() : S.me ? $("#againBtn").onclick() : Tabs.back();
 $("#evSwGo").onclick = () => Ev.join();
 $("#evSwNo").onclick = () => { $("#evSwitch").classList.remove("on"); Tabs.sync(); };
