@@ -325,6 +325,24 @@ export class PairShake extends DurableObject {
 
   /** No talking: the attendee asked ChatGPT, which already knows them, to answer Emma's questions and pasted its
       answer here. It stands in for the voice chat, and the matching starts at once. */
+  /** The structured persona (prompts.js PERSONA) from what their AI wrote and how they signed in. */
+  async writePersona(u, text) {
+    const signin = JSON.stringify({ name: u.name || "", via: u.linkedin ? "LinkedIn" : u.google ? "Google" : u.email ? "email" : "",
+      email: u.linkedin?.email || u.google?.email || u.email || "" });
+    try {
+      const p = await ask(this.env, M.fill(P.PERSONA, { signin, text }), { model: MAIN, timeout: 40 });
+      if (!isObj(p)) return;
+      u.persona = { ...p, at: now() };
+      const links = isObj(p.links) ? p.links : {};
+      u.socials = u.socials || {};
+      for (const k of ["x", "instagram", "linkedin", "github"]) {        // handles they hadn't set, from the write-up
+        const h = str(links[k]).replace(/^https?:\/\/(www\.)?[^/]+\/(in\/)?/, "").replace(/[/@]/g, "").slice(0, 100);
+        if (h && !u.socials[k]) u.socials[k] = h;
+      }
+      this.save();
+    } catch (e) { console.log("persona error:", String(e).slice(0, 200)); }
+  }
+
   async quick(d, app) {
     const text = str(d.text).slice(0, 6000);
     if (text.length < 40) throw new HttpError(400, "That's too short. Paste your AI's whole answer.");
@@ -334,6 +352,7 @@ export class PairShake extends DurableObject {
     const transcript = [["emma", P.QUICK_ASK], ["you", P.QUICK_NOTE + text]];
     if (spot) transcript.push(["emma", "And where are you in the room?"], ["you", spot]);
     Object.assign(u, { transcript, turns: 0, known: {}, via: "chatgpt" });
+    this.writePersona(u, text);   // the structured persona, in the background (the match doesn't wait for it)
     delete u.cancelled;
     this.scans.delete(u.id);
     this.beginMatch(u);           // think while they add their handles
@@ -539,7 +558,9 @@ export class PairShake extends DurableObject {
     }
     contacts.sort((x, y) => y.at - x.at);
     return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
-             photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email) };
+             photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
+             via: u.linkedin ? "LinkedIn" : u.google ? "Google" : "", login: u.linkedin?.email || u.google?.email || u.email || "",
+             persona: u.persona || null };
   }
 
   missionFor(mid, viewer) {

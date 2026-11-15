@@ -170,7 +170,33 @@ their name. Use only what's written above, never invent anything about them.
 
 Reply with JSON only: {"start": "...", "looking": "..."}`;
 
-export const QUICK_ASK = `Tell me about yourself: what you're working on, what you need most, what you can give someone, and what you're like.`;
+export const QUICK_ASK = `Tell me about yourself: who you are, what you're working on, what you need most, what you can give someone, and what you're like.`;
+
+/* The persona: everything a person's own AI wrote about them, plus what their sign-in told us, as structured
+   data. Kept on the user (and so in the database); the matching still reads the short profile drawn from it. */
+export const PERSONA = `Below is a write-up about one person, by their own AI assistant (ChatGPT, Claude or Gemini) from what it
+knows about them, and what their sign-in told us. Turn it into a structured persona for a matchmaker that
+introduces people to each other wherever there's a crowd (events, conferences, co-working spaces).
+
+Use only what is there. Leave "" or [] when it isn't said or is "not sure"; never invent anything.
+English, short plain phrases (whatever language the write-up is in). Lists: most important first.
+
+Sign-in: {signin}
+
+Write-up:
+{text}
+
+Reply with JSON only:
+{"name": "", "headline": "who they are, 3-8 words", "location": "", "languages": [],
+ "work": {"role": "", "company": "", "industry": "", "seniority": "", "now": "what they do day to day",
+          "current_project": "", "past": ["previous roles, companies, studies"], "skills": [], "tools": []},
+ "goals": {"looking_for": ["the people, skills or help they want, most important first"], "this_month": "",
+           "this_year": "", "team": "solo / looking for a team / has a team and is missing someone (who)"},
+ "offers": ["what they can really help someone with"], "industries": [], "interests": [],
+ "rare": ["specific things few people would share"], "values": [],
+ "personality": {"style": "how they come across and work", "clicks_with": "", "avoid": "who would waste their time"},
+ "talk_about": [], "links": {"website": "", "linkedin": "", "x": "", "github": "", "instagram": ""},
+ "one_line": "one memorable sentence about them, third person"}`;
 
 export const QUICK_NOTE = `(Written for me by my AI assistant (ChatGPT, Claude or Gemini), from what it knows about me from our past chats.)
 `;
