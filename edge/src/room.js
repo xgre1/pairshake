@@ -967,6 +967,18 @@ export class PairShake extends DurableObject {
     return { talks: st.talks, total: st.total, muse: st.muse };
   }
 
+  /** People > Forget everyone: every introduction they're in is deleted (for both sides), so anyone can be
+      introduced to them again. For testing. */
+  forget(d) {
+    const u = this.user(d.id) || notFound();
+    const gone = new Set(Object.values(this.missions).filter(m => m.a === u.id || m.b === u.id).map(m => m.id));
+    for (const mid of gone) { this.broadcast(mid, { t: "meet", yes: false }); delete this.missions[mid]; }
+    for (const x of Object.values(this.users)) if (x.inbox?.some(mid => gone.has(mid))) x.inbox = x.inbox.filter(mid => !gone.has(mid));
+    if (gone.has(u.match)) u.match = null;
+    this.save();
+    return { forgotten: gone.size };
+  }
+
   again(d) {
     const u = this.user(d.id);
     if (!u || !u.profile) notFound();
@@ -1476,6 +1488,7 @@ export class PairShake extends DurableObject {
           case "/match": { const r = await this.match(d); return r instanceof Response ? r : mine(r); }
           case "/match/cancel": return json(this.cancel(d));
           case "/again": return json(this.again(d));
+          case "/forget": return json(this.forget(d));
           case "/test/match": return json(this.testMatch(d, app));
           case "/account": return await this.account(d, app);
           case "/internal/login": return json(this.login(d, app));          // only from auth.js: index.js never forwards /internal

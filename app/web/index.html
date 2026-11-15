@@ -849,7 +849,9 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 <section class="screen" id="tabPeople">
   <h1 class="serif tab-h">People</h1>
   <div class="tab-list"><div class="group" id="tpList"></div></div>
-  <p class="tab-empty" id="tpEmpty">Nobody yet. Ask Emma to find you someone on the first tab.</p>
+  <p class="tab-empty" id="tpEmpty">Nobody yet. Join a network and PairShake finds you someone.</p>
+  <div class="group s-gap" id="tpForgetBox" style="margin:24px var(--gut) 0"><button class="row s-danger" id="tpForget">Forget everyone</button></div>
+  <p class="s-f" style="padding:8px var(--gut) 0" id="tpForgetNote">Everyone here can be introduced to you again.</p>
 </section>
 <!-- Choose your event: Luma's events near you, a search, or a pasted Luma link -->
 <section class="screen" id="events">
@@ -2243,6 +2245,7 @@ const Tabs = {
     };
     // (the last message when you've written to each other, else what they do)
     fill("#tpList", "#tpEmpty", (S.contacts || []).map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
+    $("#tpForgetBox").style.display = $("#tpForgetNote").style.display = (S.contacts || []).length ? "" : "none";
   },
 };
 document.addEventListener("screen", () => Tabs.sync());
@@ -2957,6 +2960,10 @@ $("#netPhoto").onchange = e => Nets.pickPhoto(e.target.files[0]);
 $("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); Nets.load(); };
 $("#lvShare").onclick = () => Nets.cur && Nets.share(Nets.cur);
 twoTaps($("#lvLeave"), "Leave", () => Nets.leave());
+twoTaps($("#tpForget"), "Forget everyone", async () => {      // (testing: meet the same people again)
+  try { await api("/forget", {id: S.id || kept(ID_KEY)}); } catch { return oops("Can't reach PairShake. Try again."); }
+  buzz(30, "success"); S.seen = new Set(); await loadMe(); Tabs.lists(); $("#tpForget").textContent = "Forget everyone";
+});
 $("#lvFind").onclick = () => { buzz(20, "light"); Nets.match(); };
 $("#netName").oninput = e => $("#netMake").disabled = !e.target.value.trim();
 $("#netName").onkeydown = e => { if (e.key === "Enter") Nets.create(); };
