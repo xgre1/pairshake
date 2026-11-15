@@ -464,15 +464,16 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 #find.cam::before{opacity:0}
 html.camfind,html.camfind body{background:transparent!important}
 html.camfind body>*:not(#find){visibility:hidden}
-#findFlood{position:absolute;inset:0;z-index:1;background:var(--c);clip-path:circle(0 at 50% var(--fy,46%));transition:clip-path .45s cubic-bezier(.4,0,.6,1)}
-#find.aligned #findFlood{clip-path:circle(150% at 50% var(--fy,46%));transition:clip-path .75s cubic-bezier(.2,.75,.25,1)}
+#findFlood{position:absolute;inset:0;z-index:1;background:var(--c);opacity:0;clip-path:circle(0 at 50% var(--fy,46%));
+  transition:opacity .35s var(--smooth),clip-path 0s .35s}   /* leaving: fades, then resets */
+#find.aligned #findFlood{opacity:1;clip-path:circle(150% at 50% var(--fy,46%));transition:clip-path .75s cubic-bezier(.2,.75,.25,1),opacity 0s}
 #find .cover{z-index:2;transition:color .35s var(--smooth)}
 #find.aligned .cover{color:#000}
 #find .xbtn{background:rgba(255,255,255,.16);color:inherit;width:32px;height:32px}
 #find.aligned .xbtn{background:rgba(0,0,0,.1)}
 #findAv .av{transition:box-shadow .35s} #find.aligned #findAv .av{box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
 #findStage{position:relative;height:300px;display:grid;place-items:center}
-#findDots{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px 0 0 -170px;pointer-events:none}
+#findDots{position:absolute;left:50%;top:50%;width:380px;height:380px;margin:-190px 0 0 -190px;pointer-events:none}
 #findDir{transition:opacity .18s var(--smooth)}
 @media (prefers-reduced-motion:reduce){#findFlood{transition-duration:.01s}}
 .dist{font:600 72px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -899,7 +900,7 @@ body:not(.in-app) .app-only{display:none!important}
     </div>
     <div class="spacer"></div>
     <div id="findStage">
-      <canvas id="findDots" width="340" height="340" aria-hidden="true"></canvas>
+      <canvas id="findDots" width="380" height="380" aria-hidden="true"></canvas>
     </div>
     <div class="spacer"></div>
     <div style="padding:0 28px calc(24px + var(--safeB));display:flex;flex-direction:column;gap:6px">
@@ -2697,15 +2698,15 @@ function findCam(on) {                                  // the app's blurred cam
   $("#find").classList.toggle("cam", on); document.documentElement.classList.toggle("camfind", on && Find.open);
 }
 
-/* Every frame while the finding screen is open. The arrow is made of the same dots that drift while
-   searching: when a direction comes they fly to their places on the arrow (the tip first), swell, and run
+/* Every frame while the finding screen is open. Searching is a quiet ring of plain dots, the same size,
+   white at different depths, slowly turning. The arrow is made of those same dots: when a direction comes they fly to their places on the arrow (the tip first), swell, and run
    together into one solid shape through the app's metaball necks (goo), then turn with it on a critically
    damped spring toward the latest reading. When the direction is lost they let go and drift again. The
    distance eases the same way. Nothing jumps, however the readings arrive. */
-const ARROW = (() => {           // the arrow drawn 170×190 with its middle at 85,95: dots 8 px apart along each stroke
+const ARROW = (() => {           // the arrow drawn 170×190 with its middle at 85,95: dots 2.6 px apart along each stroke (about 140 of them)
   const pts = [], links = [];
   const seg = (x1, y1, x2, y2, from) => {
-    const n = Math.round(Math.hypot(x2 - x1, y2 - y1) / 8); let prev = from;
+    const n = Math.round(Math.hypot(x2 - x1, y2 - y1) / 2.6); let prev = from;
     for (let i = from == null ? 0 : 1; i <= n; i++) {
       const k = i / n; pts.push({x: x1 + (x2 - x1) * k - 85, y: y1 + (y2 - y1) * k - 95});
       if (prev != null) links.push([prev, pts.length - 1]); prev = pts.length - 1;
@@ -2716,15 +2717,15 @@ const ARROW = (() => {           // the arrow drawn 170×190 with its middle at 
   return {pts, links};
 })();
 const Stage = {
-  raf: 0, last: 0, v: 0, dots: null, ctx: null, dpr: 1, onAt: null, ping: 0, lit: 0,
+  raf: 0, last: 0, v: 0, dots: null, ctx: null, dpr: 1, onAt: null, lit: 0,
   start() {
     if (this.raf) return;
     const c = $("#findDots"); this.dpr = Math.min(3, devicePixelRatio || 1);
-    c.width = c.height = 340 * this.dpr; this.ctx = c.getContext("2d");
-    this.dots = ARROW.pts.map((slot, i) => ({ slot, a: Math.random() * 6.283, r: 46 + Math.random() * 110,
-      w: (.12 + Math.random() * .3) * (i % 3 ? 1 : -1), z: Math.random(), ph: Math.random() * 6.283,
+    c.width = c.height = 380 * this.dpr; this.ctx = c.getContext("2d");
+    this.dots = ARROW.pts.map((slot, i) => ({ slot, a: Math.random() * 6.283, r: 122 + Math.random() * 40,
+      w: .06 + Math.random() * .05, z: Math.random(), ph: Math.random() * 6.283,
       x: null, y: null, vx: 0, vy: 0, rad: 2, m: 0, col: "#ffffff" }));
-    this.onAt = null; this.ping = 0; this.lit = 0; this.last = performance.now();
+    this.onAt = null; this.lit = 0; this.last = performance.now();
     const tick = now => { this.step(Math.min(.05, (now - this.last) / 1000), now / 1000); this.last = now;
       this.raf = Find.open ? requestAnimationFrame(tick) : 0; };
     this.raf = requestAnimationFrame(tick);
@@ -2744,20 +2745,15 @@ const Stage = {
   draw(dt, t) {
     const g = this.ctx, col = Find.person?.color || "#ffffff", on = Find.aim != null, ease = k => 1 - Math.exp(-dt / k);
     if (on && this.onAt == null) this.onAt = t; if (!on) this.onAt = null;
-    this.ping += ((on ? 0 : 1) - this.ping) * ease(.3);
     this.lit += ((Find.was ? 1 : 0) - this.lit) * ease(.2);                  // pointing at them: the arrow turns black
     const fg = this.lit < .01 ? "#ffffff" : this.lit > .99 ? "#000000" : mix("#ffffff", "#000000", this.lit);
-    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); g.clearRect(0, 0, 340, 340);
-    if (this.ping > .01) {                                                    // a slow ping from the middle while listening
-      const p = (t % 2.2) / 2.2; g.globalAlpha = .22 * (1 - p) * this.ping; g.strokeStyle = col; g.lineWidth = 1.5;
-      g.beginPath(); g.arc(170, 170, 18 + p * 150, 0, 6.283); g.stroke();
-    }
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); g.clearRect(0, 0, 380, 380);
     const rot = (Find.shown || 0) * RAD, cs = Math.cos(rot), sn = Math.sin(rot), sc = 1 + .07 * this.lit;
     for (const d of this.dots) {
       const go = on && t - this.onAt > d.slot.s * .35;                        // the tip's dots leave first
       let tx, ty, tr;
-      if (go) { tx = 170 + (d.slot.x * cs - d.slot.y * sn) * sc; ty = 170 + (d.slot.x * sn + d.slot.y * cs) * sc; tr = 12 * sc; }
-      else { const a = d.a + d.w * t, r = d.r + 9 * Math.sin(t * .7 + d.ph); tx = 170 + r * Math.cos(a); ty = 170 + r * Math.sin(a) * .92; tr = 1.6 + d.z * 3.2; }
+      if (go) { tx = 190 + (d.slot.x * cs - d.slot.y * sn) * sc; ty = 190 + (d.slot.x * sn + d.slot.y * cs) * sc; tr = 12 * sc; }
+      else { const a = d.a + d.w * t, r = d.r + 3 * Math.sin(t * .9 + d.ph); tx = 190 + r * Math.cos(a); ty = 190 + r * Math.sin(a); tr = 3.9 + d.z * .7; }
       if (d.x == null) { d.x = tx; d.y = ty; }
       if (!go) d.held = false;
       if (d.held) {                                                           // in place: part of the arrow, turns with it
@@ -2770,17 +2766,17 @@ const Stage = {
         if (go && d.m > .97) d.held = true;
       }
       d.rad += ((go ? tr * (.2 + .8 * d.m) : tr) - d.rad) * ease(go ? .12 : .08);
-      d.col = d.m > .99 ? fg : mix(d.z > .55 ? col : "#ffffff", fg, d.m);
+      d.col = d.m > .99 ? fg : mix("#ffffff", fg, d.m);
     }
-    // necks between neighbours on the arrow: the dots run together into one body
-    for (const [i, j] of ARROW.links) { const a = this.dots[i], b = this.dots[j]; if (a.m > .05 && b.m > .05) goo(g, a, a.rad, b, b.rad, a.col, b.col, .5 * Math.min(a.m, b.m)); }
-    for (const d of this.dots) {
-      const twinkle = .25 + .55 * (.5 + .5 * Math.sin(t * 1.4 + d.ph));
-      g.globalAlpha = twinkle + (1 - twinkle) * d.m; g.fillStyle = d.col;
-      g.shadowColor = d.col; g.shadowBlur = (1 - d.m) * (4 + d.z * 10);
+    // necks between neighbours still flowing in: the dots run together into one body (once both are in
+    // place they overlap anyway)
+    for (const [i, j] of ARROW.links) { const a = this.dots[i], b = this.dots[j]; if (a.m > .05 && b.m > .05 && !(a.held && b.held)) goo(g, a, a.rad, b, b.rad, a.col, b.col, .5 * Math.min(a.m, b.m)); }
+    for (const d of this.dots) {                                              // depth: nearer dots brighter, a faint shimmer
+      const depth = .32 + .6 * d.z + .08 * Math.sin(t * 1.1 + d.ph);
+      g.globalAlpha = depth + (1 - depth) * d.m; g.fillStyle = d.col;
       g.beginPath(); g.arc(d.x, d.y, d.rad, 0, 6.283); g.fill();
     }
-    g.shadowBlur = 0; g.globalAlpha = 1;
+    g.globalAlpha = 1;
   },
 };
 function draw() {
