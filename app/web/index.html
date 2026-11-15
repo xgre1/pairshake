@@ -82,10 +82,47 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .ais{display:flex;flex-direction:column;gap:12px}
 /* home: only your networks and the + */
 body.known #welcomeHands,body.known #wSub,body.known #memCard,body.known #peopleBox,body.known #forgetBtn,body.known #againBtn{display:none!important}
-.netplus{display:none;width:68px;height:68px;border-radius:50%;background:var(--fg);color:var(--bg);place-items:center;margin:0 auto;
-  box-shadow:0 10px 30px rgba(0,0,0,.18);transition:transform .12s}
-.netplus:active{transform:scale(.94)} body.known .netplus{display:grid}
 .net-empty{text-align:center;padding:12px 24px;font-size:17px}
+/* networks: a grid of square cards, the + first */
+#nets{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ncard{position:relative;aspect-ratio:1;border-radius:24px;overflow:hidden;text-align:left;color:#fff;background:#222;transition:transform .12s}
+.ncard:active{transform:scale(.97)}
+.ncard-bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.ncard::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.6))}
+.ncard-name{position:absolute;left:14px;right:14px;bottom:12px;z-index:1;font:600 18px/1.15 var(--sans)}
+.ncard-name small{display:block;font-weight:500;font-size:13px;opacity:.8;margin-top:3px}
+.ncard-time{position:absolute;top:10px;right:10px;z-index:1;font:600 12px/1 var(--sans);background:rgba(0,0,0,.45);padding:6px 9px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.ncard-live{position:absolute;top:10px;left:10px;z-index:1;font:700 12px/1 var(--sans);background:#34C759;color:#fff;padding:6px 9px;border-radius:999px;display:flex;align-items:center;gap:5px}
+.ncard-live i{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.4s infinite}
+.ncard.new{background:var(--fill2);color:var(--fg);display:grid;place-items:center}
+.ncard.new::after{display:none}
+@keyframes blink{50%{opacity:.25}}
+.net-q{font-weight:600;margin:14px 0 8px} .net-hours{display:flex;width:100%} .net-hours button{flex:1}
+.net-photo{display:grid;place-items:center;height:96px;border-radius:18px;background:var(--fill2) center/cover;color:var(--sec);margin-bottom:16px;cursor:pointer}
+/* live: discoverable in a network */
+#live{color:#fff;background:#000;height:100dvh;overflow:hidden;text-align:center;padding:0 var(--gut)}
+.lv-bg{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.5);transform:scale(1.1)}
+#live>*:not(.lv-bg){position:relative;z-index:1}
+.lv-x{position:absolute!important;top:calc(var(--safeT) + 14px);right:16px;z-index:2!important}
+.lv-radar{width:220px;height:220px;margin:0 auto;display:grid;place-items:center}
+.lv-radar span{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(52,199,89,.9);animation:radar 3s ease-out infinite;opacity:0}
+.lv-radar span:nth-child(2){animation-delay:1s} .lv-radar span:nth-child(3){animation-delay:2s}
+@keyframes radar{from{transform:scale(.35);opacity:.9}to{transform:scale(1);opacity:0}}
+#live.off .lv-radar span{animation:none;opacity:0}
+.lv-me{position:relative;z-index:1}
+.lv-me .av{border:3px solid #fff;box-shadow:0 0 0 6px rgba(52,199,89,.35)}
+#live.off .lv-me .av{box-shadow:none;opacity:.6}
+.lv-state{display:inline-flex;align-self:center;align-items:center;gap:7px;font-weight:700;font-size:15px;background:#34C759;padding:7px 13px;border-radius:999px;margin-top:22px}
+.lv-state i{width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 1.4s infinite}
+#live.off .lv-state{background:rgba(255,255,255,.2)} #live.off .lv-state i{animation:none;opacity:.5}
+.lv-name{font-size:34px;line-height:1.1;margin-top:14px}
+.lv-sub{opacity:.75;margin-top:8px;font-size:16px}
+.lv-people{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px;min-height:56px}
+.lv-people .av{border:2px solid rgba(255,255,255,.8);animation:rise .5s var(--smooth)}
+.lv-people .av.away{opacity:.45}
+.lv-foot{padding-bottom:calc(16px + var(--safeB))} #live .lv-foot .primary{background:#fff;color:#000;box-shadow:none}
+body[data-screen="live"],html:has(body[data-screen="live"]){background:#000}
+.lv-row{display:flex;justify-content:center;gap:24px;margin-top:6px} .lv-row .plainbtn{color:rgba(255,255,255,.8)}
 .net-dot{width:40px;height:40px;border-radius:12px;background:var(--fill2);display:grid;place-items:center;font:600 18px/1 var(--serif);flex:none}
 .net-opt{display:flex;align-items:center;gap:16px;width:100%;padding:18px;border-radius:20px;background:var(--fill2);text-align:left;margin-bottom:12px}
 .net-opt svg{flex:none} .net-opt b{display:block;font-size:19px} .net-opt span{color:var(--sec);font-size:15px}
@@ -688,7 +725,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button><button class="ai ai-ours" id="onbBtn"><span>No AI? Answer a few questions</span></button></div><button class="netplus" id="netPlus" aria-label="Create or join a network"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button><button class="ai ai-ours" id="onbBtn"><span>No AI? Answer a few questions</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -936,6 +973,23 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 </div>
 
 <!-- No talking: ChatGPT answers Emma's questions for you -->
+<!-- Live in a network: discoverable, the people here, how long it lasts -->
+<section class="screen" id="live">
+  <div class="lv-bg" id="lvBg"></div>
+  <button class="xbtn lv-x" id="lvClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <div class="spacer"></div>
+  <div class="lv-radar" id="lvRadar"><span></span><span></span><span></span><div class="lv-me" id="lvMe"></div></div>
+  <p class="lv-state" id="lvState"><i></i>Live</p>
+  <h2 class="serif lv-name" id="lvName"></h2>
+  <p class="lv-sub" id="lvSub"></p>
+  <div class="lv-people" id="lvPeople"></div>
+  <div class="spacer"></div>
+  <div class="lv-foot">
+    <button class="primary" id="lvShare">Invite people</button>
+    <div class="lv-row"><button class="plainbtn" id="lvToggle">Go invisible</button><button class="plainbtn" id="lvLeave">Leave</button></div>
+  </div>
+</section>
+
 <!-- Networks: + gives Join (scan a QR) or Create (a name, then its QR and link to share) -->
 <div class="scrim" id="netScrim">
   <div class="sheet">
@@ -946,6 +1000,10 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <div id="netCreate" hidden>
       <h3 class="serif" style="font-size:30px;line-height:1.15">New network</h3>
       <input class="field" id="netName" placeholder="GenAI Summit Athens" maxlength="60" autocomplete="off" enterkeyhint="done">
+      <p class="net-q">How long it lasts</p>
+      <div class="seg net-hours" id="netHours"><button data-h="2">2 hours</button><button data-h="6" class="on">6 hours</button><button data-h="24">1 day</button><button data-h="72">3 days</button></div>
+      <p class="net-q">Cover photo</p>
+      <label class="net-photo" id="netPhotoBox"><input type="file" accept="image/*" id="netPhoto" hidden><span id="netPhotoTxt">Add a photo</span></label>
       <button class="primary" id="netMake" disabled>Create</button>
     </div>
     <div id="netShare" hidden>
@@ -2359,8 +2417,24 @@ const loadJs = src => new Promise((ok, no) => {
 });
 const QR_MAKE = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
 const QR_READ = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+const NET_COLORS = [["#6E6BF2", "#FFB8CF"], ["#34C759", "#8FD3FF"], ["#FF9500", "#FF2D55"], ["#0A84FF", "#5E5CE6"],
+                    ["#FF375F", "#FFD60A"], ["#30B0C7", "#34C759"], ["#AF52DE", "#FF9F0A"]];
+const netCover = n => {
+  if (n.photo) return `url("${esc(n.photo)}")`;
+  let h = 0; for (const ch of n.name || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const [a, b] = NET_COLORS[h % NET_COLORS.length];
+  return `linear-gradient(135deg, ${a}, ${b})`;
+};
+const left = t => {                           // "5h left", "2d left", "40m left"
+  const s = Math.max(0, t - Date.now() / 1000);
+  return s >= 172800 ? `${Math.floor(s / 86400)}d` : s >= 3600 ? `${Math.floor(s / 3600)}h` : `${Math.max(1, Math.floor(s / 60))}m`;
+};
+const endsIn = t => {
+  const s = Math.max(0, t - Date.now() / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return h >= 48 ? `${Math.floor(h / 24)} days` : h ? `${h}h ${m}m` : `${Math.max(1, m)} min`;
+};
 const Nets = {
-  list: [], cur: null, stream: null,
+  list: [], cur: null, stream: null, hours: 6, photo: "", poll: 0,
   link: code => `${(APP?.server || location.origin).replace(/\/$/, "")}/join/${code}`,
   me: () => S.id || kept(ID_KEY),
   async load() {
@@ -2369,10 +2443,12 @@ const Nets = {
   },
   render() {
     const box = $("#nets"); if (!box) return;
-    box.innerHTML = this.list.length ? `<div class="group">${this.list.map((n, i) => `<button class="row prow" data-i="${i}"><span class="net-dot">${esc((n.name || "#")[0])}</span>` +
-      `<div class="who"><div class="semi">${esc(n.name)}</div><div class="foot sec" style="margin-top:1px">${n.members} ${n.members === 1 ? "person" : "people"}</div></div>${CHEV}</button>`).join("")}</div>`
-      : `<p class="sec net-empty">Create a network for your event, or scan one to join.</p>`;
-    box.querySelectorAll(".prow").forEach(b => b.onclick = () => this.share(this.list[b.dataset.i]));
+    box.innerHTML = `<button class="ncard new" id="netNew" aria-label="Create or join a network"><svg width="44" height="44" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>` +
+      this.list.map((n, i) => `<button class="ncard" data-i="${i}"><div class="ncard-bg" style='background-image:${netCover(n)}'></div>` +
+        (n.you_live ? `<span class="ncard-live"><i></i>Live</span>` : "") + `<span class="ncard-time">${left(n.expires)} left</span>` +
+        `<div class="ncard-name">${esc(n.name)}<small>${n.members} ${n.members === 1 ? "person" : "people"}</small></div></button>`).join("");
+    $("#netNew").onclick = () => this.sheet("netChoose");
+    box.querySelectorAll(".ncard[data-i]").forEach(b => b.onclick = () => this.live(this.list[b.dataset.i]));
   },
   sheet(view) {
     for (const v of ["netChoose", "netCreate", "netShare"]) $("#" + v).hidden = v !== view;
@@ -2380,17 +2456,36 @@ const Nets = {
   },
   close() { document.activeElement?.blur(); $("#netScrim").classList.remove("on"); Tabs.sync(); },
   keep(n) { const i = this.list.findIndex(x => x.id === n.id); i < 0 ? this.list.unshift(n) : (this.list[i] = n); this.render(); },
+  openCreate() {
+    $("#netName").value = ""; $("#netMake").disabled = true; this.photo = ""; this.hours = 6;
+    $("#netHours").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.h === 6));
+    $("#netPhotoBox").style.backgroundImage = ""; $("#netPhotoTxt").textContent = "Add a photo";
+    this.sheet("netCreate"); setTimeout(() => $("#netName").focus(), 350);
+  },
+  async pickPhoto(file) {                    // shrunk on the phone: a 900 px JPEG
+    if (!file) return;
+    const url = URL.createObjectURL(file), img = new Image();
+    img.src = url; await img.decode().catch(() => {});
+    const k = Math.min(1, 900 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    this.photo = c.toDataURL("image/jpeg", 0.82);
+    $("#netPhotoBox").style.backgroundImage = `url(${this.photo})`; $("#netPhotoTxt").textContent = "";
+  },
   async create() {
     const name = $("#netName").value.trim(); if (!name) return;
     $("#netMake").disabled = true;
-    try { const r = await api("/network/create", {id: this.me(), name}); this.keep(r.network); buzz(30, "success"); this.share(r.network); }
-    catch { oops("Couldn't create it. Try again."); }
+    try {
+      const r = await api("/network/create", {id: this.me(), name, hours: this.hours, photo: this.photo});
+      this.keep(r.network); buzz(30, "success"); this.close();
+      await this.live(r.network); this.share(r.network);           // live, with the invite on top
+    } catch { oops("Couldn't create it. Try again."); }
     finally { $("#netMake").disabled = !$("#netName").value.trim(); }
   },
   async share(n) {
     this.cur = n;
     $("#netTitle").textContent = n.name;
-    $("#netCount").textContent = `${n.members} ${n.members === 1 ? "person" : "people"} \u00b7 code ${n.code}`;
+    $("#netCount").textContent = `Code ${n.code} \u00b7 ends in ${endsIn(n.expires)}`;
     $("#netLink").textContent = this.link(n.code);
     $("#netQR").innerHTML = "";
     this.sheet("netShare");
@@ -2412,10 +2507,48 @@ const Nets = {
     if (!S.signed) { keep("pairshake.join", code); return; }          // after signing in
     try {
       const r = await api("/network/join", {id: this.me(), code});
-      keep("pairshake.join", null); this.scanClose(); this.keep(r.network); buzz([40, 30, 40], "success");
-      if (document.body.dataset.screen !== "welcome") show("welcome");
-      this.share(r.network);
-    } catch { $("#scanErr").textContent = "No network with that code."; if (!$("#scanOv").classList.contains("on")) oops("No network with that code."); }
+      keep("pairshake.join", null); this.scanClose(); this.close(); this.keep(r.network); buzz([40, 30, 40], "success");
+      this.live(r.network);                                         // joining puts you live
+    } catch { $("#scanErr").textContent = "No network with that code, or it has ended."; if (!$("#scanOv").classList.contains("on")) oops("That network has ended."); }
+  },
+  // ---- live: you are discoverable here; the people in it come in as they join
+  async live(n) {
+    this.cur = n;
+    $("#lvBg").style.backgroundImage = netCover(n);
+    $("#lvMe").innerHTML = av({name: S.me?.name || S.name || "You", color: S.me?.color || "#B9A7FF", photo: S.photo || S.me?.photo}, 96);
+    $("#lvName").textContent = n.name; $("#lvPeople").innerHTML = "";
+    this.paint(n); show("live"); Tabs.sync();
+    clearInterval(this.poll); this.poll = setInterval(() => this.refresh(), 5000);
+    await this.refresh();
+  },
+  paint(n) {
+    const on = !!n.you_live;
+    $("#live").classList.toggle("off", !on);
+    $("#lvState").lastChild.textContent = on ? "You're live" : "Invisible";
+    $("#lvSub").textContent = `${on ? "Discoverable here" : "Nobody can find you here"} \u00b7 ends in ${endsIn(n.expires)}`;
+    $("#lvToggle").textContent = on ? "Go invisible" : "Go live";
+  },
+  async refresh() {
+    if (document.body.dataset.screen !== "live" || !this.cur) { clearInterval(this.poll); return; }
+    try {
+      const r = await api(`/network?id=${encodeURIComponent(this.me())}&network=${this.cur.id}`);
+      this.cur = r.network; this.keep(r.network); this.paint(r.network);
+      const box = $("#lvPeople"), have = new Set([...box.children].map(e => e.dataset.id));
+      for (const p of r.people) if (!have.has(p.id)) box.insertAdjacentHTML("beforeend", av(p, 52).replace('class="av', `data-id="${esc(p.id)}" class="av${p.live ? "" : " away"}`));
+      const total = r.people.length;
+      if (!total && !box.querySelector(".lv-wait")) box.innerHTML = `<p class="lv-wait" style="opacity:.7">Waiting for people to join</p>`;
+      if (total) box.querySelector(".lv-wait")?.remove();
+    } catch { clearInterval(this.poll); oops("This network has ended."); this.load(); show("welcome"); Tabs.sync(); }
+  },
+  async toggle() {
+    const n = this.cur; if (!n) return;
+    try { const r = await api("/network/live", {id: this.me(), network: n.id, on: !n.you_live}); this.cur = r.network; this.keep(r.network); this.paint(r.network); buzz(20, "light"); }
+    catch { oops("Couldn't change that. Try again."); }
+  },
+  async leave() {
+    const n = this.cur; if (!n) return;
+    try { await api("/network/live", {id: this.me(), network: n.id, leave: true}); } catch {}
+    clearInterval(this.poll); this.list = this.list.filter(x => x.id !== n.id); this.cur = null; this.render(); show("welcome"); Tabs.sync();
   },
   async scanOpen() {
     this.close(); $("#scanCode").value = ""; $("#scanErr").textContent = "";
@@ -2445,9 +2578,14 @@ const Nets = {
     this.stream = null; $("#scanOv").classList.remove("on");
   },
 };
-$("#netPlus").onclick = () => Nets.sheet("netChoose");
 $("#netJoinBtn").onclick = () => Nets.scanOpen();
-$("#netCreateBtn").onclick = () => { $("#netName").value = ""; $("#netMake").disabled = true; Nets.sheet("netCreate"); setTimeout(() => $("#netName").focus(), 350); };
+$("#netCreateBtn").onclick = () => Nets.openCreate();
+$("#netHours").querySelectorAll("button").forEach(b => b.onclick = () => { Nets.hours = +b.dataset.h; $("#netHours").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
+$("#netPhoto").onchange = e => Nets.pickPhoto(e.target.files[0]);
+$("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); };
+$("#lvShare").onclick = () => Nets.cur && Nets.share(Nets.cur);
+$("#lvToggle").onclick = () => Nets.toggle();
+twoTaps($("#lvLeave"), "Leave", () => Nets.leave());
 $("#netName").oninput = e => $("#netMake").disabled = !e.target.value.trim();
 $("#netName").onkeydown = e => { if (e.key === "Enter") Nets.create(); };
 $("#netMake").onclick = () => Nets.create();

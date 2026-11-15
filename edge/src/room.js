@@ -381,41 +381,105 @@ export class PairShake extends DurableObject {
 
   /** No talking: the attendee asked ChatGPT, which already knows them, to answer Emma's questions and pasted its
       answer here. It stands in for the voice chat, and the matching starts at once. */
-  // ---- networks: a lobby for one event or group. Created with a name, joined by its QR code or link ----------
-  // Who is in which network is kept on both sides: network.members and user.networks. Matching within a
-  // network is the matching's business (members are this.networks[id].members).
+  // ---- networks: a lobby for one event or group. Created with a name and a lifetime, joined by its QR code or
+  // link. When it ends it is deleted and everyone is out. Who is in which network is kept on both sides
+  // (network.members, user.networks); who is live in it right now is user.live = {network, since}.
+  // Matching within a network is the matching's business: this.networks[id].members, and u.live.
 
-  networkCard(n, viewer) {
-    return { id: n.id, code: n.code, name: n.name, members: n.members.length, mine: n.owner === viewer, created: n.created };
+  static LIFETIMES = [2, 6, 24, 72];      // hours a network can last
+
+  /** Deletes the networks whose time is up, and takes everyone out of them. */
+  purgeNetworks() {
+    const t = now();
+    for (const n of Object.values(this.networks)) {
+      if (!n.expires) n.expires = (n.created || t) + 24 * 3600;       // (made before networks had a lifetime)
+      if (n.expires > t) continue;
+      for (const uid of n.members) {
+        const u = this.users[uid]; if (!u) continue;
+        u.networks = (u.networks || []).filter(x => x !== n.id);
+        if (u.live?.network === n.id) delete u.live;
+      }
+      if (n.photo) this.env.VOICE.delete(`net/${n.id}.jpg`).catch(() => {});
+      delete this.networks[n.id];
+      this.save();
+    }
   }
 
-  networkCreate(d) {
+  networkCard(n, viewer) {
+    const live = n.members.filter(id => this.users[id]?.live?.network === n.id).length;
+    return { id: n.id, code: n.code, name: n.name, members: n.members.length, live, mine: n.owner === viewer,
+             created: n.created, expires: n.expires, photo: n.photo ? `/network/photo/${n.id}?v=${n.photo}` : "",
+             you_live: this.users[viewer]?.live?.network === n.id };
+  }
+
+  async networkCreate(d) {
+    this.purgeNetworks();
     const u = this.user(d.id) || notFound();
     const name = str(d.name).slice(0, 60);
     if (!name) throw new HttpError(400, "Give it a name.");
+    const hours = PairShake.LIFETIMES.includes(Number(d.hours)) ? Number(d.hours) : 6;
     const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";       // (no 0/O or 1/I to mistype)
     let code;
     do { code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => ABC[b % ABC.length]).join(""); }
     while (Object.values(this.networks).some(n => n.code === code));
-    const id = hexId(8);
-    this.networks[id] = { id, code, name, owner: u.id, created: now(), members: [u.id] };
+    const id = hexId(8), t = now();
+    const n = { id, code, name, owner: u.id, created: t, expires: t + hours * 3600, members: [u.id] };
+    const photo = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(str(d.photo));      // the cover, if they chose one
+    if (photo && photo[1].length < 700000) {
+      const bytes = Uint8Array.from(atob(photo[1]), c => c.charCodeAt(0));
+      await this.env.VOICE.put(`net/${id}.jpg`, bytes, { httpMetadata: { contentType: "image/jpeg" } });
+      n.photo = Math.round(t);
+    }
+    this.networks[id] = n;
     u.networks = [...new Set([...(u.networks || []), id])];
-    this.save();
-    return { network: this.networkCard(this.networks[id], u.id) };
-  }
-
-  networkJoin(d) {
-    const u = this.user(d.id) || notFound();
-    const code = str(d.code).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(-6);
-    const n = Object.values(this.networks).find(x => x.code === code);
-    if (!n) throw new HttpError(404, "No network with that code.");
-    if (!n.members.includes(u.id)) n.members.push(u.id);
-    u.networks = [...new Set([...(u.networks || []), n.id])];
+    u.live = { network: id, since: t };          // the creator is live in it too
     this.save();
     return { network: this.networkCard(n, u.id) };
   }
 
+  networkJoin(d) {
+    this.purgeNetworks();
+    const u = this.user(d.id) || notFound();
+    const code = str(d.code).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(-6);
+    const n = Object.values(this.networks).find(x => x.code === code);
+    if (!n) throw new HttpError(404, "No network with that code, or it has ended.");
+    if (!n.members.includes(u.id)) n.members.push(u.id);
+    u.networks = [...new Set([...(u.networks || []), n.id])];
+    u.live = { network: n.id, since: now() };    // joining puts you live: discoverable there right away
+    this.save();
+    return { network: this.networkCard(n, u.id) };
+  }
+
+  /** One network as its live screen shows it: the card and who is in it (live first). */
+  networkView(q) {
+    this.purgeNetworks();
+    const u = this.user(q.get("id")) || notFound();
+    const n = this.networks[q.get("network")];
+    if (!n || !n.members.includes(u.id)) throw new HttpError(404, "This network has ended.");
+    const people = n.members.filter(id => id !== u.id && this.users[id]).map(id => {
+      const p = this.person(id) || {};
+      return { id, name: p.name, color: p.color, photo: p.photo || "", role: p.role || "", live: this.users[id].live?.network === n.id };
+    }).sort((a, b) => b.live - a.live);
+    return { network: this.networkCard(n, u.id), people };
+  }
+
+  /** Live on or off in a network (discoverable or not), or leave it for good. */
+  networkLive(d) {
+    const u = this.user(d.id) || notFound();
+    const n = this.networks[str(d.network)];
+    if (!n || !n.members.includes(u.id)) throw new HttpError(404, "This network has ended.");
+    if (d.leave) {
+      n.members = n.members.filter(x => x !== u.id);
+      u.networks = (u.networks || []).filter(x => x !== n.id);
+      if (u.live?.network === n.id) delete u.live;
+    } else if (d.on) u.live = { network: n.id, since: now() };
+    else if (u.live?.network === n.id) delete u.live;
+    this.save();
+    return { network: d.leave ? null : this.networkCard(n, u.id) };
+  }
+
   networksOf(q) {
+    this.purgeNetworks();
     const u = this.user(q.get("id")) || notFound();
     return { networks: (u.networks || []).map(id => this.networks[id]).filter(Boolean).map(n => this.networkCard(n, u.id)) };
   }
@@ -1177,6 +1241,7 @@ export class PairShake extends DurableObject {
           case "/scan": return json(this.scan(q));
           case "/me": return json(this.me(q));
           case "/networks": return json(this.networksOf(q));
+          case "/network": return json(this.networkView(q));
           case "/events": return json(await this.events(q));
           case "/event": return json(this.eventRoom(q));
           case "/inbox": return json(this.inbox(q));
@@ -1193,7 +1258,8 @@ export class PairShake extends DurableObject {
           case "/turn": return json(await this.turn(d));
           case "/quick": return json(await this.quick(d, app));
           case "/onboard": return json(await this.onboard(d));
-          case "/network/create": return json(this.networkCreate(d));
+          case "/network/create": return json(await this.networkCreate(d));
+          case "/network/live": return json(this.networkLive(d));
           case "/network/join": return json(this.networkJoin(d));
           case "/match": { const r = await this.match(d); return r instanceof Response ? r : json(r); }
           case "/match/cancel": return json(this.cancel(d));

@@ -13,7 +13,7 @@ import * as Auth from "./auth.js";
 
 export { PairShake };
 
-const API = new Set(["/start", "/turn", "/quick", "/onboard", "/network/create", "/network/join", "/networks", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
+const API = new Set(["/start", "/turn", "/quick", "/onboard", "/network/create", "/network/join", "/network/live", "/network", "/networks", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
   "/inbox", "/talk", "/ws", "/scan", "/me", "/suggest", "/room", "/events", "/event"]);
 // what costs money per call (the model, the voice, the ears): limited per address, generously (a venue's Wi-Fi is one address)
 const COSTLY = new Set(["/events", "/hear", "/speak", "/start", "/turn", "/quick", "/onboard", "/again", "/suggest", "/account", "/feedback"]);
@@ -39,6 +39,8 @@ export default {
       }
       if (path === "/health") return json({ ok: true });
       { const j = path.match(/^\/join\/([A-Za-z0-9]{4,12})$/); if (j) return joinPage(j[1].toUpperCase()); }
+      { const ph = path.match(/^\/network\/photo\/([0-9a-f]{8})$/);     // a network's cover photo (R2)
+        if (ph) { const o = await env.VOICE.get(`net/${ph[1]}.jpg`); return o ? new Response(o.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } }) : new Response("", { status: 404 }); } }
       {                                   // Sign in with LinkedIn or Google (auth.js)
         const m = path.match(/^\/auth\/(linkedin|google)(\/callback)?$/);
         if (m) return m[2] ? await Auth.callback(m[1], req, env, room(env)) : await Auth.start(m[1], req, env);
