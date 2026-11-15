@@ -154,6 +154,10 @@ body.known #wSub{display:none}
 .lv-sub{opacity:.75;margin-top:8px;font-size:16px}
 .lv-people{display:none!important}   /* nobody's face here: who is in the room is the server's business */
 .lv-radar canvas{width:260px;height:260px;margin:-20px}
+/* with the 3D hands: the handshake ring stands where the dots were (the ring's own layer sits over this box) */
+#live.ring .lv-radar{width:100%;max-width:380px;height:300px}
+#live.ring #lvDots{display:none}
+body[data-screen="live"] #stage3d #net{display:none}
 .lv-people .av{border:2px solid rgba(255,255,255,.8);animation:rise .5s var(--smooth)}
 .lv-people .av.away{opacity:.45}
 .lv-foot{padding-bottom:calc(16px + var(--safeB))} #live .lv-foot .primary{background:#fff;color:#000;box-shadow:none} #live .lv-foot .primary[disabled]{opacity:.45}
@@ -1232,7 +1236,7 @@ async function api(path, body, method) {
 function oops(msg) { const e = $("#err"); e.textContent = msg; e.style.display = "block"; setTimeout(() => e.style.display = "none", 5000); }
 function show(id) { if (!S.signed && !demo && id !== "gate") id = "gate";      // signed out: only the way in
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); document.body.dataset.screen = id; window.scrollTo(0, 0); mountHands(); document.dispatchEvent(new Event("screen"));
-  if (id !== "matching" && id !== "intro" && window.Ring?.ok) Ring.park(); }
+  if (id !== "matching" && id !== "intro" && id !== "live" && window.Ring?.ok) Ring.park(); }
 // the 3D hands' layer: over the matching box or the introduction's hero, or the right side of a wide window
 const wide = () => matchMedia("(min-width: 900px)").matches;
 function ringTo(screen, glide = true) { if (window.Ring?.ok) Ring.follow($(wide() ? "#stageSlot" : screen === "intro" ? "#intro .hero" : "#netBox"), glide); }
@@ -2731,6 +2735,33 @@ const endsIn = t => {
 };
 /* While you're live in a network: the finding screen's ring of plain dots, slowly turning (faster while your agent
    is looking). No faces. */
+/* While you're live in a network, with the 3D hands: the handshake ring. Your hand in the middle, the agents'
+   hands around it; while your agent looks, yours goes round shaking each one's, a yes gets a thumbs-up, and
+   when someone is found the two hands shake and hold on before their card comes. Without WebGL: the dots. */
+const LiveRing = {
+  t: 0, i: 0, yes: 0,
+  start() {
+    if (!window.Ring?.ok || document.body.dataset.screen !== "live") return false;
+    $("#live").classList.add("ring");
+    if (!Ring.running) Ring.start();
+    Ring.follow($("#lvRadar"), false);
+    clearInterval(this.t);
+    this.t = setInterval(() => {
+      if (document.body.dataset.screen !== "live") return clearInterval(this.t);
+      if (Nets.busy && Ring.greet(this.i)) this.i = (this.i + 1 + Math.floor(Math.random() * 2)) % Ring.hands.length;
+    }, 300);
+    return true;
+  },
+  said(yes) {                                     // the agents' yeses so far (a new search starts at 0)
+    if (!window.Ring?.ok || !Ring.running) return;
+    for (; this.yes < yes; this.yes++) setTimeout(() => Ring.react(Math.floor(Math.random() * Ring.hands.length)), this.yes * 400);
+  },
+  async found(color) {
+    if (!window.Ring?.ok || !Ring.running || document.body.dataset.screen !== "live") return;
+    clearInterval(this.t);
+    await Ring.finale(this.i, color);
+  },
+};
 const LiveDots = {
   raf: 0, dots: null, last: 0,
   start() {
@@ -2852,7 +2883,7 @@ const Nets = {
     $("#lvBg").style.backgroundImage = netCover(n);
     $("#lvMe").innerHTML = av({name: S.me?.name || S.name || "You", color: S.me?.color || "#B9A7FF", photo: S.photo || S.me?.photo}, 96);
     $("#lvName").textContent = n.name; $("#lvPeople").innerHTML = "";
-    this.paint(n); show("live"); Tabs.sync(); LiveDots.start();
+    this.paint(n); show("live"); Tabs.sync(); LiveRing.start() || LiveDots.start();
     clearInterval(this.poll); this.poll = setInterval(() => this.refresh(), 4000);
     if (!n.you_live) await this.toggle();                         // in it means live in it: no extra tap
     try { await loadMe(); } catch {}                              // who you've met already (S.contacts)
@@ -2895,16 +2926,19 @@ const Nets = {
     const sub = $("#lvSub"); let scanning = true;
     try {
       await api("/again", {id: this.me()});
+      LiveRing.yes = 0;
       sub.textContent = "Your agent is looking…";
       (async () => { while (scanning) {                              // how the agents' talks go, without names
         try {
           const s = await api("/scan?id=" + encodeURIComponent(this.me())), yes = (s.talks || []).filter(t => !t.no).length;
+          if (scanning) LiveRing.said(yes);
           if (scanning && s.total) sub.textContent = `Your agent is talking to ${s.total} ${s.total === 1 ? "agent" : "agents"}` + (yes ? ` · ${yes} said yes` : "");
         } catch {}
         await sleep(1200);
       } })();
       const m = await api("/match", {id: this.me(), socials: S.socials || {}});
       scanning = false; this.none = null; S.seen.add(m.mission.id);
+      await LiveRing.found(m.mission?.person?.color);                     // the two hands shake and hold on
       if (document.body.dataset.screen === "live") introduce(m.mission, m.me);     // the card: no name, ten seconds to say Let's go
     } catch (e) {
       scanning = false;
@@ -3911,6 +3945,7 @@ if (!demo) loadMe().catch(() => {}).finally(() => {
   await Hands.ready;
   if (Hands.ok) { Hands.mode(S.mode); mountHands(); } else handsOff();
   await Ring.init();
+  if (Ring.ok && document.body.dataset.screen === "live") LiveRing.start();   // (live before the hands had loaded)
   if (Ring.ok && Net.running) {
     document.body.classList.add("ring3d"); Ring.stage.append($("#net"));
     Ring.start(); ringTo("matching", false); $("#netOrb").style.visibility = "hidden";
