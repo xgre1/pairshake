@@ -95,8 +95,8 @@ export class PairShake extends DurableObject {
     this.voicedBy = new Map();// address -> times it had a new line voiced, in the last ten minutes
     this.agentsTurns = new Turns(12);
     this.flushing = Promise.resolve();
-    ctx.blockConcurrencyWhile(() => this.load());
-    ctx.waitUntil(this.backfillTraits());     // people with a profile from before the traits existed get them now
+    const loaded = ctx.blockConcurrencyWhile(() => this.load());
+    ctx.waitUntil(loaded.then(() => this.backfillTraits()));     // once everyone is loaded: traits for whoever has none yet
     // the whole script, voiced (or found in R2) ahead of the first person, so the first seconds are instant
     const lines = [P.OPENER, P.THINKING, ...(SCRIPT ? [...Object.values(P.ASK), P.SCRIPT_BACK, ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK] : []), ...NUDGES, ...FILLERS];
     ctx.waitUntil(Promise.all(lines.map(l => speak(env, l).catch(e => console.log("voice warm-up:", String(e))))));
