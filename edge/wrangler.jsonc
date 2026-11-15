@@ -1,0 +1,14 @@
+// Roomie at the edge: a fixed https address (roomie.binjto.workers.dev) for the iPhone app and the audience.
+// Deploy with ./deploy.sh (it copies the hands' models in first).
+{
+  "name": "roomie",
+  "account_id": "662aad26c7f15dc72bb81dfbd929e7d4",
+  "main": "src/index.js",
+  "compatibility_date": "2026-03-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  // the Mac running server.py, reached through the named tunnel "roomie" (no public hostname needed)
+  "vpc_services": [{ "binding": "ORIGIN", "service_id": "01a1dc83-4ed0-73f2-be5a-9e738f414cc8", "remote": true }],
+  // the hands' heavy models, served from Cloudflare's edge; the Worker decides when to use them
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true }
+}

@@ -1,0 +1,333 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7B85CF5760DD42AA2D173446 /* Finder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC688F2B85BA987B361D42B /* Finder.swift */; };
+		7DC7D430C31380F2FC9769C1 /* WebShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E761134F746C1380CBE4DF5 /* WebShell.swift */; };
+		7F2FB6B96CE63DD01CF7A6A4 /* Server.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A3361EA1CAEEE3115F89FE6 /* Server.swift */; };
+		81D7C701971C4159A15E6481 /* RoomieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7485286477B072A3BD85E815 /* RoomieApp.swift */; };
+		B886986D6807FEA46CE249D1 /* LocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25C4CB4597142C13A4845B /* LocalServer.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1A3361EA1CAEEE3115F89FE6 /* Server.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Server.swift; sourceTree = "<group>"; };
+		3E761134F746C1380CBE4DF5 /* WebShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebShell.swift; sourceTree = "<group>"; };
+		4CC688F2B85BA987B361D42B /* Finder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Finder.swift; sourceTree = "<group>"; };
+		5F25C4CB4597142C13A4845B /* LocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServer.swift; sourceTree = "<group>"; };
+		72192AB4CAC2852CF9FAEC92 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7485286477B072A3BD85E815 /* RoomieApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomieApp.swift; sourceTree = "<group>"; };
+		C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roomie.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		3B69FADA36F416287C664371 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5F3C9E8D9B42EA8CB8C5B384 = {
+			isa = PBXGroup;
+			children = (
+				9E12DFE66965AEBAD79A19B7 /* Roomie */,
+				3B69FADA36F416287C664371 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9E12DFE66965AEBAD79A19B7 /* Roomie */ = {
+			isa = PBXGroup;
+			children = (
+				4CC688F2B85BA987B361D42B /* Finder.swift */,
+				72192AB4CAC2852CF9FAEC92 /* Info.plist */,
+				5F25C4CB4597142C13A4845B /* LocalServer.swift */,
+				7485286477B072A3BD85E815 /* RoomieApp.swift */,
+				1A3361EA1CAEEE3115F89FE6 /* Server.swift */,
+				3E761134F746C1380CBE4DF5 /* WebShell.swift */,
+			);
+			path = Roomie;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		14385ECF2184169A7DF1B601 /* Roomie */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD6BE66C24FD9428756B30DC /* Build configuration list for PBXNativeTarget "Roomie" */;
+			buildPhases = (
+				9449AC61AFA907EBB73DE0AD /* Sources */,
+				19361183783C68205BA96640 /* Bundle the hands' models and three.js */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Roomie;
+			packageProductDependencies = (
+			);
+			productName = Roomie;
+			productReference = C50B1E6CEF4BA57D4E535EB4 /* Roomie.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BE58FE337449897E08B780E3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					14385ECF2184169A7DF1B601 = {
+						DevelopmentTeam = ZZYK46YQNL;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 071E52B0B471F4B02B18CA54 /* Build configuration list for PBXProject "Roomie" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 5F3C9E8D9B42EA8CB8C5B384;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3B69FADA36F416287C664371 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				14385ECF2184169A7DF1B601 /* Roomie */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		19361183783C68205BA96640 /* Bundle the hands' models and three.js */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle the hands' models and three.js";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"$PROJECT_DIR/../server/web/hands\"\nDST=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/web\"\nmkdir -p \"$DST/hands\" \"$DST/vendor\"\nrsync -a --delete \"$PROJECT_DIR/Vendor/\" \"$DST/vendor/\"\n# each file with the ETag the Roomie server (aiohttp) gives it, so the app can tell when the server's copy changed\n/usr/bin/python3 - \"$SRC\" \"$DST\" <<'EOF'\nimport json, os, shutil, sys\nsrc, dst = sys.argv[1], sys.argv[2]\nout = {}\nfor f in (\"hand_r.glb\", \"hand_l.glb\", \"hand_r_lo.glb\", \"handkit_wasm_bg.wasm\", \"ring.bin\"):\n    p = os.path.join(src, f)\n    if os.path.exists(p):\n        st = os.stat(p)\n        shutil.copyfile(p, os.path.join(dst, \"hands\", f))\n        out[\"/hands/\" + f] = '\"%x-%x\"' % (st.st_mtime_ns, st.st_size)\njson.dump(out, open(os.path.join(dst, \"manifest.json\"), \"w\"), indent=1)\nEOF\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9449AC61AFA907EBB73DE0AD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7B85CF5760DD42AA2D173446 /* Finder.swift in Sources */,
+				B886986D6807FEA46CE249D1 /* LocalServer.swift in Sources */,
+				81D7C701971C4159A15E6481 /* RoomieApp.swift in Sources */,
+				7F2FB6B96CE63DD01CF7A6A4 /* Server.swift in Sources */,
+				7DC7D430C31380F2FC9769C1 /* WebShell.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		069A14376D60FFB5C54BBC4A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Roomie/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.roomie;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		49D941B1825CB1C9505F21F9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Roomie/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jtobin.roomie;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7B988F10F1BF3AA860518CE4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ZZYK46YQNL;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A2BA3C2A6C54AFEA42301EC8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ZZYK46YQNL;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		071E52B0B471F4B02B18CA54 /* Build configuration list for PBXProject "Roomie" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B988F10F1BF3AA860518CE4 /* Debug */,
+				A2BA3C2A6C54AFEA42301EC8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AD6BE66C24FD9428756B30DC /* Build configuration list for PBXNativeTarget "Roomie" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				49D941B1825CB1C9505F21F9 /* Debug */,
+				069A14376D60FFB5C54BBC4A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BE58FE337449897E08B780E3 /* Project object */;
+}

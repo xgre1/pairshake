@@ -10,6 +10,7 @@ The iPhone app talks to it over plain HTTP on the local network.
 """
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import random
@@ -27,13 +28,11 @@ from engine.tts import Voice  # noqa: E402
 
 PORT = int(os.environ.get("PORT", 8780))
 MODEL = os.environ.get("ROOMIE_MODEL", "haiku")
-MAX_TURNS = 5
+MAX_TURNS = 6
 STATE_FILE = os.path.join(HERE, "room.json")
 
 OPENER = ("Hi, I'm Emma. I know pretty much everyone in this room, and I'd love to introduce you to someone. "
           "First, what's your name, and what are you building?")
-TOPICS = ["(2) what they need most right now", "(3) what they could help someone else with",
-          "(4) where they are in the room and how to spot them"]
 THINKING = ("Lovely. I think I know someone. While I check, add your handles so they can follow you.")
 
 # ---------------------------------------------------------------------------------------------
@@ -166,7 +165,7 @@ def candidates(exclude, app=False, seeds=True):
     each other. Emma's demo attendees are in both."""
     out = [person(s["id"]) for s in SEED] if seeds else []
     out += [person(uid) for uid, u in users.items()
-            if uid != exclude and u.get("profile") and bool(u.get("app")) == app]
+            if uid != exclude and u.get("profile") and bool(u.get("app")) == app and not u.get("test")]
     return out
 
 
@@ -202,6 +201,19 @@ def convo(u):
     return "\n".join(lines)
 
 
+KNOWN = ("name", "building", "needs", "offers", "spot")
+
+
+def known_of(u):
+    """What Emma has worked out about this attendee so far in the chat (kept from turn to turn, so she never
+    asks for something twice). Someone who came back starts with what she remembers, except where they are."""
+    k = dict.fromkeys(KNOWN, "")
+    mem = u.get("memory") or {}
+    k.update({f: str(mem.get(f) or "") for f in KNOWN if f != "spot"})
+    k.update({f: v for f, v in (u.get("known") or {}).items() if f in k and v})
+    return k
+
+
 def met(uid):
     """Everyone this person has already been introduced to, either way round."""
     return {m["b"] if m["a"] == uid else m["a"] for m in missions.values() if uid in (m["a"], m["b"])}
@@ -211,32 +223,94 @@ INTERVIEW = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in At
 playful, like a friend who knows everyone in the room and loves setting people up. You are getting to
 know one attendee BY VOICE so you can introduce them to the one person here they should meet.
 
-You need four things: (1) their name and what they're building, (2) what they need most right now,
-(3) what they could help someone else with in ten minutes, (4) where they are in the room and
-something to spot them by (clothes, a laptop sticker, anything).
+You need five things: their name; what they're building; what they need most right now; what they could
+help someone else with in ten minutes; where they are in the room and something to spot them by (clothes,
+a laptop sticker, anything).
 {returning}
-Rules for what you say next:
-- This is spoken aloud. One short reaction (a few words, specific to what they said, never generic
-  praise) then exactly ONE question. Under 25 words total. No lists, no emojis, no stage directions.
-- Ask about the FIRST topic in this list that they have not already answered: {todo}
-  Never ask about a later topic before an earlier one. If an answer was too vague to use, ask one
-  sharper follow-up on that same topic instead.
+What you had worked out before their latest answer (JSON, an empty string means not known yet):
+{known}
+
+First, update what you know from the WHOLE conversation:
+- People answer out of order and several things at once. "I'm Nikos, backend guy, I need a designer" gives
+  you a name, something to offer and a need; "I need people to try it" is a need. Anything they said
+  counts as answered, even in passing, even in reply to a different question, even in their very first
+  sentence.
+- A rough answer is enough. Don't dig for precision and don't ask them to confirm what they said.
+- This is speech recognition, so words come out garbled: take a name or a word as it is, or guess the
+  obvious meaning, and never ask them to repeat or spell it.
+
+Then decide what to say:
+- NEVER ask for something you already know, and never ask the same question twice, not even in other
+  words. If they didn't answer what you asked (they talked about something else, or it came out garbled),
+  don't repeat the question: come at it once from a different side, tied to what they just said. If that
+  doesn't land either, leave it empty and move on.
+- This is spoken aloud, by a friend, not a form. One short reaction that shows you really heard them (pick
+  up a detail of what they said; never generic praise), then exactly ONE question about the first thing
+  still missing, in this order: building, needs, offers, spot.
+- Say their first name once, the first time you hear it, and not again after that.
+- Every question has to get you one of the missing things. One sentence about what they're building is
+  enough: don't ask for more detail about their project, their users or their tech out of curiosity.
+- Make the question easy to answer without thinking: let it grow out of what they just said and give it
+  something to hold on to, a guess or two options ("is it more the model side, or finding users?"). Never
+  a bare checklist question like "What do you need?".
+- Under 30 words in total. No lists, no emojis, no stage directions.
 - If they cut you off, don't repeat what you were saying: just respond to them.
-- When all four are answered, set done to true and say only a short handover line like "Perfect. Give
-  me a second, I'm looking around the room."
+- When nothing is missing, set done to true and say only a short handover line like "Perfect. Give me a
+  second, I'm looking around the room."
 
 Conversation so far:
 {convo}
 
-Reply with JSON only: {{"say": "...", "done": true|false}}"""
+Reply with JSON only:
+{{"known": {{"name": "", "building": "", "needs": "", "offers": "", "spot": ""}}, "say": "...", "done": true|false}}"""
 
 RETURNING = """
 This attendee is BACK: you met before, and the first line of the conversation is what you remember about
-them. Treat everything you remember as already answered and never ask for it again. Their answer to "what's
-changed" updates it; anything they don't change stays as it was. Then ask only about what is still open,
-which is usually just where they are in the room today (that changes every time).
+them. You opened by bringing up what they were doing last time. Treat everything you remember as already
+answered and never ask for it again. Whatever they say has changed replaces what you remembered; anything
+they don't change stays as it was. Then ask only about what is still open, which is usually just where
+they are in the room today (that changes every time).
 """
-RETURN_OPENER = "Welcome back, {first}. I remember what you told me last time. What's changed?"
+RETURN_OPENER = "Welcome back, {first}. Last time you told me about what you were building. Are you still on it, or has something moved?"
+
+BACK = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens: warm, a little playful, a friend
+who knows everyone in the room. Someone you already know has just come back to talk to you again.
+
+What you remember about them (JSON):
+{memory}
+
+Who you introduced them to before: {met}
+
+Write the one thing you say to greet them, spoken aloud. They may not remember what they told you, so YOU
+bring it up, the way a friend does who remembers: mention what they were building or what they were looking
+for, in your own words and in concrete terms, and, if you introduced them to someone, that person by first
+name. Then ask ONE easy, open question about how it stands now ("are you still on that?", "did you find
+your designer?", "did you two get to talk?"). Use their first name once. Never ask "what's changed" and
+never say "I remember what you told me": show it by what you bring up. Under 35 words, no lists, no emojis.
+
+Reply with JSON only: {{"say": "..."}}"""
+
+
+async def welcome_back(u):
+    """What Emma says to someone who comes back: something of theirs, brought up by her."""
+    src = u.get("profile") or u.get("memory") or {}
+    mem = {k: src.get(k, "") for k in ("name", "role", "building", "needs", "offers")}
+    names = [n for n in ((person(pid) or {}).get("name") for pid in met(u["id"])) if n]
+    try:
+        out = await ask_llm(BACK.format(memory=json.dumps(mem, ensure_ascii=False),
+                                        met=", ".join(names) or "nobody yet"), timeout=15)
+        say = str(out.get("say", "")).strip()
+        if say:
+            return say
+    except Exception as e:
+        print("welcome back error:", e, flush=True)
+    return RETURN_OPENER.format(first=(u.get("name") or "there").split()[0])
+
+
+async def prepare_back(u):
+    """Written right after a match, so it is ready the moment they come back."""
+    u["back"] = await welcome_back(u)
+    save()
 
 MATCH = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens (36 hours, teams of 1-5,
 build an agent that does real work). Below is your voice chat with one attendee, then everyone else in the room.
@@ -271,7 +345,7 @@ Reply with JSON only:
                "give": "what the attendee can give the match, under 10 words",
                "get": "what the match can give the attendee, under 10 words",
                "ladder": ["light question", "real question", "deep question"]}},
-  "say": "what Emma says aloud when revealing the match, like a matchmaker: their name and one reason. Never say where they are. Under 30 words, no lists."}}"""
+  "say": "what Emma says aloud when revealing the match, the way a friend introduces someone at a party. Three short spoken sentences: who they are (their name and what they do), what they are building right now, in concrete terms taken from their card, and why the two of them should talk (what the attendee gets, and what they can give back). Use the attendee's first name. Never say where they are. 45 to 65 words, no lists."}}"""
 
 
 AGENT_TALK = """Two personal agents are meeting on behalf of their people at the Gen AI Summit Hackathon in
@@ -324,8 +398,9 @@ async def h_start(req):
     u = users.get(str(d.get("id") or ""))
     if u and u.get("profile"):      # back again: Emma remembers them and only asks what's changed
         u["memory"] = dict(u["profile"])
-        say = RETURN_OPENER.format(first=(u.get("name") or "there").split()[0])
-        u.update(transcript=[("emma", say)], turns=0)
+        # her greeting was written when she last matched them (no wait); if not, it is written now
+        say = u.pop("back", None) or await welcome_back(u)
+        u.update(transcript=[("emma", say)], turns=0, known={})
         scans.pop(u["id"], None)
         pending.pop(u["id"], None)
         save()
@@ -355,12 +430,22 @@ async def h_turn(req):
         out = {"say": THINKING, "done": True}
     else:
         try:
-            todo = "; ".join(TOPICS)
-            out = await ask_llm(INTERVIEW.format(convo=convo(u), todo=todo,
-                                                 returning=RETURNING if u.get("memory") else ""))
+            prompt = INTERVIEW.format(convo=convo(u), known=json.dumps(known_of(u), ensure_ascii=False),
+                                      returning=RETURNING if u.get("memory") else "")
+            try:
+                out = await ask_llm(prompt)
+            except Exception as e:          # one quiet second try before she has to ask them to go on
+                print("interview retry:", e, flush=True)
+                out = await ask_llm(prompt)
+            # what Emma knows only grows: once she has all five she stops asking, whatever the model says
+            got = out.get("known") if isinstance(out.get("known"), dict) else {}
+            u["known"] = {k: str(got.get(k) or "").strip() or v for k, v in known_of(u).items()}
+            if all(u["known"].values()):
+                out["done"] = True
         except Exception as e:
             print("interview error:", e, flush=True)
-            out = {"say": "Sorry, say that once more?", "done": False}
+            # (their answer is already written down: she never asks them to repeat it)
+            out = {"say": random.choice(["Mm, go on.", "Okay. Tell me a bit more?", "Right. And then?"]), "done": False}
     say = str(out.get("say", "")).strip() or THINKING
     u["transcript"].append(("emma", say))
     if out.get("done"):
@@ -378,12 +463,15 @@ async def h_match(req):
     if not u:
         raise web.HTTPNotFound()
     u["socials"] = {k: v.strip().lstrip("@") for k, v in (d.get("socials") or {}).items() if v and v.strip()}
+    u.pop("cancelled", None)
     task = pending.pop(u["id"], None) or asyncio.ensure_future(run_match(u))
     try:
         r, room = await task
     except Exception as e:
         print("match error:", e, flush=True)
         return web.json_response({"error": str(e)}, status=502)
+    if u.pop("cancelled", None):                       # they stopped looking meanwhile
+        return web.json_response({"cancelled": True}, status=409)
     u["profile"] = r.get("me") or u.get("profile") or {}
     u["name"] = u["profile"].get("name") or u.get("name")
     them = person(r.get("match_id")) or room[0]
@@ -393,6 +481,7 @@ async def h_match(req):
                      "created": time.time(), "outcome": None}
     u["match"] = mid
     asyncio.ensure_future(agent_talk(mid))          # agents start talking while Emma reveals the match
+    asyncio.ensure_future(prepare_back(u))          # and her greeting for next time is written
     stats["spoke"] += 1
     stats["intros"] += 1
     if them["id"] in users:            # a real person: their phone gets the introduction too
@@ -484,7 +573,8 @@ async def h_me(req):
                          "at": max([m.get("created", 0)] + [c.get("at", 0) for c in chat])})
     contacts.sort(key=lambda c: -c["at"])
     return web.json_response({"me": person(u["id"]) if u.get("profile") else None,
-                              "socials": u.get("socials", {}), "contacts": contacts})
+                              "socials": u.get("socials", {}), "contacts": contacts,
+                              "email": u.get("email"), "name": u.get("name")})
 
 
 def _int(v, default):
@@ -579,6 +669,189 @@ async def h_talk(req):
     me = "b" if viewer == m["b"] else "a"
     return web.json_response({"turns": t["turns"], "fit": t["fit"], "why": t["why_" + me], "ask": t["ask"],
                               "you": me, "a": person(m["a"]), "b": person(m["b"])})
+
+
+# ---------------------------------------------------------------------------------------------
+# Test match (the iPhone app's test button): two phones that tap it are introduced to each other at once,
+# each as a made-up attendee and without talking to Emma, so the room, meeting and finding by Ultra
+# Wideband can be tried. The first phone waits (it asks again every 2 s) until a second one taps.
+
+TEST_PEOPLE = [
+    ("Alex Rivera", "iOS developer", "A travel app that plans a day around the weather.",
+     "Someone to test it on the streets of Athens.", "Swift, SwiftUI and App Store reviews."),
+    ("Mina Park", "Product designer", "A calm budgeting app for students.",
+     "An engineer who has shipped a mobile app.", "Design systems and user interviews."),
+    ("Leo Costa", "ML engineer", "Live captions that translate a conversation in the room.",
+     "A designer who cares about accessibility.", "Speech models and on-device inference."),
+    ("Sara Kim", "Founder, edtech", "An AI tutor for kids learning to read.",
+     "A technical cofounder.", "Fundraising decks and teacher networks."),
+    ("Theo Laskaris", "Backend engineer", "A booking agent for small Greek restaurants.",
+     "Restaurant owners to pilot it.", "APIs, Postgres and keeping servers up."),
+    ("Nora Haddad", "Hardware hacker", "A wristband that finds your friends at festivals.",
+     "Someone who knows Ultra Wideband on iPhone.", "Soldering, BLE and 3D printing."),
+]
+test_wait = {}    # user id -> when it last asked for a test match (it is waiting for a second phone)
+
+
+def test_user(app):
+    """A made-up attendee for one phone, with a full profile so the room and introductions work."""
+    taken = {users[w]["name"] for w in test_wait if w in users}
+    name, role, building, needs, offers = random.choice([t for t in TEST_PEOPLE if t[0] not in taken] or TEST_PEOPLE)
+    uid = uuid.uuid4().hex[:10]
+    users[uid] = {"id": uid, "name": name, "transcript": [], "socials": {}, "code": f"{random.randint(1000, 9999)}",
+                  "color": random.choice(PALETTE), "match": None, "inbox": [], "turns": 0, "app": app, "test": True,
+                  "profile": {"name": name, "role": role, "building": building, "needs": needs, "offers": offers,
+                              "spot": "Holding the other test phone", "line": f"{name.split()[0]} is testing Roomie."}}
+    return users[uid]
+
+
+def test_mission(a, b):
+    mid = uuid.uuid4().hex[:8]
+    pa, pb = a["profile"], b["profile"]
+    missions[mid] = {
+        "id": mid, "a": a["id"], "b": b["id"], "test": True, "created": time.time(),
+        "outcome": True, "decide": {"a": True, "b": True},      # both said yes already: straight to finding
+        "intro_a": f"A test match: {b['name'].split()[0]} is on the other phone. Say yes to meet, then follow the arrow.",
+        "intro_b": f"A test match: {a['name'].split()[0]} is on the other phone. Say yes to meet, then follow the arrow.",
+        "overlap": clean_overlap({
+            "rare": [{"text": "You're both testing Roomie right now", "opener": "Which phone are you on?"},
+                     {"text": "Both your phones can find each other by Ultra Wideband", "opener": "Ready to find each other?"}],
+            "you_only": [pa["building"], pa["offers"]], "them_only": [pb["building"], pb["offers"]],
+            "give": pa["offers"], "get": pb["offers"],
+            "ladder": ["What are you building?", "What's the hardest part so far?", "What would make tonight a win?"]}),
+    }
+    a["match"] = b["match"] = mid
+    b["inbox"].append(mid)
+    return mid
+
+
+# ---------------------------------------------------------------------------------------------
+# Accounts: an email and a password that lead back to the same person (what Emma remembers, the people
+# she introduced) on any phone or computer. Without one, you are who this device's saved id says.
+# Passwords are kept only as salted scrypt hashes.
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+login_fails = {}  # email -> [failures, time of the last one]
+
+
+def pw_hash(pw, salt):
+    return hashlib.scrypt(pw.encode(), salt=bytes.fromhex(salt), n=2 ** 14, r=8, p=1, dklen=32).hex()
+
+
+def by_email(email):
+    return next((u for u in users.values() if u.get("email") == email), None)
+
+
+def new_user(app):
+    uid = uuid.uuid4().hex[:10]
+    users[uid] = {"id": uid, "name": None, "transcript": [("emma", OPENER)], "profile": None,
+                  "socials": {}, "code": f"{random.randint(1000, 9999)}",
+                  "color": random.choice(PALETTE), "match": None, "inbox": [], "turns": 0, "app": app}
+    return users[uid]
+
+
+async def h_account(req):
+    d = await req.json()
+    action = d.get("action")
+    email = str(d.get("email") or "").strip().lower()[:200]
+    pw = str(d.get("password") or "")[:200]
+    no = lambda msg, code=400: web.json_response({"error": msg}, status=code)
+    if action == "signup":
+        if not EMAIL_RE.match(email):
+            return no("That email doesn't look right.")
+        if len(pw) < 6:
+            return no("Use at least 6 characters for the password.")
+        if by_email(email):
+            return no("There's already an account with that email. Sign in instead.", 409)
+        u = users.get(str(d.get("id") or "")) or new_user("RoomieApp" in req.headers.get("User-Agent", ""))
+        if u.get("email"):
+            return no(f"This device is already signed in as {u['email']}.", 409)
+        salt = os.urandom(16).hex()
+        u["email"], u["pw"] = email, {"salt": salt, "hash": await asyncio.to_thread(pw_hash, pw, salt)}
+        save()
+        return web.json_response({"id": u["id"], "email": email})
+    if action == "login":
+        n, last = login_fails.get(email, (0, 0))
+        if n >= 5 and time.time() - last < 60:
+            return no("Too many tries. Wait a minute and try again.", 429)
+        u = by_email(email)
+        ok = u and hmac.compare_digest(u["pw"]["hash"], await asyncio.to_thread(pw_hash, pw, u["pw"]["salt"]))
+        if not ok:
+            login_fails[email] = (n + 1, time.time())
+            return no("Wrong email or password.", 401)
+        login_fails.pop(email, None)
+        return web.json_response({"id": u["id"], "email": email})
+    if action == "delete":                              # everything about this person goes
+        u = users.pop(str(d.get("id") or ""), None)
+        if u:
+            for t in (scans, pending, test_wait):
+                t.pop(u["id"], None)
+            save()
+        return web.json_response({"ok": True})
+    return no("Unknown action.")
+
+
+async def h_profile(req):
+    """Settings: your name and where people can follow you."""
+    d = await req.json()
+    u = users.get(str(d.get("id") or ""))
+    if not u:
+        raise web.HTTPNotFound()
+    if isinstance(d.get("socials"), dict):
+        u["socials"] = {k: str(v).strip().lstrip("@")[:100] for k, v in d["socials"].items()
+                        if k in ("x", "instagram", "linkedin", "github") and str(v).strip()}
+    name = str(d.get("name") or "").strip()[:80]
+    if name:
+        u["name"] = name
+        if u.get("profile"):
+            u["profile"]["name"] = name
+    save()
+    return web.json_response({"me": person(u["id"]) if u.get("profile") else None, "socials": u["socials"],
+                              "name": u.get("name"), "email": u.get("email")})
+
+
+async def h_match_cancel(req):
+    """The search was stopped on the phone: when the match comes back, it is dropped."""
+    d = await req.json()
+    u = users.get(str(d.get("id") or ""))
+    if u:
+        u["cancelled"] = True
+        scans.pop(u["id"], None)
+    return web.json_response({"ok": True})
+
+
+async def h_test_match(req):
+    try:
+        d = await req.json()
+    except Exception:
+        d = {}
+    app = "RoomieApp" in req.headers.get("User-Agent", "")
+    u = users.get(str(d.get("id") or ""))
+    if not u or not u.get("test"):
+        u = test_user(app)
+    now = time.time()
+    if d.get("cancel"):
+        test_wait.pop(u["id"], None)
+        return web.json_response({"me": person(u["id"])})
+    mid = u.pop("test_mid", None)                     # the other phone tapped first and matched us
+    if not mid:
+        for w, at in list(test_wait.items()):
+            if now - at > 8 or w not in users:          # stopped asking: that phone left
+                test_wait.pop(w, None)
+        other = next((users[w] for w in test_wait if w != u["id"] and bool(users[w].get("app")) == bool(app)), None)
+        if other:
+            test_wait.pop(other["id"], None)
+            mid = test_mission(u, other)
+            other["test_mid"] = mid
+    if not mid:
+        test_wait[u["id"]] = now
+        save()
+        return web.json_response({"waiting": True, "me": person(u["id"])})
+    test_wait.pop(u["id"], None)
+    save()
+    them = missions[mid]["b"] if missions[mid]["a"] == u["id"] else missions[mid]["a"]
+    return web.json_response({"say": f"Test match with {users[them]['name'].split()[0]}.",
+                              "me": person(u["id"]), "mission": mission_for(mid, u["id"])})
 
 
 async def h_inbox(req):
@@ -825,6 +1098,10 @@ def main():
     app.router.add_post("/start", h_start)
     app.router.add_post("/turn", h_turn)
     app.router.add_post("/match", h_match)
+    app.router.add_post("/test/match", h_test_match)
+    app.router.add_post("/match/cancel", h_match_cancel)
+    app.router.add_post("/account", h_account)
+    app.router.add_post("/profile", h_profile)
     app.router.add_get("/inbox", h_inbox)
     app.router.add_get("/talk", h_talk)
     app.router.add_get("/ws", h_ws)

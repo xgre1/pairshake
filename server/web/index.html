@@ -144,7 +144,30 @@ body.known #wSub{display:none}
 .desk-empty{display:none}
 
 /* Conversation */
-#emmaLine{font-family:var(--serif);font-size:30px;line-height:1.2;padding:36px 28px 0;transition:opacity .35s}
+#emmaLine{font-family:var(--serif);font-size:30px;line-height:1.2;padding:36px 60px 0 28px;transition:opacity .35s}
+/* leaving the chat, and the bar you answer with: a mic to tap (send, skip) or hold (talk while held),
+   the keyboard on its left, start-over on its right */
+.leave{position:absolute;top:calc(var(--safeT) + 14px);right:16px;width:32px;height:32px;border-radius:50%;background:var(--fill2);
+  color:var(--sec);display:grid;place-items:center;z-index:3}
+.talkbar{display:flex;align-items:center;justify-content:center;gap:30px;padding:14px 16px 0;
+  user-select:none;-webkit-user-select:none}
+.tb-side{width:44px;height:44px;border-radius:50%;background:var(--fill2);color:var(--sec);display:grid;place-items:center;flex:none;transition:opacity .2s}
+.tb-side[disabled]{opacity:.3;cursor:default}
+.tb-mic{width:72px;height:72px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;flex:none;
+  touch-action:none;-webkit-touch-callout:none;transition:transform .25s var(--spring),background .2s,color .2s,box-shadow .12s,opacity .2s}
+.tb-mic svg{grid-area:1/1;transition:opacity .15s;pointer-events:none} .tb-mic .i-send{opacity:0}
+.talkbar[data-s="listening"] .tb-mic{box-shadow:0 0 0 calc(var(--lvl,0)*16px) color-mix(in srgb,var(--fg) 14%,transparent)}
+.talkbar[data-s="hold"] .tb-mic{transform:scale(1.18);box-shadow:0 0 0 calc(6px + var(--lvl,0)*18px) color-mix(in srgb,var(--fg) 14%,transparent)}
+.talkbar[data-s="cancel"] .tb-mic{background:#FF3B30;color:#fff;transform:scale(1.05)}
+.talkbar[data-s="thinking"] .tb-mic,.talkbar[data-s="idle"] .tb-mic{opacity:.3}
+#interview.kb .talkbar,#interview:not(.kb) .type-row{display:none}
+.type-row .tb-side{width:34px;height:34px}
+.dict{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;color:var(--sec);transition:background .2s,color .2s}
+.dict[hidden]{display:none}
+.dict.on{background:var(--fg);color:var(--bg)}
+/* what the mic does, written under it */
+#interview .hint{padding:12px 0 calc(10px + var(--safeB));min-height:0;color:var(--sec)}
+#interview.kb .hint{padding:0 0 8px}
 #talkOrbWrap{align-self:center;cursor:pointer}
 /* Emma's two hands (hands/hands.js) stand where her orb was; the orb stays until they load */
 .hands-stage{width:100%;height:320px;display:grid;place-items:center;position:relative}
@@ -241,6 +264,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
 .topbar{display:flex;align-items:center;gap:10px;padding:calc(10px + var(--safeT)) 20px 10px;position:sticky;top:0;z-index:3;background:var(--bg)}
 .chev{color:var(--sec);padding:4px 2px;display:none}
 #room.chatting .chev{display:block}
+@media (max-width: 899px){#room.chatting #roomClose{display:none}}   /* one way out at a time: back while chatting, close on what-you-share */
 .dotp{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:4px;vertical-align:1px}
 .dotp.off{background:var(--ter)}
 #meetBtn{display:none} #room.chatting #meetBtn.can{display:block}
@@ -313,6 +337,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
 #find.aligned{background:var(--c)} #find.aligned .cover{color:#000}
 #find .xbtn{background:rgba(255,255,255,.15);color:inherit;width:32px;height:32px}
 #arrow{transition:transform .5s var(--spring),opacity .3s}
+#find.live #arrow{transition:transform .15s linear,opacity .3s}   /* radio readings come ~15 times a second: follow them */
 .dist{font:600 72px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 
 /* Notification banner */
@@ -368,6 +393,27 @@ body.ring3d #intro .hero>*{visibility:hidden}
   .sheet{height:auto;max-width:420px;border-radius:28px;animation:pop .35s var(--spring)}
   @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 }
+/* Settings: grouped lists like the iPhone's own */
+body[data-screen="settings"],#settings,#settings .topbar{background:var(--gbg)}
+#settings .chev{display:block}
+.sbody{display:flex;flex-direction:column;padding:0 20px calc(40px + var(--safeB))}
+.s-h{font-size:13px;color:var(--sec);text-transform:uppercase;letter-spacing:.02em;padding:22px 16px 7px}
+.s-f{font-size:13px;color:var(--sec);padding:7px 16px 0}
+.sbody .group{background:var(--gcell);border-radius:12px}
+.sbody .row{min-height:46px;padding:10px 16px;width:100%;text-align:left;color:var(--fg)}
+.sbody .row input:not(.switch){flex:1;min-width:0;border:0;background:none;outline:none;text-align:right;color:var(--sec)}
+.s-l{flex:1;min-width:0} .s-v{max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sec)}
+.sbody .row.s-act{color:#007AFF} .sbody .row.s-danger{color:#FF3B30}
+.switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fill2);position:relative;transition:background .2s;flex:none;margin:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.switch:checked{background:#34C759} .switch:checked::after{transform:translateX(20px)}
+.seg{display:flex;background:var(--fill2);border-radius:9px;padding:2px;gap:2px;flex:none}
+.seg button{padding:5px 12px;border-radius:7px;font-size:13px;color:var(--fg)} .seg button.on{background:var(--bg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+body:not(.in-app) .app-only{display:none!important}
+.gear{z-index:4}
+#acctScrim .sheet{height:auto;min-height:400px}
+#acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
+.acct-err{color:#FF3B30;min-height:18px}
 </style>
 <script type="importmap">{ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -379,6 +425,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
 
 <!-- Welcome -->
 <section class="screen on" id="welcome">
+  <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="welcomeHands"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
   <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center;margin-top:52px">Hi, I'm Emma.</h1>
@@ -400,7 +447,40 @@ body.ring3d #intro .hero>*{visibility:hidden}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="startBtn">Start talking</button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button></div>
+  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="startBtn">Start talking</button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
+</section>
+
+<!-- Settings -->
+<section class="screen" id="settings">
+  <div class="topbar"><button class="chev" id="sBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Settings</div></div>
+  <div class="sbody">
+    <p class="s-h">Account</p>
+    <div class="group" id="sAccount"></div>
+    <p class="s-f" id="sAccountFoot"></p>
+    <p class="s-h">You</p>
+    <div class="group">
+      <label class="row"><span class="s-l">Name</span><input id="sName" placeholder="Your name" autocomplete="name" enterkeyhint="done"></label>
+    </div>
+    <p class="s-h">Where people can follow you</p>
+    <div class="group" id="sSocials"></div>
+    <p class="s-f" id="sSaved">Saved as you type.</p>
+    <p class="s-h">Emma</p>
+    <div class="group">
+      <div class="row"><span class="s-l">Her voice</span><div class="seg" id="sVoice"><button data-v="1">Loud</button><button data-v="0.45">Quiet</button><button data-v="0">Off</button></div></div>
+      <label class="row app-only"><span class="s-l">Vibration</span><input type="checkbox" class="switch" id="sBuzz"></label>
+    </div>
+    <p class="s-f">You talk to Emma by holding the mic button.</p>
+    <p class="s-h app-only">App</p>
+    <div class="group app-only">
+      <button class="row" id="sServer"><span class="s-l">Server</span><span class="s-v" id="sServerV"></span></button>
+      <div class="row"><span class="s-l">Version</span><span class="s-v" id="sVersion"></span></div>
+    </div>
+    <p class="s-h" id="sDataH">Your data</p>
+    <div class="group">
+      <button class="row s-danger" id="sForget">Forget me on this device</button>
+      <button class="row s-danger" id="sDelete">Delete my account and everything Emma knows</button>
+    </div>
+  </div>
 </section>
 
 <!-- Someone you've met -->
@@ -429,20 +509,31 @@ body.ring3d #intro .hero>*{visibility:hidden}
 
 <!-- Conversation with Emma -->
 <section class="screen" id="interview">
+  <button class="leave" id="leaveBtn" aria-label="Leave the chat"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <p id="emmaLine"></p>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="talkOrbWrap" data-mode="idle"><div class="orb" id="talkOrb" data-live style="--s:180px" data-mode="idle"></div></div>
   <div class="spacer"></div>
   <p id="heard"></p>
-  <p class="hint" id="hint"></p>
+  <div class="talkbar" id="talkBar" data-s="idle">
+    <button class="tb-side" id="kbBtn" aria-label="Type instead"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8.5 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button class="tb-mic" id="micBtn" aria-label="Hold to talk, tap to send or skip">
+      <svg class="i-mic" width="28" height="28" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="currentColor"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="i-send" width="26" height="26" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tb-side" id="redoBtn" aria-label="Start my answer over" disabled><svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 9a8 8 0 1 1-1 6M5 3.5V9h5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <p class="hint" id="hint">Hold to speak</p>
   <form class="type-row" id="typeForm">
-    <input class="field" id="typeInput" placeholder="Or type your answer" autocomplete="off">
+    <button type="button" class="tb-side" id="voiceBtn" aria-label="Back to voice"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="currentColor"/><path d="M6 11.5a6 6 0 0 0 12 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <input class="field" id="typeInput" placeholder="Type your answer" autocomplete="off">
+    <button type="button" class="dict" id="dictBtn" aria-label="Dictate" hidden><svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button class="send" id="typeSend" aria-label="Send"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </form>
 </section>
 
 <!-- Handles -->
 <section class="screen" id="socials">
+  <button class="leave" id="socialsLeave" aria-label="Leave"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div style="padding:24px 24px 0;margin-bottom:8px">
     <div class="orb" data-live style="--s:56px" data-mode="idle"></div>
     <h2 class="serif" style="font-size:30px;line-height:1.2;margin-top:18px">Where can they follow you?</h2>
@@ -454,7 +545,8 @@ body.ring3d #intro .hero>*{visibility:hidden}
 
 <!-- Your agent talking to everyone's agents -->
 <section class="screen" id="matching">
-  <div style="padding:20px 24px 0">
+  <button class="leave" id="mCancel" aria-label="Stop looking"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <div style="padding:20px 60px 0 24px">
     <h2 class="serif" id="mTitle" style="font-size:26px;line-height:1.2">Your agent is talking to everyone's agents.</h2>
     <p class="sub sec" id="mSub" style="margin-top:6px">Starting…</p>
   </div>
@@ -464,6 +556,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
 
 <!-- Introduction -->
 <section class="screen" id="intro">
+  <button class="leave" id="introLeave" aria-label="Back to home"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="hero"><div class="pair" id="introPair"></div><div class="faces apart" id="faces"></div></div>
   <div class="intro-body reveal" id="introBody">
     <div>
@@ -510,6 +603,19 @@ body.ring3d #intro .hero>*{visibility:hidden}
 </section>
 
 <!-- Meet? -->
+<div class="scrim" id="acctScrim">
+  <div class="sheet">
+    <h3 class="serif" style="font-size:30px;line-height:1.15" id="acctTitle">Create an account</h3>
+    <p class="sec" id="acctSub">Keep what Emma knows about you, and the people you've met, on any phone or computer.</p>
+    <div class="list">
+      <label class="row"><input id="acctEmail" type="email" placeholder="Email" autocomplete="email" autocapitalize="off" autocorrect="off"></label>
+      <label class="row"><input id="acctPw" type="password" placeholder="Password (6 or more characters)" autocomplete="new-password"></label>
+    </div>
+    <p class="foot acct-err" id="acctErr"></p>
+    <div class="spacer"></div>
+    <div><button class="primary" id="acctGo">Create account</button><button class="plainbtn" id="acctSwitch">I already have an account</button></div>
+  </div>
+</div>
 <div class="scrim" id="meetScrim">
   <div class="sheet">
     <div class="faces" id="meetFaces"></div>
@@ -562,7 +668,13 @@ const isDesk = () => matchMedia("(min-width: 900px)").matches;
 const demo = new URLSearchParams(location.search).has("demo");
 // Inside the Roomie iPhone app (the people on stage use it): real haptics, and finding by radio
 const APP = window.RoomieApp?.native ? window.RoomieApp : null;
-const buzz = (pattern, kind) => APP ? APP.post({t: "haptic", k: kind}) : navigator.vibrate?.(pattern);
+const Prefs = {                     // this device's settings
+  get: (k, d) => { try { const v = localStorage.getItem("roomie.pref." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem("roomie.pref." + k, JSON.stringify(v)); } catch {} },
+  voice() { return this.get("voice", 1); }, buzz() { return this.get("buzz", true); },
+};
+const buzz = (pattern, kind) => !Prefs.buzz() ? null : APP ? APP.post({t: "haptic", k: kind}) : navigator.vibrate?.(pattern);
+document.body.classList.toggle("in-app", !!APP);
 if (APP && navigator.audioSession) try { navigator.audioSession.type = "play-and-record"; } catch {}   // Emma speaks even with the phone on silent
 
 async function api(path, body, method) {
@@ -617,10 +729,12 @@ const Ears = {
       } catch {}
     })();
   },
-  begin(seg) {
-    Object.assign(this, {seg, active: true, chunks: [], pre: [], inSpeech: false, speechMs: 0, silenceMs: 0, startAt: performance.now(), lastInterim: 0, busy: false});
+  // hold: record from now until finish() is called (the mic held down, dictation), not until a silence.
+  // `to` takes the words instead of the conversation: {interim(text), done(text)} (dictation into the field)
+  begin(seg, hold = false) {
+    Object.assign(this, {seg, hold, active: true, chunks: [], pre: [], inSpeech: hold, speechMs: 0, silenceMs: 0, startAt: performance.now(), lastInterim: 0, busy: false});
   },
-  stop() { this.active = false; this.seg = -1; this.level = 0; },
+  stop() { this.active = false; this.seg = -1; this.level = 0; const to = this.to; this.to = null; to?.done(""); },
   onAudio(f, sr) {
     if (!this.active) return;
     const ratio = sr / 16000, n = Math.floor(f.length / ratio), pcm = new Int16Array(n);
@@ -643,7 +757,7 @@ const Ears = {
       return;
     }
     this.chunks.push(pcm);
-    if (this.silenceMs > 1100 || now - this.startAt > 90000) return this.finish();
+    if ((this.silenceMs > 1100 && !this.hold) || now - this.startAt > 90000) return this.finish();
     if (now - this.lastInterim > 900 && !this.busy) this.interim();
   },
   pcm() { const n = this.chunks.reduce((k, c) => k + c.length, 0), out = new Int16Array(n); let o = 0; for (const c of this.chunks) { out.set(c, o); o += c.length; } return out; },
@@ -654,15 +768,17 @@ const Ears = {
   async interim() {
     this.busy = true; this.lastInterim = performance.now();
     const seg = this.seg;
-    try { const t = await this.hear(this.pcm()); if (seg === this.seg && this.active && t) { Voice.heard = t; Voice.onHeard(t); } } catch {}
+    try { const t = await this.hear(this.pcm()); if (seg === this.seg && this.active && t) { if (this.to) this.to.interim(t); else { Voice.heard = t; Voice.onHeard(t); } } } catch {}
     this.busy = false;
   },
   async finish() {
     if (!this.active) return;
     this.active = false; this.level = 0;
-    const seg = this.seg, spoke = this.inSpeech, pcm = this.pcm();
+    const seg = this.seg, spoke = this.inSpeech, pcm = this.pcm(), to = this.to;
+    this.to = null;
     let t = "";
-    if (spoke && pcm.length > 3200) { try { t = await this.hear(pcm); } catch { t = Voice.heard; } }
+    if (spoke && pcm.length > 3200) { try { t = await this.hear(pcm); } catch { t = to ? "" : Voice.heard; } }
+    if (to) return to.done(t.trim());
     if (seg === this.seg) Voice.finishListening(t.trim(), true);
   },
 };
@@ -670,11 +786,12 @@ const Ears = {
 const Voice = {
   ctx: null, an: null, src: null, phase: "idle", heard: "", committed: "", lastText: 0, listenStart: 0,
   echo: new Set(), barge: false, seg: 0, rec: null, onSpeak: null, onListen: null, pending: null,
-  fillers: [], fillerUntil: 0, level: 0, onHeard: () => {},
+  fillers: [], fillerUntil: 0, level: 0, onHeard: () => {}, gen: 0, hold: false,
   init() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.an = this.ctx.createAnalyser(); this.an.fftSize = 512; this.an.connect(this.ctx.destination);
+    this.an = this.ctx.createAnalyser(); this.an.fftSize = 512;
+    this.out = this.ctx.createGain(); this.out.gain.value = Prefs.voice(); this.an.connect(this.out); this.out.connect(this.ctx.destination);
     this.data = new Float32Array(this.an.fftSize);
     this.loadFillers(); this.tick();
   },
@@ -686,8 +803,10 @@ const Voice = {
   stopAudio() { if (this.src) { try { this.src.onended = null; this.src.stop(); } catch {} this.src = null; } },
   async say(text, barge = false) {
     this.init();
+    const gen = this.gen;                                 // (the chat was left meanwhile: say nothing)
     let buf; try { buf = await this.buffer(text); } catch { return false; }
     const wait = this.fillerUntil - performance.now(); if (wait > 0) await sleep(wait);
+    if (gen !== this.gen) return false;
     if (this.phase === "speaking") this.endSpeaking(false, true);
     if (this.phase === "listening") this.finishListening();
     this.phase = "speaking"; this.barge = false; this.echo = new Set(words(text));
@@ -718,7 +837,8 @@ const Voice = {
     const seg = this.seg;
     if (Ears.ready) await Ears.ready;
     const wait = Math.max(0, (this.quietUntil || 0) - performance.now());
-    setTimeout(() => { if (this.phase === "listening" && seg === this.seg) { this.startRec(); this.listenStart = this.lastText = performance.now(); } }, wait);
+    // push to talk: nothing is recorded until the mic button is held (Talk.press starts it)
+    setTimeout(() => { if (this.phase === "listening" && seg === this.seg && this.hold && !this.rec && !Ears.active) { this.startRec(); this.listenStart = this.lastText = performance.now(); } }, wait);
   },
   /* her own words coming back through the mic: most of what was heard is in her last line */
   isEcho(t) {
@@ -729,7 +849,7 @@ const Voice = {
     if (this.phase !== "listening") return;
     if (text == null && Ears.active) { Ears.finish(); return; }          // tapped: write down what we have first
     if ((text == null || fromEars) && this.isEcho(text ?? this.heard)) {  // her own voice: ignore it, keep listening
-      this.heard = ""; this.committed = ""; this.onHeard(""); this.startRec();
+      this.heard = ""; this.committed = ""; this.onHeard(""); if (this.hold) this.startRec();
       this.listenStart = this.lastText = performance.now(); return;
     }
     this.phase = "idle"; this.stopRec();
@@ -738,7 +858,7 @@ const Voice = {
   },
   startRec() {
     this.stopRec();
-    if (Ears.ok) { Ears.begin(this.seg); return; }
+    if (Ears.ok) { Ears.begin(this.seg, this.hold); return; }
     if (!SR) return;
     const r = new SR(); r.lang = "en-US"; r.continuous = true; r.interimResults = true;
     const seg = ++this.seg;
@@ -776,13 +896,8 @@ const Voice = {
     } else if (this.phase === "listening" && Ears.ok) {
       this.level = Ears.level;                            // Ears decides when the turn ends
     } else if (this.phase === "listening") {
-      const text = this.heard.trim(), since = now - this.lastText;
-      const last = words(text).pop();
-      const need = (text.endsWith(",") || OPEN.has(last)) ? 3400 : 1800;
-      if (text && since > need) this.finishListening();
-      else if (!text && now - this.listenStart > 14000) this.finishListening();
-      else if (now - this.listenStart > 90000) this.finishListening();
-      this.level = text && since < 400 ? .35 : this.level;
+      // push to talk: the turn ends when the mic is let go (or the typed answer is sent), never on a silence
+      if (this.hold && this.heard && now - this.lastText < 400) this.level = .35;
     }
     document.documentElement.style.setProperty("--lvl", this.level.toFixed(3));
     const k = 1 + this.level * .2;
@@ -792,16 +907,82 @@ const Voice = {
 };
 
 /* ---------------------------------------------------------------- state */
-const S = { id: null, result: null, mission: null, talks: [], total: 0, chosen: null, mode: "idle", answers: 0, seen: new Set(),
+const S = { mrun: 0, id: null, result: null, mission: null, talks: [], total: 0, chosen: null, mode: "idle", answers: 0, seen: new Set(),
             me: null, socials: {}, contacts: [] };
 // Emma remembers you on this device: your id is kept, and the server keeps what you told her
 const ID_KEY = "roomie.id";
 const keep = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const kept = k => { try { return localStorage.getItem(k); } catch { return null; } };
+/* How you answer Emma: push to talk. Nothing is recorded until you hold the mic button; you talk for exactly
+   as long as you hold and your answer goes when you let go (slide up to cancel; the space bar does the same
+   on a computer). A tap skips Emma while she talks. Left of it the keyboard, where you type
+   or dictate into the field and send when it reads right; right of it, start your answer over. */
+const Talk = {
+  run: 0, typing: false, hold: null, dict: false,
+  ui() {
+    const m = S.mode, h = this.hold;
+    $("#talkBar").dataset.s = h ? (h.cancel ? "cancel" : "hold") : m;
+    $("#redoBtn").disabled = !(m === "listening" && !h);
+    $("#dictBtn").hidden = !Ears.ok; $("#dictBtn").classList.toggle("on", this.dict);
+    $("#hint").textContent = this.typing ? (this.dict ? "Listening. Tap again when you're done" : "")
+      : h ? (h.cancel ? "Release to cancel" : "Release to send, slide up to cancel")
+      : m === "listening" ? "Hold to speak" : m === "speaking" ? "Hold to speak \u00b7 tap to skip" : "Hold to speak";
+  },
+  tap() {                      // a tap isn't an answer: it skips Emma, or reminds you to hold
+    if (S.mode === "speaking") Voice.stopSpeaking();
+    else if (S.mode === "listening") { const el = $("#hint"); el.textContent = "Hold the button while you talk"; buzz(10, "light"); setTimeout(() => this.ui(), 1800); }
+  },
+  press() {                    // the mic held down: this is your turn until you let go (it cuts Emma short)
+    if (this.hold || this.typing || (S.mode !== "listening" && S.mode !== "speaking")) return;
+    if (Voice.phase === "speaking") Voice.endSpeaking(true);
+    if (Voice.phase !== "listening") return;
+    this.hold = {at: performance.now(), cancel: false};
+    Voice.hold = true; Voice.heard = ""; Voice.committed = ""; $("#heard").textContent = ""; Voice.startRec();
+    buzz(10, "light"); this.ui();
+  },
+  release(cancel) {
+    const h = this.hold; if (!h) return;
+    this.hold = null; Voice.hold = false;
+    if (cancel || h.cancel || performance.now() - h.at < 350) this.redo();      // (too short to be an answer)
+    else Voice.finishListening();
+    this.ui();
+  },
+  redo() {                     // forget what was heard and listen again
+    if (Voice.phase !== "listening") return;
+    Voice.heard = ""; Voice.committed = ""; $("#heard").textContent = "";
+    Voice.stopRec();                                   // and wait for the mic to be held again
+    Voice.listenStart = Voice.lastText = performance.now();
+  },
+  type(on) {                   // the keyboard: the mic stops listening for the end of your turn
+    if (on) this.release(true); else this.dictStop();
+    this.typing = on; $("#interview").classList.toggle("kb", on);
+    if (on) { if (Voice.phase === "listening") Voice.stopRec(); $("#typeInput").focus(); }
+    else { $("#typeInput").blur(); this.redo(); }
+    this.ui();
+  },
+  dictStart() {                // speech written into the field, to read over before sending
+    if (!Ears.ok || this.dict) return;
+    if (Voice.phase === "speaking") Voice.stopSpeaking();
+    const box = $("#typeInput"), base = box.value.trim(), put = t => { box.value = [base, t].filter(Boolean).join(" "); };
+    this.dict = true;
+    Ears.to = {interim: put, done: t => { if (t) put(t); this.dict = false; this.ui(); }};
+    Ears.begin(Voice.seg, true); this.ui();
+  },
+  dictStop() { if (this.dict) Ears.finish(); },
+  leave() {                    // out of the chat, back to the first page
+    this.run++; Voice.gen++;
+    this.release(true); this.dictStop(); this.typing = false; $("#interview").classList.remove("kb");
+    Voice.stopSpeaking();
+    if (Voice.phase === "listening") { Voice.phase = "idle"; Voice.stopRec(); }
+    const r = Voice.onListen; Voice.onListen = null; Voice.pending = null; r && r("");
+    $("#heard").textContent = ""; $("#typeInput").value = "";
+    setMode("idle"); show("welcome");
+  },
+};
 function setMode(m) {
   S.mode = m; window.Hands?.mode(m);
   document.querySelectorAll("[data-live]").forEach(o => o.dataset.mode = m); $("#talkOrbWrap").dataset.mode = m;
-  $("#hint").textContent = {listening: "Tap Emma when you're done", speaking: "Tap to skip", thinking: " ", idle: " "}[m];
+  Talk.ui();
 }
 Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; };
 
@@ -810,38 +991,104 @@ if (!SR && !APP) $("#micNote").textContent = "This browser can't hear you, so yo
 const setLine = t => { const el = $("#emmaLine"); if (el.textContent === t) return; el.style.opacity = 0; setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 180); };
 $("#startBtn").onclick = () => { Voice.init(); Voice.ctx.resume(); Ears.setup(Voice.ctx); demo ? rehearse() : interview(); };
 $("#devSkip").onclick = () => { Voice.init(); Voice.ctx.resume(); rehearse(); };
-$("#talkOrbWrap").onclick = () => { if (S.mode === "listening") Voice.finishListening(); else if (S.mode === "speaking") Voice.stopSpeaking(); };
+$("#talkOrbWrap").onclick = () => { if (S.mode === "speaking") Voice.stopSpeaking(); };   // tap Emma to skip her
+{
+  const mic = $("#micBtn"); let down = false, timer = 0, y0 = 0;
+  mic.onpointerdown = e => { if (e.button) return; e.preventDefault(); try { mic.setPointerCapture(e.pointerId); } catch {} down = true; y0 = e.clientY; timer = setTimeout(() => Talk.press(), 220); };
+  mic.onpointermove = e => { const h = Talk.hold; if (!h) return; const c = y0 - e.clientY > 70; if (c !== h.cancel) { h.cancel = c; buzz(8, "light"); Talk.ui(); } };
+  mic.onpointerup = mic.onpointercancel = e => { clearTimeout(timer); if (Talk.hold) Talk.release(e.type === "pointercancel"); else if (down && e.type === "pointerup") Talk.tap(); down = false; };
+  mic.oncontextmenu = e => e.preventDefault();
+  // on a computer: hold the space bar to talk, Esc to cancel
+  const typingNow = () => /INPUT|TEXTAREA/.test(document.activeElement?.tagName || "");
+  addEventListener("keydown", e => {
+    if (!$("#interview").classList.contains("on") || typingNow()) return;
+    if (e.code === "Space") { e.preventDefault(); if (!e.repeat) Talk.press(); }
+    else if (e.code === "Escape" && Talk.hold) Talk.release(true);
+  });
+  addEventListener("keyup", e => { if (e.code === "Space" && Talk.hold) Talk.release(false); });
+}
+$("#leaveBtn").onclick = () => Talk.leave();
+$("#redoBtn").onclick = () => Talk.redo();
+$("#kbBtn").onclick = () => Talk.type(true);
+$("#voiceBtn").onclick = () => Talk.type(false);
+$("#dictBtn").onclick = () => Talk.dict ? Talk.dictStop() : Talk.dictStart();
 $("#typeForm").onsubmit = e => {
-  e.preventDefault(); const t = $("#typeInput").value.trim(); if (!t) return;
+  e.preventDefault(); if (Talk.dict) { Talk.dictStop(); return; }      // (let the words land in the field first)
+  const t = $("#typeInput").value.trim(); if (!t) return;
   $("#typeInput").value = "";
   if (Voice.phase === "speaking") Voice.endSpeaking(true);
   if (Voice.phase !== "listening") { Voice.phase = "listening"; }
   Voice.finishListening(t);
 };
 
+const NUDGES = ["Take your time.", "No rush, I'm listening.", "I'm here whenever you're ready."];
 async function interview() {
+  const run = ++Talk.run, gone = () => run !== Talk.run;       // (they left the chat: stop here)
   show("interview"); setMode("thinking");
   try {
-    const s = await api("/start", S.me ? {id: S.id} : {});     // someone she knows: she only asks what's changed
+    const s = await api("/start", S.me ? {id: S.id} : {});     // someone she knows: she brings up what she remembers
+    if (gone()) return;
     S.id = s.id; keep(ID_KEY, s.id);
     let line = s.say;
     while (true) {
       setLine(line); $("#heard").textContent = "";
       setMode("speaking");
       const cut = await Voice.say(line, true);
-      setMode("listening");
-      const said = await Voice.listen();
-      if (!said) { line = "Sorry, I didn't catch that. Say it again?"; continue; }
+      if (gone()) return;
+      // nothing heard: she just keeps listening, her question still on the screen. After the second
+      // silence she says once that there's no hurry, and then stays quiet.
+      let said = "";
+      for (let quiet = 0; !said; quiet++) {
+        setMode("listening");
+        if (Ears.ready) await Ears.ready;
+        if (gone()) return;
+        if (!Ears.ok && !SR && !Talk.typing) Talk.type(true);  // this browser can't hear: straight to the keyboard
+        said = await Voice.listen();
+        if (gone()) return;
+        if (!said && quiet === 1) {
+          setMode("speaking");
+          await Voice.say(NUDGES[Math.floor(Math.random() * NUDGES.length)], true);
+          if (gone()) return;
+        }
+      }
       $("#heard").textContent = "";
       setMode("thinking");
-      const filler = setTimeout(() => Voice.playFiller(), 900);
+      const filler = setTimeout(() => gone() || Voice.playFiller(), 900);
       const t = await api("/turn", {id: S.id, text: said, interrupted: cut});
       clearTimeout(filler);
+      if (gone()) return;
       if (t.done) { setLine(t.say); showSocials(); setMode("speaking"); await Voice.say(t.say); setMode("idle"); return; }
       line = t.say;
     }
-  } catch (e) { oops("Can't reach the Roomie server."); show("welcome"); }
+  } catch (e) { if (gone()) return; oops("Can't reach the Roomie server."); show("welcome"); }
 }
+
+/* Test match (only in the iPhone app): tap it on two phones and they're introduced to each other at once,
+   each as a made-up attendee, straight into the room; say yes on both to try finding each other by Ultra
+   Wideband. The made-up person is kept per phone, apart from your real one. Tap again to stop waiting. */
+const Test = { on: false, label: $("#testBtn").innerHTML };
+if (APP) $("#testBtn").hidden = false;
+$("#testBtn").onclick = async () => {
+  const b = $("#testBtn");
+  if (Test.on) { Test.on = false; return; }
+  Test.on = true; b.innerHTML = "Waiting for another test phone…<small>Tap the same button on it. Tap here to stop.</small>";
+  Voice.init(); Voice.ctx.resume();
+  try {
+    while (Test.on) {
+      const r = await api("/test/match", {id: kept("roomie.testId")});
+      keep("roomie.testId", r.me.id);
+      if (r.mission) {
+        S.id = r.me.id; S.result = r; S.me = r.me; S.seen.add(r.mission.id);
+        buzz([60, 40, 60], "success"); openRoom(r.mission);             // (it already says you both said yes)
+        for (let i = 0; i < 50 && Room.meet !== true; i++) await sleep(100);
+        findOpen(r.mission.person); break;
+      }
+      await sleep(2000);
+    }
+    if (!Test.on) await api("/test/match", {id: kept("roomie.testId"), cancel: true}).catch(() => {});
+  } catch { oops("Can't reach the Roomie server."); }
+  Test.on = false; b.innerHTML = Test.label;
+};
 
 async function rehearse() {
   // Dev shortcut: canned answers instead of the voice chat, straight to matching.
@@ -851,6 +1098,7 @@ async function rehearse() {
     for (const t of ["I'm Kai, I left a bank job to build an agent that reads restaurant menus in any language.",
                      "I need a designer, and travellers to test it.", "I can help with iOS and Swift.", "Back left, green beanie."])
       await api("/turn", {id: S.id, text: t});
+    if (!$("#matching").classList.contains("on")) return;   // stopped meanwhile
     findMatch({});
   } catch (e) { oops("Can't reach the Roomie server."); Net.running = false; cancelAnimationFrame(Net.raf); show("welcome"); }
 }
@@ -871,6 +1119,7 @@ $("#introduceBtn").onclick = () => {
 
 /* ---------------------------------------------------------------- 3. agents talking */
 function findMatch(socials) {
+  const run = ++S.mrun;
   S.talks = []; S.total = 0; S.chosen = null; S.result = null;
   show("matching"); if (!Net.running) Net.start();   // the dev shortcut has already started it
   (async () => {
@@ -879,9 +1128,19 @@ function findMatch(socials) {
       await sleep(700);
     }
   })();
-  api("/match", {id: S.id, socials}).then(m => { S.result = m; S.chosen = m.mission.person.id; S.seen.add(m.mission.id); })
-    .catch(() => { oops("Matching failed. Try again."); Net.running = false; cancelAnimationFrame(Net.raf); show("welcome"); });
+  api("/match", {id: S.id, socials}).then(m => { if (run !== S.mrun) return; S.result = m; S.chosen = m.mission.person.id; S.seen.add(m.mission.id); })
+    .catch(() => { if (run !== S.mrun) return; oops("Matching failed. Try again."); Net.running = false; cancelAnimationFrame(Net.raf); show("welcome"); });
 }
+/* Stop looking: the animation stops, the server drops the match it was working out (nobody is
+   introduced), and you're back on the first page. */
+function stopMatching() {
+  S.mrun++; Net.cancelled = true; Net.running = false; cancelAnimationFrame(Net.raf);
+  Voice.stopSpeaking();
+  if (S.id) api("/match/cancel", {id: S.id}).catch(() => {});
+  S.talks = []; S.total = 0; S.chosen = null; S.result = null;
+  show("welcome");
+}
+$("#mCancel").onclick = stopMatching;
 
 /* Your agent asking everyone's agents. Every conversation is acted out: a question leaves Emma's orb,
    swims to one agent, that agent "types", and its answer swims back. Only then does the ball take its
@@ -937,7 +1196,7 @@ const Net = {
   converging: false, t0: 0, raf: 0, last: 0, orb: null, inflight: 0, lastPing: 0,
   start() {
     this.seats = []; this.msgs = []; this.ripples = []; this.tints = []; this.chips = []; this.revealed = []; this.cards.clear();
-    this.running = true; this.converging = false; this.inflight = 0; this.t0 = performance.now(); this.last = 0; this.orb = null; this.lastPing = 0;
+    this.running = true; this.converging = false; this.cancelled = false; this.inflight = 0; this.t0 = performance.now(); this.last = 0; this.orb = null; this.lastPing = 0;
     $("#feed").innerHTML = ""; $("#mTitle").textContent = "Your agent is talking to everyone's agents."; this.counter();
     $("#netOrb").style.opacity = 1;
     if (window.Ring?.ok) {
@@ -963,6 +1222,7 @@ const Net = {
 
   async pace() {
     while (!this.converging) {
+      if (this.cancelled) return;
       const next = S.talks.find(t => !this.seats.some(s => s.talk && s.talk.person.id === t.person.id));
       if (next) { this.converse(next); await sleep(1100); continue; }
       const elapsed = performance.now() - this.t0, allIn = S.total && this.revealed.length >= S.total;
@@ -1009,6 +1269,7 @@ const Net = {
       await sleep(700);                                 // and keep holding on into the introduction
       $("#netOrb").style.opacity = 0;
       await Ring.finale(ci, p.color);
+      if (this.cancelled) return;
       cancelAnimationFrame(this.raf); this.running = false;
       const cv = $("#net"); cv.getContext("2d").clearRect(0, 0, cv.width, cv.height);
       return revealMatch();
@@ -1020,6 +1281,7 @@ const Net = {
       }
       await sleep(1000);
     }
+    if (this.cancelled) return;
     cancelAnimationFrame(this.raf); this.running = false; revealMatch();
   },
   verdict(t) {
@@ -1297,6 +1559,7 @@ async function loadMe() {
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
     const d = await r.json();
+    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {};
     if (!d.me) return false;                                         // never finished the chat with Emma
     S.id = id; S.me = d.me; S.socials = d.socials || {}; S.contacts = d.contacts || [];
     S.contacts.forEach(c => S.seen.add(c.id));                       // no banner for people you already have
@@ -1336,6 +1599,123 @@ $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null);
   location.reload();
 };
+
+/* ---------------------------------------------------------------- settings and account
+   Settings (the gear on the first page): your account, your name and handles (saved as you type), how loud
+   Emma is, vibration, and in the app its server and version; at the bottom, forgetting or deleting you.
+   An account is an email and a password that bring back the same person (what Emma knows, the people
+   you've met) on any phone or computer; without one you're who this device remembers. */
+function forgetDevice() {
+  keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null); keep("roomie.testId", null);
+  location.reload();
+}
+const twoTaps = (btn, label, act) => {          // dangerous rows ask once more (no browser dialogs: the app has none)
+  btn.onclick = () => {
+    if (btn.dataset.armed) return act();
+    btn.dataset.armed = "1"; btn.textContent = "Tap again to confirm";
+    setTimeout(() => { delete btn.dataset.armed; btn.textContent = label; }, 4000);
+  };
+};
+const Settings = {
+  open() { this.render(); show("settings"); },
+  render() {
+    const signed = !!S.email;
+    $("#sAccount").innerHTML = signed
+      ? `<div class="row"><span class="s-l">Email</span><span class="s-v">${esc(S.email)}</span></div><button class="row s-act" id="sOut">Sign out</button>`
+      : `<button class="row s-act" id="sUp">Create an account</button><button class="row s-act" id="sIn">Sign in</button>`;
+    $("#sAccountFoot").textContent = signed ? "Sign in with this email on any phone or computer to be you there too."
+      : "Without an account, Emma knows you only on this device.";
+    if (signed) twoTaps($("#sOut"), "Sign out", forgetDevice);
+    else { $("#sUp").onclick = () => Acct.open("signup"); $("#sIn").onclick = () => Acct.open("login"); }
+    $("#sName").value = S.me?.name || S.name || "";
+    const so = S.socials || {};
+    $("#sSocials").innerHTML = SOCIALS.map(([k, label, g]) => `<label class="row"><span class="glyph">${g}</span><span class="s-l">${label}</span>` +
+      `<input data-k="${k}" placeholder="@handle" autocapitalize="off" autocorrect="off" enterkeyhint="done" value="${esc(so[k] || kept("h." + k) || "")}"></label>`).join("");
+    $("#sSocials").querySelectorAll("input").forEach(i => i.oninput = () => this.saveSoon());
+    $("#sSaved").textContent = "Saved as you type.";
+    const v = +Prefs.voice();
+    $("#sVoice").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.v === v));
+    $("#sBuzz").checked = Prefs.buzz();
+    if (APP) { $("#sServerV").textContent = (APP.server || "").replace(/^https?:\/\//, ""); $("#sVersion").textContent = APP.version || ""; }
+    const known = !!(S.id || kept(ID_KEY));
+    $("#sForget").parentElement.style.display = $("#sDataH").style.display = known ? "" : "none";
+  },
+  saveSoon() { clearTimeout(this.t); $("#sSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
+  async save() {
+    const socials = {};
+    $("#sSocials").querySelectorAll("input").forEach(i => { socials[i.dataset.k] = i.value.trim(); keep("h." + i.dataset.k, i.value.trim() || null); });
+    const id = S.id || kept(ID_KEY);
+    if (!id) { $("#sSaved").textContent = "Saved on this device."; return; }
+    try {
+      const r = await api("/profile", {id, name: $("#sName").value.trim(), socials});
+      S.socials = r.socials; S.name = r.name; if (r.me) S.me = r.me;
+      $("#sSaved").textContent = "Saved.";
+    } catch { $("#sSaved").textContent = "Couldn't save. Check the connection."; }
+  },
+};
+$("#gearBtn").onclick = () => Settings.open();
+$("#sBack").onclick = () => { clearTimeout(Settings.t); if (Settings.t) Settings.save(); goHome(); };
+$("#sName").oninput = () => Settings.saveSoon();
+$("#sVoice").querySelectorAll("button").forEach(b => b.onclick = () => {
+  Prefs.set("voice", +b.dataset.v); if (Voice.out) Voice.out.gain.value = +b.dataset.v;
+  $("#sVoice").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+});
+$("#sBuzz").onchange = e => { Prefs.set("buzz", e.target.checked); buzz(20, "light"); };
+$("#sServer").onclick = () => APP?.post({t: "server"});
+twoTaps($("#sForget"), "Forget me on this device", forgetDevice);
+twoTaps($("#sDelete"), "Delete my account and everything Emma knows", async () => {
+  try { await api("/account", {action: "delete", id: S.id || kept(ID_KEY)}); } catch { return oops("Can't reach the Roomie server."); }
+  forgetDevice();
+});
+
+const Acct = {
+  mode: "signup",
+  open(mode) {
+    this.mode = mode; this.render(); $("#acctPw").value = "";
+    $("#acctScrim").classList.add("on"); setTimeout(() => $("#acctEmail").focus(), 350);
+  },
+  close() { $("#acctEmail").blur(); $("#acctPw").blur(); $("#acctScrim").classList.remove("on"); },
+  render() {
+    const up = this.mode === "signup";
+    $("#acctTitle").textContent = up ? "Create an account" : "Sign in";
+    $("#acctSub").textContent = up ? "Keep what Emma knows about you, and the people you've met, on any phone or computer."
+      : "Be you again: what Emma knows about you and the people you've met.";
+    $("#acctGo").textContent = up ? "Create account" : "Sign in";
+    $("#acctSwitch").textContent = up ? "I already have an account" : "I'm new here";
+    $("#acctPw").placeholder = up ? "Password (6 or more characters)" : "Password";
+    $("#acctPw").autocomplete = up ? "new-password" : "current-password";
+    $("#acctErr").textContent = "";
+  },
+  async go() {
+    const b = $("#acctGo"); if (b.disabled) return;
+    b.disabled = true; $("#acctErr").textContent = "";
+    try {
+      const r = await fetch("/account", {method: "POST", headers: {"content-type": "application/json"},
+        body: JSON.stringify({action: this.mode, email: $("#acctEmail").value.trim(), password: $("#acctPw").value, id: S.id || kept(ID_KEY)})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { $("#acctErr").textContent = d.error || "Something went wrong. Try again."; return; }
+      keep(ID_KEY, d.id); S.id = d.id; S.email = d.email;
+      this.close(); buzz([40, 30, 40], "success");
+      if (this.mode === "login") return location.reload();     // become that person everywhere on the page
+      Settings.render();
+    } catch { $("#acctErr").textContent = "Can't reach the Roomie server."; }
+    finally { b.disabled = false; }
+  },
+};
+$("#acctGo").onclick = () => Acct.go();
+$("#acctPw").onkeydown = e => { if (e.key === "Enter") Acct.go(); };
+$("#acctSwitch").onclick = () => { Acct.mode = Acct.mode === "signup" ? "login" : "signup"; Acct.render(); };
+$("#acctScrim").onclick = e => { if (e.target.id === "acctScrim") Acct.close(); };
+
+// ways out of the screens that had none
+$("#socialsLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
+$("#introLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
+
+// iOS 26 (Safari): after the keyboard closes WebKit can leave the page panned (WebKit bug 297779) and the
+// top bars sit too low; nudging the scroll once the keyboard is gone puts them back. (The app avoids it.)
+if (!APP && window.visualViewport) addEventListener("focusout", () => setTimeout(() => {
+  if (!document.activeElement?.matches?.("input,textarea") && visualViewport.offsetTop > 0) window.scrollTo(window.scrollX, window.scrollY);
+}, 350));
 
 /* ---------------------------------------------------------------- someone you've met */
 const P = { c: null };
@@ -1598,6 +1978,19 @@ if (APP) {
   APP.onToken = tok => { if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify({t: "ni", token: tok})); };
   APP.onFix = f => { Find.hw = {...f, t: Date.now()}; draw(); };
 }
+const COACH = { turn: "Hold your phone up and turn slowly until the arrow appears",
+                sweep: "Hold your phone up and move it slowly from side to side", tilt: "Tilt your phone up and down a little",
+                move: "Walk a few steps", light: "Point the camera somewhere brighter" };
+// GPS direction to them, in degrees from where your phone points; null when the positions are too vague.
+// `real`: the distance the radios measured. Up close GPS (metres off) points anywhere, so it is used only
+// when you're well apart: 8 m or more, and more than its own error.
+function gpsDir(real) {
+  const m = Find.me, t = target();
+  if (!m || !t || Find.yaw == null || Find.offset == null) return null;
+  const p = enu(m, t.lat, t.lon), dist = Math.hypot(p.x, p.y), err = Math.sqrt(m.v + t.acc * t.acc);
+  if (dist < err || (real != null && real < Math.max(8, err * 1.5))) return null;
+  return wrap180((Math.atan2(p.x, p.y) / RAD + 360) % 360 - (Find.yaw + Find.offset));
+}
 function radio() { const h = Find.hw; return h && Date.now() - h.t < 3000 && h.d != null && (h.mode === "uwb" || h.mode === "bluetooth") ? h : null; }
 function pointAt(d) {                                   // d: degrees, 0 = ahead, positive = to the right
   // keep the rotation continuous so the arrow never spins the long way round
@@ -1612,11 +2005,18 @@ function draw() {
   if (h) {
     const card = $("#findCardDist"); if (card) card.textContent = fmtDist(h.d);
     if (!Find.open) return;
+    $("#find").classList.add("live");
     $("#findDist").textContent = fmtDist(h.d);
-    $("#findNote").textContent = h.mode === "uwb" ? "Ultra Wideband, phone to phone" : "Bluetooth, rough distance";
-    if (h.a == null) { $("#findDir").textContent = h.mode === "uwb" ? "Turn around slowly…" : "Walk a little to find the direction"; $("#arrow").style.opacity = .25; $("#find").classList.remove("aligned"); Find.was = false; return; }
-    return pointAt(h.a * 180 / Math.PI);
+    const how = h.mode === "uwb" ? "Ultra Wideband, phone to phone" : "Bluetooth, rough distance";
+    if (h.a != null) { $("#findNote").textContent = how; return pointAt(h.a * 180 / Math.PI); }
+    // No radio direction (too far, or outside the narrow cone UWB sees): say what helps the phone work it
+    // out, and meanwhile point by GPS if the two positions are good enough to give a direction at all.
+    const tip = COACH[h.coach] || (h.mode === "uwb" ? COACH.turn : COACH.move), g = gpsDir(h.d);
+    if (g != null) { $("#findNote").textContent = `${how} · direction from GPS, rough · ${tip}`; return pointAt(g); }
+    $("#findNote").textContent = how;
+    $("#findDir").textContent = tip; $("#arrow").style.opacity = .25; $("#find").classList.remove("aligned"); Find.was = false; return;
   }
+  $("#find").classList.remove("live");
   const m = Find.me, t = target(), card = $("#findCardDist");
   if (!m || !t) { if (card) card.textContent = m ? "Waiting…" : "–"; if (Find.open) { $("#findDist").textContent = "–"; $("#findNote").textContent = !m ? "Getting your location…" : `Waiting for ${first(Find.person)}'s location…`; } return; }
   const p = enu(m, t.lat, t.lon), dist = Math.hypot(p.x, p.y), bearing = (Math.atan2(p.x, p.y) / RAD + 360) % 360;

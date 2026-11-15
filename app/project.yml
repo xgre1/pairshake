@@ -1,0 +1,63 @@
+name: Roomie
+options:
+  bundleIdPrefix: com.jtobin
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ZZYK46YQNL
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Roomie:
+    type: application
+    platform: iOS
+    sources: [Roomie]
+    info:
+      path: Roomie/Info.plist
+      properties:
+        CFBundleDisplayName: Roomie
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSMicrophoneUsageDescription: Emma listens while you answer her questions.
+        NSSpeechRecognitionUsageDescription: Your answers become text so Emma can find your person.
+        NSLocalNetworkUsageDescription: Roomie talks to the Roomie server on this network.
+        NSBluetoothAlwaysUsageDescription: Finds your person's phone nearby, even when the Wi-Fi is bad.
+        NSNearbyInteractionUsageDescription: Points you toward your person when you both agree to meet.
+        NSCameraUsageDescription: Helps point you toward your person more precisely.
+        NSMotionUsageDescription: Counts your steps toward your person.
+        NSLocationWhenInUseUsageDescription: Shows you and your person which way to walk when Ultra Wideband can't reach.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+    postCompileScripts:
+      - name: Bundle the hands' models and three.js
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          SRC="$PROJECT_DIR/../server/web/hands"
+          DST="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/web"
+          mkdir -p "$DST/hands" "$DST/vendor"
+          rsync -a --delete "$PROJECT_DIR/Vendor/" "$DST/vendor/"
+          # each file with the ETag the Roomie server (aiohttp) gives it, so the app can tell when the server's copy changed
+          /usr/bin/python3 - "$SRC" "$DST" <<'EOF'
+          import json, os, shutil, sys
+          src, dst = sys.argv[1], sys.argv[2]
+          out = {}
+          for f in ("hand_r.glb", "hand_l.glb", "hand_r_lo.glb", "handkit_wasm_bg.wasm", "ring.bin"):
+              p = os.path.join(src, f)
+              if os.path.exists(p):
+                  st = os.stat(p)
+                  shutil.copyfile(p, os.path.join(dst, "hands", f))
+                  out["/hands/" + f] = '"%x-%x"' % (st.st_mtime_ns, st.st_size)
+          json.dump(out, open(os.path.join(dst, "manifest.json"), "w"), indent=1)
+          EOF
+    settings:
+      base:
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        PRODUCT_BUNDLE_IDENTIFIER: com.jtobin.roomie
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO

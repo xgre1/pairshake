@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Roomie</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Finds your person's phone nearby, even when the Wi-Fi is bad.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Helps point you toward your person more precisely.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Roomie talks to the Roomie server on this network.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Shows you and your person which way to walk when Ultra Wideband can't reach.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Emma listens while you answer her questions.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Counts your steps toward your person.</string>
+	<key>NSNearbyInteractionUsageDescription</key>
+	<string>Points you toward your person when you both agree to meet.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Your answers become text so Emma can find your person.</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>
