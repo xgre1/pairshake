@@ -31,7 +31,7 @@ A `mission` is `{id, intro, overlap, person, outcome}`. `overlap` holds `rare` (
 | --- | --- | --- | --- |
 | GET | `/talk` | `?mid&id` | The two agents' opening exchange: `{turns, fit, why, ask, ...}`. |
 | POST | `/suggest` | `{id, mission}` | `{ideas}`. Follow-up questions for the chat. |
-| GET | `/me` | `?id` | `{me, socials, contacts, email, name}`. What Emma remembers and everyone you've met. |
+| GET | `/me` | `?id` | `{me, socials, contacts, email, name}`. What Emma remembers and everyone you've met. Each contact has `outcome` (both said yes), `found` (when you found each other, unix seconds, or null) and `after` (your own rating, or null). |
 | GET | `/room` | | `{stats, people, intros}`. Numbers for the room. |
 
 ## Account and profile
@@ -57,12 +57,16 @@ From the server:
 
 | `t` | Fields | Meaning |
 | --- | --- | --- |
-| `state` | `you, chat, decided, meet, online` | Sent on connect. `meet` is `true` or `false` once both have decided, or one said no. |
+| `state` | `you, chat, decided, meet, found, after, online` | Sent on connect. `meet` is `true` or `false` once both have decided, or one said no. `found` is `{at, by, how}` once the two found each other. `after` is your own rating. |
 | `chat` | `from, text` | A message from the other side. |
 | `typing` | | The other side (or Emma playing a seed person) is typing. |
 | `presence` | `online` | The other person joined or left. |
 | `meet` | `yes` | Both decided, or one said no. |
 | `ni` | `token` | The other iPhone's Nearby Interaction token (base64), for Ultra Wideband. |
 | `gps` | `lat, lon, acc` | The other person's filtered position, for finding by GPS. |
+| `found` | `at, by, how` | The two of you are together (`how`: `uwb`, `bluetooth`, `gps` or `tap`). Both phones stop finding. |
+| `lost` | `by` | Someone said "not with them yet" within two minutes of `found`: finding starts again. |
 
-From the page: `{t: "chat", text}`, `{t: "decide", yes}`, `{t: "ni", token}`, `{t: "gps", lat, lon, acc}`.
+From the page: `{t: "chat", text}`, `{t: "decide", yes}`, `{t: "ni", token}`, `{t: "gps", lat, lon, acc}`, `{t: "found", how}`, `{t: "lost"}`, `{t: "after", rating}` (`keep`, `good` or `no`; never sent to the other person).
+
+Locations (`gps`) are relayed only after both said yes, and neither `gps` nor `ni` once the two have found each other; the room also forgets the last ones it kept.

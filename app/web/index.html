@@ -413,6 +413,27 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .overlay.on{display:block;animation:fade .45s}
 .cover{max-width:440px;min-height:100dvh;margin:0 auto;display:flex;flex-direction:column;position:relative}
 #outcome .pair{position:fixed;opacity:.5}
+/* After "both said yes": finding, then the moment you're together, then how it went (see Met) */
+#findFound{padding:7px 13px;border-radius:999px;font:600 15px/1.2 var(--sans);letter-spacing:-.015em;color:inherit;
+  background:rgba(255,255,255,.15);transition:transform .25s var(--spring),background .3s,color .3s}
+#find.close #findFound{background:#fff;color:#000;transform:scale(1.08);animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.5)}50%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
+#findPaused{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:0 40px;text-align:center;background:rgba(18,18,18,.94);color:#fff}
+#find.paused #findPaused{display:flex}
+#findPaused .primary{width:auto;padding:14px 28px;margin-top:10px}
+#met .pair{position:fixed;opacity:.55}
+#met .faces .av{box-shadow:0 0 0 3px #fff,0 10px 30px rgba(0,0,0,.14);transition:transform .9s var(--spring)}
+#met .faces.apart .av:first-child{transform:translateX(-70px) rotate(-6deg)} #met .faces.apart .av:last-child{transform:translateX(70px) rotate(6deg)}
+.met-body{position:relative;display:flex;flex-direction:column;gap:18px;padding:calc(40px + var(--safeT)) var(--gut) 0}
+.met-off{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--sec);letter-spacing:-.006em}
+.met-off i{width:7px;height:7px;border-radius:50%;background:var(--ter);font-style:normal}
+.met-card{background:var(--mat);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.met-card .k{font-size:13px;color:var(--sec);letter-spacing:-.006em;display:flex;justify-content:space-between}
+.met-card .q{font-family:var(--serif);font-size:21px;line-height:1.3;animation:fade .4s}
+.met-card button{align-self:flex-start;font-size:15px;font-weight:600;margin-top:6px;color:var(--fg)}
+.met-rate{display:flex;flex-direction:column;gap:10px}
+.met-rate .primary{align-items:flex-start;text-align:left;padding:15px 20px}
 .findcard{display:flex;flex-direction:column;gap:14px;padding:18px;width:100%;text-align:left;border-radius:var(--r);
   background:var(--mat);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
 .mini{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--fill2);font-size:26px;font-weight:700}
@@ -826,6 +847,9 @@ body:not(.in-app) .app-only{display:none!important}
 
 <button class="banner" id="banner"></button>
 <div class="err" id="err"></div>
+
+<!-- Together: the moment the two of you found each other, what to talk about, then how it went -->
+<div class="overlay" id="met"><div class="cover" id="metBody"></div></div>
 
 <script>
 /* ---------------------------------------------------------------- utils */
@@ -1858,7 +1882,7 @@ const Tabs = {
       $(box).querySelectorAll(".prow").forEach(b => b.onclick = () => openChat(S.contacts[b.dataset.i]));
     };
     // (the last message when you've written to each other, else what they do)
-    fill("#tpList", "#tpEmpty", (S.contacts || []).map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
+    fill("#tpList", "#tpEmpty", (S.contacts || []).map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.found ? `<span class="yes">Met</span>` : c.outcome ? `<span class="yes">Said yes</span>` : "")));
   },
 };
 document.addEventListener("screen", () => Tabs.sync());
@@ -1937,7 +1961,7 @@ const About = {
         (me.role ? `<p class="role">${esc(me.role)}</p>` : "") +
         (me.line ? `<p class="serif you-line">${esc(me.line)}</p>` : "") +
         (me.hooks?.length ? `<div class="you-tags">${me.hooks.map(h => `<span>${esc(h)}</span>`).join("")}</div>` : "") + `</div>` +
-      `<div class="group you-stats"><div><b>${c.length}</b><span>Introduced</span></div><div><b>${c.filter(x => x.outcome).length}</b><span>Met</span></div><div><b>${sent}</b><span>Messages sent</span></div></div>` +
+      `<div class="group you-stats"><div><b>${c.length}</b><span>Introduced</span></div><div><b>${c.filter(x => x.found).length}</b><span>Met</span></div><div><b>${sent}</b><span>Messages sent</span></div></div>` +
       `<p class="s-h">Emma is looking for</p><div class="group you-need serif">${esc((me.needs || "Someone worth meeting").replace(/[.\s]+$/, ""))}</div>` +
       (facts.length ? `<p class="s-h">About you</p><div class="group">${facts.map(([k, v]) => `<div class="row you-fact"><span class="k">${k}</span><span>${esc(v)}</span></div>`).join("")}</div>` : "") +
       `<p class="s-h">Where people can follow you</p><div class="group">` +
@@ -2220,12 +2244,12 @@ $("#pForm").onsubmit = e => {                                       // write her
 };
 
 /* ---------------------------------------------------------------- 5. the room */
-const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, rung: 0, mission: null, from: "intro", queue: null, direct: false };
+const Room = { ws: null, you: "a", chat: [], decided: false, meet: null, found: null, after: null, rung: 0, mission: null, from: "intro", queue: null, direct: false };
 const openChat = c => openRoom(c, {chat: true});                    // a person in your list: straight to your messages
 const outcomesSeen = new Set((kept("pairshake.outcomes") || "").split(",").filter(Boolean));
 function openRoom(m, opts = {}) {
   Room.mission = m; Room.chat = m.chat ? [...m.chat] : [];   // what we have, until the room says more
-  if (m.you) Room.you = m.you; Room.rung = 0; Room.decided = false; Room.meet = null; Room.queue = opts.send || null;
+  if (m.you) Room.you = m.you; Room.rung = 0; Room.decided = false; Room.meet = null; Room.found = null; Room.after = null; Room.queue = opts.send || null;
   Room.from = {intro: "intro", person: "person", tabPeople: "people"}[document.body.dataset.screen] || "home";
   Room.direct = !!opts.chat;
   const p = m.person, me = S.result?.me || S.me, o = m.overlap;
@@ -2276,16 +2300,22 @@ function connect(m) {
     const d = JSON.parse(e.data);
     if (d.t === "state") {
       Room.you = d.you; Room.chat = d.chat; Room.decided = d.decided; Room.meet = d.meet; presence(d.online);
+      Room.after = d.after;
+      if (d.found) onFound(d.found);                       // (found while this phone was away: it stops too)
+      else { Room.found = null; if (Find.foundOffline === m.id) foundNow(Find.foundHow); }   // a tap that didn't reach the room
+      syncFind();
       if (Room.queue) {                                    // the message written on their profile
         ws.send(JSON.stringify({t: "chat", text: Room.queue})); Room.chat.push({from: Room.you, text: Room.queue}); Room.queue = null;
       }
       renderChat();
-      if (d.meet != null && !outcomesSeen.has(m.id)) outcome(d.meet);   // only the first time you hear it
+      if (d.meet != null && !d.found && !outcomesSeen.has(m.id)) outcome(d.meet);   // only the first time you hear it
     }
     else if (d.t === "chat") { Room.typing = false; Room.chat.push({from: d.from, text: d.text}); renderChat(); if (d.from !== Room.you) followUps(); }
     else if (d.t === "typing") { Room.typing = true; $("#presence").textContent = "typing…"; renderChat(); }
     else if (d.t === "presence") presence(d.online);
     else if (d.t === "meet") { Room.meet = d.yes; outcome(d.yes); }
+    else if (d.t === "found") onFound(d);
+    else if (d.t === "lost") onLost(d);
     else if (d.t === "gps") peerFix(d);
     else if (d.t === "ni") APP?.post({t: "ni", token: d.token});   // the other iPhone's Ultra Wideband token
   };
@@ -2304,8 +2334,12 @@ function renderChat() {
   el.innerHTML = html; el.scrollTop = el.scrollHeight;
   el.querySelectorAll("[data-op]").forEach(b => b.onclick = () => { $("#chatInput").value = Room.mission.overlap.rare[b.dataset.op].opener; $("#chatSend").disabled = false; $("#chatInput").focus(); });
   if (!Room.typing) presence(true);
-  $("#meetBtn").textContent = Room.decided ? "Waiting…" : "Meet?"; $("#meetBtn").disabled = Room.decided;
-  $("#meetBtn").classList.toggle("can", Room.meet == null);
+  // one next step at a time: Meet?, then Find them, then How was it?
+  const step = Room.meet == null ? "meet" : Room.meet && !Room.found ? "find" : Room.found && !Room.after ? "after" : null;
+  $("#meetBtn").dataset.step = step || "";
+  $("#meetBtn").textContent = step === "find" ? `Find ${first(p)}` : step === "after" ? "How was it?" : Room.decided ? "Waiting…" : "Meet?";
+  $("#meetBtn").disabled = step === "meet" && Room.decided;
+  $("#meetBtn").classList.toggle("can", !!step);
   renderSuggest();
 }
 function renderSuggest(ideas, loading) {
@@ -2333,7 +2367,12 @@ $("#chatForm").onsubmit = e => {
 };
 
 /* ---------------------------------------------------------------- 6. deciding, outcome, finding */
-$("#meetBtn").onclick = () => $("#meetScrim").classList.add("on");
+$("#meetBtn").onclick = () => {
+  const step = $("#meetBtn").dataset.step;
+  if (step === "find") return findOpen(Room.mission.person);
+  if (step === "after") return Met.open("after");
+  $("#meetScrim").classList.add("on");
+};
 $("#meetScrim").onclick = e => { if (e.target.id === "meetScrim") $("#meetScrim").classList.remove("on"); };
 function decide(yes) { $("#meetScrim").classList.remove("on"); Room.decided = true; Room.ws.send(JSON.stringify({t: "decide", yes})); renderChat(); }
 $("#yesBtn").onclick = () => decide(true);
@@ -2361,7 +2400,7 @@ function outcome(yes) {
     <div class="dock"><button class="primary" id="doneBtn">Done</button></div>`;
   $("#outcome").classList.add("on");
   buzz(yes ? [60, 40, 60] : 80, yes ? "success" : "warning");
-  if (yes) { startFind(p); setTimeout(draw); socialRows(p, "#outSocials"); $("#findBtn").onclick = $("#findCard").onclick = () => findOpen(p); Voice.say(`You both said yes. ${first(p)} is ${p.spot}`); }
+  if (yes) { syncFind(); setTimeout(draw); socialRows(p, "#outSocials"); $("#findBtn").onclick = $("#findCard").onclick = () => findOpen(p); Voice.say(`You both said yes. ${first(p)} is ${p.spot}`); }
   $("#doneBtn").onclick = () => $("#outcome").classList.remove("on");
 }
 
@@ -2444,11 +2483,76 @@ function orient(e, absolute) {
   draw();
 }
 
+/* When finding runs. Every sensor (Ultra Wideband, the camera that assists it, Bluetooth, motion, GPS) is on
+   only while you're looking at "you both said yes" or at the finding screen, the two of you haven't found each
+   other yet, and the app is in front. Anything else turns all of it off at once; coming back turns it on
+   again. After 15 minutes it pauses by itself until you ask for more. */
+function wantFind() {
+  return !!Room.mission && Room.meet === true && !Room.found && !Find.paused && !Find.away && document.visibilityState !== "hidden" &&
+    ($("#find").classList.contains("on") || ($("#outcome").classList.contains("on") && !!$("#findCard")));
+}
+function syncFind() {
+  if (wantFind()) { if (!Find.running) startFind(Room.mission.person); }
+  else stopFind();
+}
+function stopFind() {
+  if (!Find.running) return;
+  Find.running = false;
+  if (Find.hwRoom) { APP?.post({t: "find", stop: true}); Find.hwRoom = null; }
+  if (Find.watch != null) { navigator.geolocation.clearWatch(Find.watch); Find.watch = null; }
+  clearTimeout(Find.cap);
+  Find.hw = null; Find.me = null; Find.peer = null; Find.nearHow = null;    // nothing about where anyone is stays behind
+  $("#find").classList.remove("close", "live");
+}
 function startFind(p) {
-  Find.person = p;
+  if (Find.person?.id !== p.id) { Find.fake = null; Find.t0 = Date.now(); Find.paused = null; }
+  Find.person = p; Find.running = true;
+  clearTimeout(Find.cap);
+  Find.cap = setTimeout(() => { Find.paused = "time"; $("#find").classList.add("paused"); syncFind(); draw(); }, 15 * 60e3);
   if (APP && !p.seed && Room.mission && Find.hwRoom !== Room.mission.id) { Find.hwRoom = Room.mission.id; APP.post({t: "find", room: Room.mission.id}); }
   if (Find.watch == null && navigator.geolocation)
-    Find.watch = navigator.geolocation.watchPosition(gpsFix, () => draw(), { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    Find.watch = navigator.geolocation.watchPosition(pos => { gpsFix(pos); closeCheck(); }, () => draw(), { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+
+/* Have they found each other? Ultra Wideband within arm's reach (1.5 m, and still under 2 m) for 2 seconds is
+   proof enough: both phones are told and everything stops. Bluetooth and GPS are too rough to decide, so when
+   they say you're close the Found button lights up and you tap it. The button is always there either way. */
+function closeCheck() {
+  if (!Find.running || Room.found) return;
+  const h = radio(), now = Date.now();
+  let how = null;
+  if (h?.mode === "uwb" && h.d <= (Find.nearHow === "uwb" ? 2 : 1.5)) how = "uwb";
+  else if (h?.mode === "bluetooth" && h.d <= 1.2) how = "bluetooth";
+  else if (!h) {
+    const m = Find.me, t = target();
+    if (m && t) { const q = enu(m, t.lat, t.lon); if (Math.hypot(q.x, q.y) <= Math.max(6, Math.sqrt(m.v + t.acc * t.acc))) how = "gps"; }
+  }
+  if (how !== Find.nearHow) { Find.nearHow = how; Find.nearSince = now; }
+  const held = how ? now - Find.nearSince : 0;
+  const close = !!how && held > (how === "uwb" ? 500 : 2500);
+  if (close && !$("#find").classList.contains("close")) buzz(40, "light");
+  $("#find").classList.toggle("close", close);
+  if (how === "uwb" && held >= 2000) foundNow("uwb");
+}
+function foundNow(how) {
+  const m = Room.mission; if (!m || Room.found) return;
+  if (Room.ws?.readyState === 1) { Room.ws.send(JSON.stringify({t: "found", how})); Find.foundOffline = null; }
+  else { Find.foundOffline = m.id; Find.foundHow = how; }      // sent when the room is back
+  onFound({at: Date.now() / 1000, by: Room.you, how});
+}
+function onFound(f) {
+  const fresh = !Room.found;
+  Room.found = f; syncFind();                                     // every sensor off, now
+  if (!fresh) return;
+  const watching = ["find", "outcome"].some(id => $("#" + id).classList.contains("on"));
+  $("#find").classList.remove("on", "close", "paused"); Find.open = false; $("#outcome").classList.remove("on");
+  if (watching || $("#room").classList.contains("on")) Met.open("found");
+  if (document.body.dataset.screen === "room") renderChat();
+}
+function onLost(d) {
+  Room.found = null; Room.after = null; Met.close();
+  if (d.by !== Room.you) oops(`${first(Room.mission.person)} says you haven't found each other yet.`);
+  findOpen(Room.mission.person);
 }
 function peerFix(d) { Find.peer = { lat: d.lat, lon: d.lon, acc: d.acc || 30, t: Date.now() }; draw(); }
 
@@ -2460,7 +2564,9 @@ function target() { return Find.person?.seed ? Find.fake : (Find.peer && Date.no
    radio range) GPS takes over as below. */
 if (APP) {
   APP.onToken = tok => { if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify({t: "ni", token: tok})); };
-  APP.onFix = f => { Find.hw = {...f, t: Date.now()}; draw(); };
+  APP.onFix = f => { if (!Find.running) return; Find.hw = {...f, t: Date.now()}; draw(); closeCheck(); };
+  APP.onBackground = () => { Find.away = true; syncFind(); };       // (the app has already turned the radios off)
+  APP.onForeground = () => { Find.away = false; syncFind(); };
 }
 const COACH = { turn: "Hold your phone up and turn slowly until the arrow appears",
                 sweep: "Hold your phone up and move it slowly from side to side", tilt: "Tilt your phone up and down a little",
@@ -2517,14 +2623,97 @@ addEventListener("deviceorientation", e => orient(e, false));
 addEventListener("deviceorientationabsolute", e => orient(e, true));
 
 async function findOpen(p) {
-  startFind(p);
+  if (Room.found) return Met.open("found");                       // together already: nothing to find
+  $("#find").classList.toggle("paused", !!Find.paused);
   $("#find").style.setProperty("--c", p.color);
   $("#findAv").innerHTML = av(p, 40); $("#findName").textContent = first(p); $("#findSpot").textContent = p.spot;
-  Find.open = true; $("#find").classList.add("on");
+  Find.open = true; $("#find").classList.add("on"); syncFind();      // (the sensors start here)
   try { if (DeviceOrientationEvent?.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {}
   draw();
 }
 $("#findClose").onclick = () => { Find.open = false; $("#find").classList.remove("on"); };
+
+/* After finding: the two of you are together. Nothing is tracked any more, and the screen says so.
+   1. found: your faces come together, a two-minute mission and a question to start with (light, real, deep).
+      "Not with them yet?" undoes it for two minutes (a tap by mistake, or walking past each other).
+   2. after: how was it? Only Emma sees the answer; it helps her find your next person. "Stay in touch" puts
+      their handles right there.
+   3. Find someone new, or go home. */
+const Met = {
+  step: null, rung: 0,
+  open(step) {
+    this.step = step; this.rung = 0;
+    this.render(); $("#met").classList.add("on"); $("#met").scrollTop = 0;
+    if (step === "found") {
+      buzz([40, 60, 40, 60, 120], "success");
+      requestAnimationFrame(() => setTimeout(() => $("#metFaces")?.classList.remove("apart"), 120));
+      Voice.say("There you are.");
+    }
+  },
+  close() { $("#met").classList.remove("on"); this.step = null; },
+  render() {
+    const m = Room.mission, p = m.person, me = S.result?.me || S.me, o = m.overlap || {}, f = Room.found;
+    const pair = `<div class="pair" style="--a:${esc(me?.color || "#B9A7FF")};--b:${esc(p.color)}"></div>`;
+    const faces = `<div class="faces${this.step === "found" ? " apart" : ""}" id="metFaces" style="align-self:flex-start">${me ? av(me, 84) : ""}${av(p, 84)}</div>`;
+    const off = `<span class="met-off"><i></i>Location, camera and radio are off</span>`;
+    let body, dock;
+    if (this.step === "found") {
+      const lad = (o.ladder || []).filter(Boolean), q = lad[this.rung] || "", rungs = ["Light", "Real", "Deep"];
+      const undo = f && Date.now() / 1000 - f.at < 120;
+      body = `${faces}<h2 class="serif" style="font-size:40px;line-height:1.1">You found ${esc(first(p))}.</h2>${off}` +
+        (o.mission ? `<div class="met-card"><span class="k">Your two-minute mission</span><span class="q">${esc(o.mission)}</span></div>` : "") +
+        (q ? `<div class="met-card"><span class="k"><span>Start with</span><span>${rungs[this.rung] || ""}</span></span><span class="q" id="metQ">${esc(q)}</span>` +
+             (lad.length > 1 ? `<button id="metNext">${this.rung < lad.length - 1 ? "Next question ↘" : "Back to the first"}</button>` : "") + `</div>` : "");
+      dock = `<button class="primary" id="metDone">Done talking</button>` + (undo ? `<button class="plainbtn" id="metUndo">Not with ${esc(first(p))} yet? Keep looking</button>` : "");
+    } else if (this.step === "after") {
+      body = `${faces}<h2 class="serif" style="font-size:36px;line-height:1.12">How was ${esc(first(p))}?</h2>
+        <p class="sec">Only Emma sees this. It helps her find your next person.</p>
+        <div class="met-rate">
+          <button class="primary soft" data-r="keep">Let's stay in touch<small>Their handles, right here</small></button>
+          <button class="primary soft" data-r="good">Good to meet<small>Nice talk, nothing more</small></button>
+          <button class="primary soft" data-r="no">Not really my person<small>Emma will look elsewhere next time</small></button>
+        </div>`;
+      dock = `<button class="plainbtn" id="metSkip">Skip</button>`;
+    } else {
+      const keep = Room.after === "keep";
+      body = `${faces}<h2 class="serif" style="font-size:36px;line-height:1.12">${keep ? `Stay in touch with ${esc(first(p))}.` : "Thanks. Emma's on it."}</h2>` +
+        (keep ? `<div class="group" id="metSocials" style="background:var(--mat)"></div>` : `<p class="sec" style="font-size:19px">Whenever you're ready, she'll find you someone new.</p>`);
+      dock = `<button class="primary" id="metAgain">Find someone new</button><button class="plainbtn" id="metHome">Back home</button>`;
+    }
+    $("#metBody").innerHTML = `${pair}<div class="met-body">${body}</div><div class="dock" style="background:none">${dock}</div>`;
+    if (this.step === "end" && Room.after === "keep") {
+      socialRows(p, "#metSocials");
+      if (!$("#metSocials").innerHTML.trim()) $("#metSocials").outerHTML = `<p class="sec" style="font-size:19px">${esc(first(p))} hasn't added any handles yet. You'll find them under People.</p>`;
+    }
+    $("#metNext") && ($("#metNext").onclick = () => { const n = (o.ladder || []).filter(Boolean).length; this.rung = (this.rung + 1) % n; this.render(); });
+    $("#metDone") && ($("#metDone").onclick = () => { this.step = "after"; this.render(); $("#met").scrollTop = 0; });
+    $("#metUndo") && ($("#metUndo").onclick = () => { if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify({t: "lost"})); onLost({by: Room.you}); });
+    $("#met").querySelectorAll("[data-r]").forEach(b => b.onclick = () => {
+      Room.after = b.dataset.r;
+      if (Room.ws?.readyState === 1) Room.ws.send(JSON.stringify({t: "after", rating: Room.after}));
+      this.step = "end"; this.render(); renderChat();
+    });
+    $("#metSkip") && ($("#metSkip").onclick = () => { this.step = "end"; this.render(); });
+    $("#metHome") && ($("#metHome").onclick = async () => { this.close(); await $("#roomClose").onclick(); goHome(); });
+    $("#metAgain") && ($("#metAgain").onclick = async () => { this.close(); await $("#roomClose").onclick(); $("#againBtn").onclick(); });
+  },
+};
+
+/* the found button and the paused notice live on the finding screen */
+(() => {
+  const b = document.createElement("button"); b.id = "findFound"; b.textContent = "Found";
+  b.onclick = () => foundNow(Find.nearHow || "tap");
+  $("#findClose").before(b);
+  const pz = document.createElement("div"); pz.id = "findPaused";
+  pz.innerHTML = `<div class="serif" style="font-size:30px;line-height:1.15">Paused to save your battery</div>
+    <p style="opacity:.6">Finding stops by itself after 15 minutes.</p><button class="primary" id="findResume" style="background:#fff;color:#000">Keep looking</button>
+    <button class="plainbtn" id="findPausedClose" style="color:#fff;opacity:.6">Close</button>`;
+  $("#find").appendChild(pz);
+  $("#findPausedClose").onclick = () => $("#findClose").onclick();
+  $("#findResume").onclick = () => { Find.paused = null; $("#find").classList.remove("paused"); syncFind(); draw(); };
+  for (const id of ["find", "outcome"]) new MutationObserver(() => syncFind()).observe($("#" + id), {attributes: true, attributeFilter: ["class"]});
+  document.addEventListener("visibilitychange", () => syncFind());
+})();
 
 /* ---------------------------------------------------------------- someone matched with you */
 let inboxOn = false;

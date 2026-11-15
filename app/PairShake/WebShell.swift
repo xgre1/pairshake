@@ -115,8 +115,19 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.settle() }
         }
+        // In the background iOS suspends Ultra Wideband and the camera anyway: everything goes off, and the page
+        // starts it again when it is on screen and still looking.
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.stopFinding("in the background")
+                self?.js("window.PairShakeApp && PairShakeApp.onBackground && PairShakeApp.onBackground()")
+            }
+        }
         NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.note("back in front"); self?.local.restart() }
+            MainActor.assumeIsolated {
+                self?.note("back in front"); self?.local.restart()
+                self?.js("window.PairShakeApp && PairShakeApp.onForeground && PairShakeApp.onForeground()")
+            }
         }
     }
 
@@ -243,8 +254,9 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let d = message.body as? [String: Any], let t = d["t"] as? String else { return }
         switch t {
-        case "find":                                        // both said yes: start the radios
-            if let room = d["room"] as? String { startFinding(room: room) }
+        case "find":                                        // both said yes: start the radios; or stop them
+            if d["stop"] as? Bool == true { stopFinding("the page") }
+            else if let room = d["room"] as? String { startFinding(room: room) }
         case "ni":                                          // the other iPhone's UWB token, relayed by the server
             if let s = d["token"] as? String, let data = Data(base64Encoded: s) { finderFor(nil).received(data) }
         case "geo":
@@ -315,6 +327,17 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         pushTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.pushFix() }
         }
+    }
+
+    /// Every sensor finding uses goes off: Ultra Wideband, the camera camera assistance runs, Bluetooth, motion.
+    /// The page asks for it once the two of them are together, or when nobody is looking at the finding screens.
+    /// The Finder keeps the other phone's token, so finding again later starts at once.
+    private func stopFinding(_ why: String) {
+        guard pushTimer != nil else { return }
+        finder?.stop()
+        pushTimer?.invalidate(); pushTimer = nil
+        lastFix = ""
+        note("finding stopped: \(why)")
     }
 
     /// What the radios say, 15 times a second (or once a second if nothing changed, so the page knows it's live).
@@ -425,7 +448,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.pairshake.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.PairShakeApp = {
-        native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null,
+        native: true, tabs: true, linkedin: true, post, onTab: null, onBackground: null, onForeground: null, onFix: null, onToken: null, onLogin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {

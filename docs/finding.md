@@ -30,6 +30,34 @@ In `app/web/index.html` (`Find`):
 - **Pointing.** The gyroscope gives smooth, fast turning; the compass only slowly corrects its drift, and a sudden compass jump (a laptop, a steel beam) is ignored unless it lasts 2.5 seconds. While you walk, your direction of travel corrects it too.
 - Both phones share their filtered position over the room's WebSocket.
 
+## When finding runs, and when it stops
+
+Every sensor finding uses (Ultra Wideband, the camera that assists it, Bluetooth, motion, GPS) is on only while all of these are true:
+
+- the "You both said yes" screen or the finding screen is on screen,
+- the two of you haven't found each other yet,
+- the app is in front (in the background the app turns everything off itself, and starts again when you come back),
+- it hasn't been 15 minutes; then it pauses until you tap Keep looking.
+
+Closing either screen turns everything off at once (`{t: "find", stop: true}` to the app, and the GPS watch is cleared). The page also forgets both positions.
+
+## Have you found each other?
+
+- **Ultra Wideband within 1.5 metres for 2 seconds** decides it by itself (it holds while the distance stays under 2 metres, so one reading can't break it). Both phones hear `found` at the same moment and stop.
+- **Bluetooth (under about 1.2 metres) or GPS (closer than its own error, at least 6 metres)** is too rough to decide: the Found button at the top of the finding screen lights up and pulses, and you tap it.
+- **The Found button is always there**, for a demo attendee or when the radios can't tell.
+- **"Not with them yet? Keep looking"** undoes it for two minutes, for a tap by mistake or two people walking past each other.
+
+Once found, the room never relays a location or a radio token again.
+
+## After you find each other
+
+1. **You found them.** Your faces come together, and the screen says that location, camera and radio are off. Then the two-minute mission Emma wrote for the two of you, and a question to start with: light, then real, then deep.
+2. **How was it?** Stay in touch, good to meet, or not really my person. Only Emma sees the answer (it is never sent to the other person); it is kept on the introduction for her next match.
+3. **Stay in touch** shows their handles with Follow. Then Find someone new, or go home.
+
+In the room, the button at the top follows the same steps: Meet?, then Find them, then How was it?. Under People, someone you found shows Met, someone who only said yes shows Said yes.
+
 ## What testing taught us
 
 - **Camera assistance on its own fails at night.** With it always on, one phone received 55 Ultra Wideband readings a second at 1.5 metres and not one direction: the camera never had enough light. That is why plain Ultra Wideband comes first.

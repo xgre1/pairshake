@@ -79,7 +79,7 @@ export class PairShake extends DurableObject {
     super(ctx, env);
     this.users = {};          // id -> {id, name, transcript[], profile{}, socials{}, code, color, match, inbox[]}
     this.missions = {};       // mission id -> {...}
-    this.stats = { spoke: 0, intros: 0, met: 0 };
+    this.stats = { spoke: 0, intros: 0, met: 0, found: 0 };
     this.written = new Map(); // "u:<id>", "m:<id>", "meta:stats" -> the JSON last written to D1
     this.pending = new Map(); // user id -> the match being worked out
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
@@ -548,6 +548,7 @@ export class PairShake extends DurableObject {
     return {
       id: mid, intro: mine ? m.intro_a : m.intro_b, overlap: overlapFor(m.overlap || cleanOverlap({}), mine),
       person: this.person(mine ? m.b : m.a), outcome: m.outcome ?? null,
+      found: m.found ? m.found.at : null, after: m.after?.[mine ? "a" : "b"] || null,
     };
   }
 
@@ -763,7 +764,8 @@ export class PairShake extends DurableObject {
 
   snapshot(mid, role) {
     const { m, bot } = this.roomFor(mid);
-    return { t: "state", you: role, chat: m.chat, decided: role in m.decide, meet: m.outcome ?? null, online: this.sockets(mid, other(role)).length > 0 || !!bot };
+    return { t: "state", you: role, chat: m.chat, decided: role in m.decide, meet: m.outcome ?? null, found: m.found || null,
+             after: m.after?.[role] || null, online: this.sockets(mid, other(role)).length > 0 || !!bot };
   }
 
   decide(mid, role, yes) {
@@ -778,6 +780,31 @@ export class PairShake extends DurableObject {
     this.save();
   }
 
+  /* The two of them are together. Either phone can say so: its radio measured them within arm's reach, or
+     someone tapped "Found". Both phones hear it at once and stop every sensor, and from here the room never
+     relays a location or a radio token again. */
+  found(mid, role, how) {
+    const { m, R } = this.roomFor(mid);
+    if (!m.outcome || m.found) return;
+    m.found = { at: now(), by: role, how: ["uwb", "bluetooth", "gps", "tap"].includes(how) ? how : "tap" };
+    R.gps = {};
+    delete m.ni;
+    this.stats.found++;
+    this.save();
+    this.broadcast(mid, { t: "found", ...m.found });
+  }
+
+  /** "Not with them yet": a found that came too early (a tap by mistake, or two people walking past), within two minutes. */
+  lost(mid, role) {
+    const { m } = this.roomFor(mid);
+    if (!m.found || now() - m.found.at > 120) return;
+    m.found = null;
+    if (m.after) delete m.after;
+    this.stats.found = Math.max(0, this.stats.found - 1);
+    this.save();
+    this.broadcast(mid, { t: "lost", by: role });
+  }
+
   openSocket(q) {
     const mid = q.get("mission"), uid = q.get("id");
     const m = this.missions[mid];
@@ -790,8 +817,10 @@ export class PairShake extends DurableObject {
     const { R } = this.roomFor(mid);
     server.send(JSON.stringify(this.snapshot(mid, role)));
     const o = other(role);
-    if (m.ni?.[o]) server.send(JSON.stringify({ t: "ni", token: m.ni[o] }));   // the other phone's token, if sent before
-    if (R.gps[o]) server.send(JSON.stringify(R.gps[o]));                       // the other person's last known location
+    if (!m.found) {                    // still looking: the other phone's token and last known location, if sent before
+      if (m.ni?.[o]) server.send(JSON.stringify({ t: "ni", token: m.ni[o] }));
+      if (R.gps[o]) server.send(JSON.stringify(R.gps[o]));
+    }
     this.broadcast(mid, { t: "presence", online: true }, role);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -810,6 +839,8 @@ export class PairShake extends DurableObject {
       this.save();
       this.broadcast(mid, { t: "chat", from: role, text }, role);
       if (bot) this.botReply(mid);
+    } else if ((d.t === "ni" && m.found) || (d.t === "gps" && (m.found || !m.outcome))) {
+      return;                          // locations only between two people who both said yes, and nothing once they're together
     } else if (d.t === "ni") {         // Nearby Interaction token: relayed so the two iPhones can find each other
       const token = String(d.token ?? "").slice(0, 4000);
       (m.ni ||= {})[role] = token;
@@ -824,6 +855,14 @@ export class PairShake extends DurableObject {
       const yes = !!d.yes;
       if (bot && yes) sleep(2500).then(() => this.decide(mid, "b", true));
       this.decide(mid, role, yes);
+    } else if (d.t === "found") {
+      this.found(mid, role, d.how);
+    } else if (d.t === "lost") {
+      this.lost(mid, role);
+    } else if (d.t === "after") {      // how it went, private: never shown to the other person
+      if (!m.found || !["keep", "good", "no"].includes(d.rating)) return;
+      (m.after ||= {})[role] = d.rating;
+      this.save();
     }
   }
 
