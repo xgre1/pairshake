@@ -6,6 +6,9 @@ const LUMA = "https://api.lu.ma";
 const TTL = 5 * 60 * 1000;
 const cache = new Map();        // url -> {at, data}
 const known = new Map();        // event id -> the event, as last found
+// Events Luma's own search never shows (a host can keep a public event off Luma's discover pages, as the Gen AI
+// Summit Hackathon is). Always found here by name, and listed near the top while they're on. Add a link's slug to pin one.
+export const PINNED = ["x1wxi5sn"];
 
 async function luma(path) {
   const url = LUMA + path, hit = cache.get(url);
@@ -37,6 +40,29 @@ function slugOf(q) {
   const m = q.match(/^(?:https?:\/\/)?(?:www\.)?(?:lu\.ma|luma\.com)\/(?:event\/)?([\w-]{3,80})\/?(?:[?#].*)?$/i);
   return m ? m[1] : null;
 }
+
+/** One event by its link's slug (cached), or null. */
+export async function bySlug(slug) {
+  const d = await luma(`/url?url=${encodeURIComponent(slug)}`).catch(() => null);
+  const ev = d && d.kind === "event" && clean(d.data?.event, d.data);
+  if (ev) remember(ev);
+  return ev || null;
+}
+
+/** Still on, or ended in the last few hours. */
+export const live = e => !e.end || Date.parse(e.end) > Date.now() - 6 * 3600 * 1000;
+
+/** Whether a search could mean this event: any of its words (2+ letters) in the name or city, spaces ignored
+    ("genai" finds "Gen AI"). Loose on purpose: it only runs over the handful of events kept here. Empty matches all. */
+export function named(e, q) {
+  const fold = x => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const hay = fold(`${e.name} ${e.city}`).replace(/[^\p{L}\p{N}]+/gu, "");
+  const words = fold(q).split(/[^\p{L}\p{N}]+/u).filter(w => w.length >= 2);
+  return !words.length || words.some(w => hay.includes(w));
+}
+
+/** Whether a search is a pasted Luma link (then only that event is shown). */
+export const isLink = q => !!slugOf(s(q, 120));
 
 /** Events for a search (or, with none, the ones coming up near lat/lon), in Luma's order; ended ones are left out. */
 export async function find(q, lat, lon) {
