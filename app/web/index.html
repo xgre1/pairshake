@@ -97,7 +97,9 @@ body :is(.rbtn){background:var(--glass);box-shadow:var(--glass-rim),var(--glass-
 .rbtn:active{transform:scale(.96)}
 .rbtn svg{width:24px;height:24px;color:var(--fg)}
 .rbtn small{display:block;font-size:12px;font-weight:400;color:var(--sec);letter-spacing:-.006em;margin-top:-3px}
-#evPill[hidden]{display:none}
+/* in an event, the search button is that event: its cover, its name; tap to open its room */
+.rbtn .rb-cover{width:24px;height:24px;border-radius:7px;background:var(--fill2) center/cover;flex:none}
+.rbtn .rb-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .net-empty{text-align:center;padding:12px 24px;font-size:17px}
 /* networks: a grid of square cards, the + first */
 #nets{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -641,7 +643,6 @@ html.camfind body>*:not(#find){visibility:hidden}
   body.known #home{display:contents}
   body.known #wTitle{order:1;text-align:left!important;font-size:40px!important;line-height:1.1;margin:0 0 28px!important}
   body.known .rooms{order:1;padding:0;margin:-12px 0 24px}
-  body.known #evPill{order:1;align-self:flex-start;margin:0 0 24px}
   body.known .memcard{order:2}
   body.known #wFoot{order:3;position:static;margin:0;padding:16px 0 0!important;background:none}
   body.known #peopleBox{order:4;margin-top:40px}
@@ -781,8 +782,6 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <div class="rooms">
     <button class="rbtn" id="roomSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>Find your event<small>Search Luma</small></button>
   </div>
-  <!-- the Luma event they joined: back into its room -->
-  <button class="ev-pill" id="evPill" hidden></button>
   <!-- only for someone Emma already knows -->
   <div id="home">
     <button class="netlive" id="netLive" hidden></button>
@@ -862,7 +861,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
     <p class="s-h" id="erHead"></p>
     <div class="group" id="erPeople"></div>
     <p class="tab-empty" id="erEmpty" style="padding-top:12px">Nobody else yet. When others join this event, they show up here.</p>
-    <div class="group s-gap"><button class="row" id="erLuma"><span class="s-l">Open on Luma</span></button><button class="row" id="erChange"><span class="s-l">Change event</span></button><button class="row s-danger" id="erLeave">Leave this event</button></div>
+    <div class="group s-gap"><button class="row" id="erLuma"><span class="s-l">Open on Luma</span></button><button class="row s-danger" id="erLeave">Leave this event</button></div>
   </div>
   <div class="dock"><button class="primary" id="erFind">Find someone here<small>Only people at this event</small></button></div>
 </section>
@@ -2262,15 +2261,16 @@ const Ev = {
   },
   sub(e) { return [this.when(e), e.city].filter(Boolean).join(" · "); },
   img: e => e?.cover ? `background-image:url(${esc(e.cover)})` : "",
+  // the button under the hands: Find your event, or (once you've joined one) that event, which opens its room
   pill() {
-    const e = S.event, el = $("#evPill");
-    el.hidden = !e;
-    el.innerHTML = e
-      ? `<span class="ev-dot" style="${this.img(e)}"></span><span class="ev-t">${esc(e.name)}</span>${this.CH}`
-      : `<span class="ev-dot"><svg width="13" height="13" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="ev-t">Choose your event</span>${this.CH}`;
+    const e = S.event, b = $("#roomSearch");
+    if (!b) return;
+    if (!b.dataset.search) b.dataset.search = b.innerHTML;          // the search button as written in the page
+    b.innerHTML = e ? `<span class="rb-cover" style="${this.img(e)}"></span><span class="rb-name">${esc(e.name)}</span><small>You're in this event</small>` : b.dataset.search;
   },
   // the search: nearby when empty; typing searches after a moment; a Luma link finds that one event
   open(from) {
+    if (S.event) return this.enter();                               // one event at a time: leave it to search again
     this.from = from || document.body.dataset.screen || "welcome";
     show("events");
     if (!this.list.length || this.q !== $("#evQ").value.trim()) this.search($("#evQ").value);
@@ -2338,8 +2338,7 @@ const Ev = {
   },
 };
 Ev.pill();
-$("#evPill").onclick = () => { buzz(8); S.event ? Ev.enter() : Ev.open(); };
-$("#roomSearch").onclick = () => { buzz(8); Ev.open("welcome"); };
+$("#roomSearch").onclick = () => { buzz(8); S.event ? Ev.enter() : Ev.open("welcome"); };
 $("#evBack").onclick = () => Tabs.back();
 $("#erBack").onclick = () => Tabs.back();
 $("#evQ").oninput = () => { clearTimeout(Ev.t); Ev.t = setTimeout(() => Ev.search($("#evQ").value), 350); };
@@ -2362,7 +2361,6 @@ $("#evPaste").onclick = async () => {
 };
 $("#evLinkForm").onsubmit = e => { e.preventDefault(); Ev.byLink($("#evLink").value); };
 $("#evLink").onpaste = () => setTimeout(() => Ev.byLink($("#evLink").value), 0);
-$("#erChange").onclick = () => Ev.open("event");
 $("#erLuma").onclick = () => window.open("https://lu.ma/" + encodeURIComponent(S.event.url), "_blank");
 $("#erLeave").onclick = async () => {
   try { await api("/event", {id: S.id, leave: true}); } catch { return oops("Can't reach the PairShake server."); }
