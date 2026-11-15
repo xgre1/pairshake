@@ -1,0 +1,3 @@
+aiohttp>=3.9
+# Emma's voice and ears come from her own engine (engine/tts.py, engine/stt.py), imported from
+# ~/Desktop/emma; run the server with that environment: ~/Desktop/emma/.venv/bin/python server.py

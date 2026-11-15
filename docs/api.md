@@ -1,0 +1,64 @@
+# API
+
+All endpoints are served by `server/server.py` and reached through `https://roomie.binjto.workers.dev` (or `http://localhost:8780` on the Mac). Bodies are JSON unless noted. A user is identified by the `id` the server hands out; there is no other session token.
+
+## Talking to Emma
+
+| Method | Path | Body or query | Returns |
+| --- | --- | --- | --- |
+| POST | `/start` | `{id?}` | `{id, say, code}`. A new attendee, or a returning one Emma greets with what she remembers. |
+| POST | `/turn` | `{id, text, interrupted?}` | `{say, done}`. Emma's next line; `done` means she has heard enough and matching has begun. |
+| POST | `/quick` | `{id?, text, spot?}` | `{id, code, say}`. Skips the voice chat: `text` is a description of the attendee (for example from ChatGPT). |
+| POST | `/hear` | raw 16 kHz mono int16 PCM | `{text}`. Parakeet's transcript. An empty body answers 200 if speech recognition is available. |
+| POST | `/speak` | `{text}` | `audio/wav` in Emma's voice. |
+
+## Matching
+
+| Method | Path | Body or query | Returns |
+| --- | --- | --- | --- |
+| GET | `/scan` | `?id` | `{talks: [{person, ask, reply, fit}], total}`. Your agent's conversations so far. |
+| POST | `/match` | `{id, socials}` | `{say, me, mission}`. The introduction. 409 `{cancelled: true}` if the search was stopped meanwhile. |
+| POST | `/match/cancel` | `{id}` | `{ok}`. Drops the match being worked out; nobody is introduced. |
+| POST | `/again` | `{id}` | `{ok}`. Look for someone new using what Emma already knows. |
+| POST | `/test/match` | `{id?, cancel?}` | `{waiting, me}` until a second phone asks, then `{say, me, mission}`. Two phones are introduced as made-up attendees who have both already said yes. The iPhone app's test button. |
+| GET | `/inbox` | `?id` | `{missions}`. Introductions where someone else was matched with you. |
+
+A `mission` is `{id, intro, overlap, person, outcome}`. `overlap` holds `rare` (things few people share, each with an `opener`), `you_only`, `them_only`, `give`, `get`, and `ladder` (three questions from light to deep). A `person` is `{id, name, role, color, building, needs, offers, spot, line, socials, seed?}`.
+
+## After the introduction
+
+| Method | Path | Body or query | Returns |
+| --- | --- | --- | --- |
+| GET | `/talk` | `?mid&id` | The two agents' opening exchange: `{turns, fit, why, ask, ...}`. |
+| POST | `/suggest` | `{id, mission}` | `{ideas}`. Follow-up questions for the chat. |
+| GET | `/me` | `?id` | `{me, socials, contacts, email, name}`. What Emma remembers and everyone you've met. |
+| GET | `/room` | | `{stats, people, intros}`. Numbers for the room. |
+
+## Account and profile
+
+| Method | Path | Body | Returns |
+| --- | --- | --- | --- |
+| POST | `/account` | `{action: "signup", email, password, id?}` | `{id, email}`. Adds an email and password to this device's user (or a new one). 409 if the email is taken. |
+| POST | `/account` | `{action: "login", email, password}` | `{id, email}`. 401 on a wrong password, 429 after five failures in a minute. |
+| POST | `/account` | `{action: "delete", id}` | `{ok}`. Removes the user. |
+| POST | `/profile` | `{id, name?, socials?}` | `{me, socials, name, email}`. |
+
+Errors come back as `{error}` with a sentence that can be shown to the person.
+
+## The room's WebSocket
+
+`GET /ws?mission=<id>&id=<user id>` opens the room for one introduction. Each side is `a` or `b`.
+
+From the server:
+
+| `t` | Fields | Meaning |
+| --- | --- | --- |
+| `state` | `you, chat, decided, meet, online` | Sent on connect. `meet` is `true` or `false` once both have decided. |
+| `chat` | `from, text` | A message from the other side. |
+| `typing` | | The other side (or Emma playing a seed person) is typing. |
+| `presence` | `online` | The other person joined or left. |
+| `meet` | `yes` | Both decided. |
+| `ni` | `token` | The other iPhone's Nearby Interaction token (base64), for Ultra Wideband. |
+| `gps` | `lat, lon, acc` | The other person's filtered position, for finding on the web. |
+
+From the page: `{t: "chat", text}`, `{t: "decide", yes}`, `{t: "ni", token}`, `{t: "gps", lat, lon, acc}`.

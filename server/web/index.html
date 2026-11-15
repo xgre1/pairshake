@@ -414,6 +414,18 @@ body:not(.in-app) .app-only{display:none!important}
 #acctScrim .sheet{height:auto;min-height:400px}
 #acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
 .acct-err{color:#FF3B30;min-height:18px}
+#gptScrim .sheet{height:auto;max-height:calc(100dvh - var(--safeT) - 16px);overflow-y:auto;gap:14px}
+#gptScrim .acct-err{min-height:0;margin:-6px 0}
+.gpt-open{background:var(--fill2);color:var(--fg);text-decoration:none}
+.gpt-prompt{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,monospace;color:var(--sec);background:var(--fill2);
+  border-radius:14px;padding:12px 14px;max-height:180px;overflow-y:auto;margin:2px 0 0;user-select:text;-webkit-user-select:text}
+.gpt-paste{position:relative}
+.gpt-paste textarea{display:block;width:100%;height:150px;resize:none;border:0;outline:none;border-radius:18px;
+  background:var(--fill2);color:var(--fg);font:inherit;font-size:16px;padding:12px 14px 12px}
+.gpt-paste textarea::placeholder{color:var(--ter)}
+.gpt-paste .pill{position:absolute;right:10px;bottom:10px}
+.gpt-paste.has .pill{display:none}
+#gptSpot{flex:none;font-size:16px;padding:12px 16px;background:var(--fill2);color:var(--fg)}
 </style>
 <script type="importmap">{ "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -447,7 +459,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="startBtn">Start talking</button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
+  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="startBtn">Start talking</button><button class="primary new-only" id="gptBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Let ChatGPT answer for me<small>No talking. It already knows what you're up to.</small></button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -614,6 +626,25 @@ body:not(.in-app) .app-only{display:none!important}
     <p class="foot acct-err" id="acctErr"></p>
     <div class="spacer"></div>
     <div><button class="primary" id="acctGo">Create account</button><button class="plainbtn" id="acctSwitch">I already have an account</button></div>
+  </div>
+</div>
+<!-- No talking: ChatGPT, which already knows you, answers Emma's questions -->
+<div class="scrim" id="gptScrim">
+  <div class="sheet">
+    <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT answer for you</h3>
+    <p class="sec">ChatGPT already knows what you've been working on. Ask it with our prompt, then paste its answer here.</p>
+    <div>
+      <a class="primary gpt-open" id="gptOpen" target="_blank" rel="noopener">1. Ask ChatGPT<small id="gptOpenSub">Copies the prompt and opens ChatGPT</small></a>
+      <button class="plainbtn foot" id="gptShow">See the prompt</button>
+      <pre class="gpt-prompt" id="gptPrompt" hidden></pre>
+    </div>
+    <div class="gpt-paste">
+      <textarea id="gptText" placeholder="2. Paste ChatGPT's answer here" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+      <button class="pill" id="gptPasteBtn" type="button">Paste</button>
+    </div>
+    <input class="field" id="gptSpot" placeholder="Where are you in the room? (optional)" autocomplete="off" enterkeyhint="done">
+    <p class="foot acct-err" id="gptErr"></p>
+    <button class="primary" id="gptGo" disabled>Introduce me</button>
   </div>
 </div>
 <div class="scrim" id="meetScrim">
@@ -1707,6 +1738,99 @@ $("#acctPw").onkeydown = e => { if (e.key === "Enter") Acct.go(); };
 $("#acctSwitch").onclick = () => { Acct.mode = Acct.mode === "signup" ? "login" : "signup"; Acct.render(); };
 $("#acctScrim").onclick = e => { if (e.target.id === "acctScrim") Acct.close(); };
 
+/* No talking: ChatGPT already knows most people well (its memory and their past chats), so it answers Emma's
+   questions for them. The prompt asks for exactly what the matching uses: what they're building, what they
+   need and can give (needs meet offers), their team, the rare things about them (rare shared traits are what
+   bond strangers), how they work, and who'd waste their time. Their pasted answer stands in for the voice chat. */
+const GPT_PROMPT = `I'm at the Gen AI Summit Hackathon in Athens (36 hours, teams of 1 to 5, everyone builds an AI agent that does real work). Emma, the event's matchmaker AI, introduces each person to the one attendee they should meet. Her agent talks to everyone else's agents to find the best fit, so she needs to know me well.
+
+Answer for me, using everything you know about me from your memory and our past chats.
+
+- Be concrete: real projects, real skills, things I've actually done. No flattery, no lines like "passionate about AI".
+- Only write what you actually know. If you're not sure about something, write "not sure". Never make things up.
+- Leave out anything private I wouldn't tell a stranger at a meetup (health, money, family, where I live). The person I'm matched with will read parts of this.
+- First person, short plain sentences, under 300 words in total.
+- If you know almost nothing about me, ask me 3 quick questions in one message first. Otherwise don't ask anything, just answer in exactly this format:
+
+ROOMIE PROFILE
+Name: what I go by
+Who I am: my role in a few words
+Working on right now: what has taken most of my time these last weeks, in concrete terms
+What I need most: the one or two things that would help me most this week (a kind of person, a skill, users, feedback)
+Team: solo, looking for a team, or have a team and missing someone (say who)
+What I can give: what I could really help someone with in ten minutes
+Rare things about me: 3 specific things few people here would share (an unusual past, a place, an obsession, a strong opinion, a frustration)
+My personality: how I come across and how I work (big picture or details, fast or careful, quiet or loud), and the kind of people I click with
+I could talk for an hour about: 2 or 3 topics
+Not a good match for me: who would waste my time
+In one sentence: one memorable line about me, in third person`;
+const GPT_KEY = "roomie.gptAt";          // when they went off to ChatGPT (the sheet is open again if the page reloads)
+
+function copyText(t) {
+  const ta = document.createElement("textarea");
+  ta.value = t; ta.readOnly = true; ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length);
+  try { document.execCommand("copy"); } catch {}
+  ta.remove();
+  navigator.clipboard?.writeText(t).catch(() => {});
+}
+
+const Gpt = {
+  open() {
+    $("#gptErr").textContent = ""; this.check();
+    $("#gptScrim").classList.add("on");
+  },
+  close() { document.activeElement?.blur(); $("#gptScrim").classList.remove("on"); },
+  text() { return $("#gptText").value.trim(); },
+  check() {
+    const t = this.text();
+    $("#gptText").parentElement.classList.toggle("has", !!t);
+    $("#gptGo").disabled = t.length < 40;
+    $("#gptErr").textContent = t.includes("Answer for me, using everything you know") ? "That's the prompt. Copy ChatGPT's answer instead." : "";
+    if ($("#gptErr").textContent) $("#gptGo").disabled = true;
+  },
+  async paste() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t?.trim()) { $("#gptText").value = t.trim(); this.check(); return; }
+    } catch {}
+    $("#gptText").focus();
+    $("#gptErr").textContent = "Press and hold in the box, then tap Paste.";
+  },
+  async go() {
+    const b = $("#gptGo"); if (b.disabled) return;
+    Voice.init(); Voice.ctx.resume();                  // (a tap: Emma may speak now)
+    b.disabled = true; $("#gptErr").textContent = "";
+    try {
+      const r = await fetch("/quick", {method: "POST", headers: {"content-type": "application/json"},
+        body: JSON.stringify({id: S.id || kept(ID_KEY), text: this.text(), spot: $("#gptSpot").value.trim()})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { $("#gptErr").textContent = d.error || "Something went wrong. Try again."; return; }
+      S.id = d.id; keep(ID_KEY, d.id); keep(GPT_KEY, null);
+      this.close(); $("#gptText").value = ""; $("#gptSpot").value = "";
+      buzz(30, "light");
+      showSocials(); setMode("speaking"); await Voice.say(d.say); setMode("idle");
+    } catch { $("#gptErr").textContent = "Can't reach the Roomie server."; }
+    finally { this.check(); }
+  },
+};
+$("#gptOpen").href = "https://chatgpt.com/?q=" + encodeURIComponent(GPT_PROMPT);
+$("#gptOpen").onclick = () => {                  // the link itself opens ChatGPT (the app, if it's installed)
+  copyText(GPT_PROMPT); keep(GPT_KEY, Date.now());
+  $("#gptOpenSub").textContent = "Prompt copied. If ChatGPT opens empty, paste it there.";
+};
+$("#gptPrompt").textContent = GPT_PROMPT;
+$("#gptShow").onclick = () => {
+  const p = $("#gptPrompt"); p.hidden = !p.hidden;
+  $("#gptShow").textContent = p.hidden ? "See the prompt" : "Hide the prompt";
+};
+$("#gptText").oninput = () => Gpt.check();
+$("#gptPasteBtn").onclick = () => Gpt.paste();
+$("#gptGo").onclick = () => Gpt.go();
+$("#gptSpot").onkeydown = e => { if (e.key === "Enter") e.target.blur(); };
+$("#gptBtn").onclick = () => Gpt.open();
+$("#gptScrim").onclick = e => { if (e.target.id === "gptScrim") Gpt.close(); };
+
 // ways out of the screens that had none
 $("#socialsLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
 $("#introLeave").onclick = () => { Voice.stopSpeaking(); goHome(); };
@@ -2062,7 +2186,11 @@ function startInbox() {
 }
 
 // someone Emma already knows opens on their home page (the stage demo always starts fresh)
-if (!demo) loadMe();
+if (!demo) loadMe().catch(() => {}).finally(() => {
+  // back from ChatGPT and the page was reloaded meanwhile: the paste sheet is open again
+  if (Date.now() - (+kept(GPT_KEY) || 0) < 20 * 60e3 && !document.body.classList.contains("known")
+      && $("#welcome").classList.contains("on")) Gpt.open();
+});
 </script>
 <script type="module">
   import { Hands } from "./hands/hands.js";

@@ -6,7 +6,8 @@ local Kokoro voice as fallback) by importing Emma's own engine/tts.py.
 
     ~/Desktop/emma/.venv/bin/python server.py          # listens on 0.0.0.0:8780
 
-The iPhone app talks to it over plain HTTP on the local network.
+Phones reach it through Cloudflare (see ../edge): the web page directly, the iPhone app through the
+small server inside the app. API: ../docs/api.md.
 """
 import asyncio
 import hashlib
@@ -325,7 +326,7 @@ Do three things.
 1. Write the attendee's profile from the chat, in short plain sentences (if the chat starts with what Emma
    remembers, keep everything they didn't change).
 2. Pick the ONE person they should meet. Prefer complementary needs (one needs what the other offers,
-   ideally both ways) over similar topics. Be concrete.
+   ideally both ways) over similar topics. Be concrete. If they said who would waste their time, respect it.
 3. Map their OVERLAP, the thing that gets two strangers talking. Research says RARE shared traits bond
    people far more than common ones (Alves 2018), so skip the obvious ("you both like AI", "you're both at
    the hackathon"); find specific, surprising things they share: a past, a frustration, a way of working,
@@ -554,6 +555,35 @@ async def h_again(req):
     pending[u["id"]] = asyncio.ensure_future(run_match(u))
     start_scan(u)
     return web.json_response({"ok": True})
+
+
+QUICK_ASK = ("Tell me about yourself: what you're working on, what you need most, what you can give someone, "
+             "and what you're like.")
+QUICK_NOTE = "(Written for me by ChatGPT, from what it knows about me from our past chats.)\n"
+
+
+async def h_quick(req):
+    """No talking: the attendee asked ChatGPT, which already knows them, to answer Emma's questions (with the
+    prompt on the first page) and pasted its answer here. It stands in for the voice chat, and the matching
+    starts at once, just as when Emma has heard enough."""
+    d = await req.json()
+    text = str(d.get("text") or "").strip()[:6000]
+    if len(text) < 40:
+        return web.json_response({"error": "That's too short. Paste ChatGPT's whole answer."}, status=400)
+    spot = str(d.get("spot") or "").strip()[:200]
+    u = users.get(str(d.get("id") or "")) or new_user("RoomieApp" in req.headers.get("User-Agent", ""))
+    if u.get("profile"):               # someone Emma knows: anything ChatGPT doesn't mention stays as it was
+        u["memory"] = dict(u["profile"])
+    transcript = [("emma", QUICK_ASK), ("you", QUICK_NOTE + text)]
+    if spot:
+        transcript += [("emma", "And where are you in the room?"), ("you", spot)]
+    u.update(transcript=transcript, turns=0, known={}, via="chatgpt")
+    u.pop("cancelled", None)
+    scans.pop(u["id"], None)
+    pending[u["id"]] = asyncio.ensure_future(run_match(u))     # think while they add their handles
+    start_scan(u)
+    save()
+    return web.json_response({"id": u["id"], "code": u["code"], "say": THINKING})
 
 
 async def h_me(req):
@@ -1097,6 +1127,7 @@ def main():
     app.router.add_post("/hear", h_hear)
     app.router.add_post("/start", h_start)
     app.router.add_post("/turn", h_turn)
+    app.router.add_post("/quick", h_quick)
     app.router.add_post("/match", h_match)
     app.router.add_post("/test/match", h_test_match)
     app.router.add_post("/match/cancel", h_match_cancel)
