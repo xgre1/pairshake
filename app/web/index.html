@@ -78,9 +78,20 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .primary.li svg{flex:none}
 .primary.g{flex-direction:row;gap:10px;background:#fff;color:#1f1f1f;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
 #gate{justify-content:center}
-.ais{display:flex;flex-direction:column;gap:10px}
-.primary.ai[data-ai="claude"]{background:#D97757;color:#fff}
-.primary.ai[data-ai="gemini"]{background:#1A73E8;color:#fff}
+/* the three AIs, each in its own colours, logo first */
+.ais{display:flex;flex-direction:column;gap:12px}
+.ai{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:64px;border-radius:999px;
+  font:600 19px/1 var(--sans);letter-spacing:-.01em;transition:transform .12s}
+.ai:active{transform:scale(.98)}
+.ai .ai-logo{width:28px;height:28px;flex:none}
+.ai[data-ai="chatgpt"]{background:#000;color:#fff}
+.ai[data-ai="claude"]{background:#F0EEE6;color:#141413}
+.ai[data-ai="gemini"]{background:#fff;color:#1F1F1F;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+@media (prefers-color-scheme: dark){
+  .ai[data-ai="chatgpt"]{background:#fff;color:#000}
+  .ai[data-ai="claude"]{background:#262624;color:#FAF9F5}
+  .ai[data-ai="gemini"]{background:#1E1F20;color:#E3E3E3;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+}
 .primary[disabled]{opacity:.35;cursor:default}
 .plainbtn{display:block;width:100%;padding:10px;color:var(--sec);text-align:center}
 .plainbtn:active{opacity:.5}
@@ -146,7 +157,7 @@ body :is(.primary:not(.soft),.pill,.send,.tb-mic){background:var(--glass-pro);bo
 body.known #home{display:flex} body.known #againBtn{display:flex}
 body.known .new-only{display:none!important}
 /* Update: someone Emma knows back on the first page to tell her again (ChatGPT or voice); X goes home */
-#updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn,body.updating #devBtn{display:none!important}
+#updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn{display:none!important}
 body.known #welcome>.spacer{display:none}
 body.known #welcomeHands{height:230px}
 body.known #wTitle{margin-top:-6px!important}
@@ -482,7 +493,7 @@ html:has(body[data-screen="settings"]),html:has(body[data-screen="about"]),html:
 #settings .chev,#about .chev{display:block}
 .sbody textarea{display:block;width:100%;border:0;background:none;outline:none;resize:none;color:var(--fg);font:inherit;line-height:1.35;padding:12px 16px;overflow:hidden}
 .sbody{display:flex;flex-direction:column;padding:0 var(--gut) calc(40px + var(--safeB))}
-.s-h{font-size:13px;color:var(--sec);text-transform:uppercase;letter-spacing:.02em;padding:24px 16px 7px}
+.s-h{font-size:17px;font-weight:600;color:var(--fg);padding:26px 16px 8px}   /* plain words, no small capitals */
 .s-f{font-size:13px;color:var(--sec);padding:7px 16px 0}
 .sbody .group,.tab-list .group{background:var(--gcell)}
 .sbody .row{min-height:48px;padding:9px 16px;gap:12px;width:100%;text-align:left;color:var(--fg)}
@@ -545,7 +556,6 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- Welcome -->
 <section class="screen" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
-  <button class="leave" id="devBtn" aria-label="Test tools"><span class="sf-hammer"></span></button>
   <button class="leave" id="updBack" aria-label="Back"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.36,0.29"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
@@ -566,7 +576,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="primary ai" data-ai="chatgpt">Ask ChatGPT</button><button class="primary ai" data-ai="claude">Ask Claude</button><button class="primary ai" data-ai="gemini">Ask Gemini</button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -575,29 +585,16 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="topbar"><button class="chev" id="sBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Settings</div></div>
   <div class="sbody">
     <div class="group" id="sAccount"></div>
-    <p class="s-f" id="sAccountFoot"></p>
-    <p class="s-h">You</p>
-    <div class="group">
-      <label class="row"><span class="tile" style="background:#8E8E93"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6.200" r="3"/><path d="M3 15.500c.600-3 3-4.500 6-4.500s5.400 1.500 6 4.500"/></svg></span><span class="s-l">Name</span><input id="sName" placeholder="Your name" autocomplete="name" enterkeyhint="done"></label>
-    </div>
+    <p class="s-h">Your profile</p>
+    <div id="sProfile"></div>
+    <div class="group"><button class="row s-act" id="sRetell">Update with your AI</button></div>
+    <p class="s-f" id="sSaved"></p>
     <p class="s-h">Where people can follow you</p>
     <div class="group" id="sSocials"></div>
-    <p class="s-f" id="sSaved">Saved as you type.</p>
-    <p class="s-h">Emma</p>
-    <div class="group">
-      <div class="row"><span class="tile" style="background:#FF2D55"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4h2.800L9.500 14V4L5.800 7z" fill="currentColor"/><path d="M12 6.500a3.500 3.500 0 0 1 0 5M14 4.500a6.300 6.300 0 0 1 0 9"/></svg></span><span class="s-l">Her voice</span><div class="seg" id="sVoice"><button data-v="1">Loud</button><button data-v="0.45">Quiet</button><button data-v="0">Off</button></div></div>
-      <label class="row app-only"><span class="tile" style="background:#FF9500"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="6" height="12" rx="1.600"/><path d="M3 6.500v5M15 6.500v5"/></svg></span><span class="s-l">Vibration</span><input type="checkbox" class="switch" id="sBuzz"></label>
-    </div>
-    <p class="s-f">You talk to Emma by holding the mic button.</p>
-    <p class="s-h app-only">App</p>
-    <div class="group app-only">
-      <button class="row" id="sServer"><span class="tile" style="background:#007AFF"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6.300"/><path d="M2.700 9h12.600M9 2.700c2.200 2 2.200 10.600 0 12.600M9 2.700c-2.200 2-2.200 10.600 0 12.600"/></svg></span><span class="s-l">Server</span><span class="s-v" id="sServerV"></span><span class="s-chev"><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-      <div class="row"><span class="tile" style="background:#8E8E93"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6.300"/><path d="M9 8.300v4M9 5.700v.100"/></svg></span><span class="s-l">Version</span><span class="s-v" id="sVersion"></span></div>
-    </div>
-    <p class="s-h" id="sDataH">Your data</p>
-    <div class="group">
+    <div class="group app-only" style="margin-top:28px"><label class="row"><span class="s-l">Vibration</span><input type="checkbox" class="switch" id="sBuzz"></label></div>
+    <div class="group" style="margin-top:28px">
       <button class="row s-danger" id="sForget">Forget me on this device</button>
-      <button class="row s-danger" id="sDelete">Delete everything Emma knows</button>
+      <button class="row s-danger" id="sDelete">Delete my account</button>
     </div>
   </div>
 </section>
@@ -611,8 +608,7 @@ body:not(.in-app) .app-only{display:none!important}
 <nav id="tabbar">
   <button data-i="0"><svg viewBox="0 0 26 26"><path d="M4 11.5 13 4l9 7.5V21a1 1 0 0 1-1 1h-5v-6h-6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</button>
   <button data-i="1"><svg viewBox="0 0 26 26"><circle cx="9.5" cy="9" r="3.8" fill="currentColor"/><path d="M2 21c0-4 3.3-6.5 7.5-6.5S17 17 17 21z" fill="currentColor"/><circle cx="18.5" cy="10" r="3" fill="currentColor"/><path d="M18.9 21c0-2.300-.8-4.200-2.200-5.600.6-.2 1.200-.3 1.900-.3 3.200 0 5.400 2.300 5.400 5.900z" fill="currentColor"/></svg>People</button>
-  <button data-i="2"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="13" cy="10.500" r="3.400" fill="currentColor"/><path d="M6.600 19.600c1.200-2.600 3.600-4 6.400-4s5.200 1.400 6.400 4a9.900 9.900 0 0 1-12.800 0z" fill="currentColor"/></svg>You</button>
-  <button data-i="3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.800" fill="currentColor"/></svg>Settings</button>
+  <button data-i="2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.800" fill="currentColor"/></svg>Settings</button>
 </nav>
 
 <!-- Everything Emma remembers about you: read it all, fix it by hand, or tell her again -->
@@ -1191,7 +1187,6 @@ Voice.onHeard = t => { if (S.mode === "listening") $("#heard").textContent = t; 
 const setLine = t => { const el = $("#emmaLine"); if (el.textContent === t) return; el.style.opacity = 0; setTimeout(() => { el.textContent = t; el.style.opacity = 1; }, 180); };
 $("#devSkip").onclick = () => { Dev.close(); Voice.init(); Voice.ctx.resume(); rehearse(); };
 const Dev = { open() { $("#devScrim").classList.add("on"); }, close() { $("#devScrim").classList.remove("on"); } };
-$("#devBtn").onclick = () => Dev.open();
 $("#devClose").onclick = () => Dev.close();
 $("#devScrim").onclick = e => { if (e.target.id === "devScrim") Dev.close(); };
 document.addEventListener("screen", () => Dev.close());           // (a test that opened another screen)
@@ -1793,7 +1788,7 @@ async function loadMe() {
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
     const d = await r.json();
-    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed;
+    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || "";
     document.body.classList.toggle("linked", !!d.linkedin);
     if (S.signed && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
       $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}.`;
@@ -1832,7 +1827,7 @@ async function goHome() { await loadMe(); show("welcome"); }
    it all on one page and keeps that. */
 addEventListener("DOMContentLoaded", () => Tabs.sync());
 const Tabs = {
-  ids: ["welcome", "tabPeople", "about", "settings"], last: 0,
+  ids: ["welcome", "tabPeople", "settings", "settings"], last: 0,     // (You is part of Settings now; older app builds still have a fourth tab)
   // on a phone the bar is always there, also before Emma knows you (People and You are simply empty then)
   on() { return !document.body.classList.contains("updating") && !isDesk() && !demo && this.ids.includes(document.body.dataset.screen); },
   sync() {
@@ -1845,8 +1840,7 @@ const Tabs = {
   },
   go(i) {
     if (i === 1) this.lists();
-    if (i === 2) return About.open();
-    if (i === 3) return Settings.open();
+    if (i >= 2) return Settings.open();
     show(this.ids[i]);
   },
   async back() { await loadMe(); isDesk() ? show("welcome") : this.go(this.last); },     // where they came from
@@ -1992,58 +1986,48 @@ const twoTaps = (btn, label, act) => {          // dangerous rows ask once more 
 const Settings = {
   open() { this.render(); show("settings"); },
   render() {
-    const signed = !!S.email;
-    const who = S.me || {name: S.name || ""}, chev = `<span class="s-chev">${CHEV}</span>`;
-    const card = (tag, extra) => `<${tag} class="row s-me" ${extra}>${av(who, 58)}<div class="who"><div class="n">${esc(who.name || "You")}</div>` +
-      `<div class="e">${signed ? esc(S.email) : "Create an account to be you on any device"}</div></div>${signed ? "" : chev}</${tag}>`;
-    $("#sAccount").innerHTML = signed ? card("div", "") + `<button class="row s-act" id="sOut">Sign out</button>`
-      : card("button", `id="sUp"`) + `<button class="row s-act" id="sIn">I already have an account</button>`;
-    $("#sAccountFoot").textContent = signed ? "Sign in with this email on any phone or computer to be you there too."
-      : "Without an account, Emma knows you only on this device.";
-    if (signed) twoTaps($("#sOut"), "Sign out", forgetDevice);
-    else { $("#sUp").onclick = () => Acct.open("signup"); $("#sIn").onclick = () => Acct.open("login"); }
-    $("#sName").value = S.me?.name || S.name || "";
+    const me = S.me, who = {...(me || {}), name: me?.name || S.name || "", photo: S.photo || me?.photo, color: me?.color};
+    $("#sAccount").innerHTML = `<div class="row s-me">${av(who, 58)}<div class="who"><div class="n">${esc(who.name || "You")}</div>` +
+      `<div class="e">${esc([S.via && "Signed in with " + S.via, S.login].filter(Boolean).join(" \u00b7 "))}</div></div></div>`;
+    // what their AI told us, short enough to read and fix by hand; the matching uses it as it is here
+    // (with no profile yet they can write it here by hand, or let their AI do it)
+    $("#sProfile").innerHTML = About.FIELDS.map(([k, label]) =>
+      `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="400" placeholder="Not said yet">${esc(me?.[k] || "")}</textarea></div>`).join("");
+    $("#sRetell").textContent = me ? "Update with your AI" : "Introduce yourself with your AI";
+    $("#sProfile").querySelectorAll("textarea").forEach(t => { About.fit(t); t.oninput = () => { About.fit(t); this.saveSoon(); }; });
     const so = S.socials || {};
     const tint = {x: "#000", instagram: "#E1306C", linkedin: "#0A66C2", github: "#24292F"};
     $("#sSocials").innerHTML = SOCIALS.map(([k, label, g]) => `<label class="row"><span class="tile" style="background:${tint[k]}">${g}</span><span class="s-l">${label}</span>` +
       `<input data-k="${k}" placeholder="@handle" autocapitalize="off" autocorrect="off" enterkeyhint="done" value="${esc(so[k] || kept("h." + k) || "")}"></label>`).join("");
     $("#sSocials").querySelectorAll("input").forEach(i => i.oninput = () => this.saveSoon());
-    $("#sSaved").textContent = "Saved as you type.";
-    const v = +Prefs.voice();
-    $("#sVoice").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.v === v));
+    $("#sSaved").textContent = "";
     $("#sBuzz").checked = Prefs.buzz();
-    if (APP) { $("#sServerV").textContent = (APP.server || "").replace(/^https?:\/\//, ""); $("#sVersion").textContent = APP.version || ""; }
-    const known = !!(S.id || kept(ID_KEY));
-    $("#sForget").parentElement.style.display = $("#sDataH").style.display = known ? "" : "none";
   },
-  saveSoon() { clearTimeout(this.t); $("#sSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
+  saveSoon() { clearTimeout(this.t); $("#sSaved").textContent = "Saving\u2026"; this.t = setTimeout(() => this.save(), 700); },
   async save() {
     this.t = 0;
-    const socials = {};
+    const socials = {}, about = {};
     $("#sSocials").querySelectorAll("input").forEach(i => { socials[i.dataset.k] = i.value.trim(); keep("h." + i.dataset.k, i.value.trim() || null); });
+    $("#sProfile").querySelectorAll("textarea").forEach(t => about[t.dataset.k] = t.value.trim());
     const id = S.id || kept(ID_KEY);
-    if (!id) { $("#sSaved").textContent = "Saved on this device."; return; }
+    if (!id) return;
     try {
-      const r = await api("/profile", {id, name: $("#sName").value.trim(), socials});
-      S.socials = r.socials; S.name = r.name; if (r.me) S.me = r.me;
+      const enough = about.needs || about.building || about.offers || about.role;     // (a first profile needs one of these)
+      const r = await api("/profile", S.me || enough ? {id, socials, about} : {id, socials});
+      S.socials = r.socials; if (r.me) S.me = r.me;
       $("#sSaved").textContent = "Saved.";
     } catch { $("#sSaved").textContent = "Couldn't save. Check the connection."; }
   },
 };
 $("#gearBtn").onclick = () => Settings.open();
 $("#sBack").onclick = () => { clearTimeout(Settings.t); if (Settings.t) Settings.save(); Tabs.back(); };
-$("#sName").oninput = () => Settings.saveSoon();
-$("#sVoice").querySelectorAll("button").forEach(b => b.onclick = () => {
-  if (+b.dataset.v) Prefs.set("voiceLevel", +b.dataset.v);
-  Voice.setVolume(+b.dataset.v);
-});
 // the speaker button on the screens where Emma talks: sound on (at the last loudness picked) or off
 document.querySelectorAll(".sound").forEach(b => b.onclick = () => Voice.setVolume(+Prefs.voice() ? 0 : Prefs.get("voiceLevel", 1)));
 document.body.classList.toggle("sound-on", !!+Prefs.voice());
 $("#sBuzz").onchange = e => { Prefs.set("buzz", e.target.checked); buzz(20, "light"); };
-$("#sServer").onclick = () => APP?.post({t: "server"});
+$("#sRetell").onclick = async () => { clearTimeout(Settings.t); if (Settings.t) await Settings.save(); S.me ? retell() : (show("welcome"), Tabs.sync()); };
 twoTaps($("#sForget"), "Forget me on this device", forgetDevice);
-twoTaps($("#sDelete"), "Delete everything Emma knows", async () => {
+twoTaps($("#sDelete"), "Delete my account", async () => {
   try { await api("/account", {action: "delete", id: S.id || kept(ID_KEY)}); } catch { return oops("Can't reach the PairShake server."); }
   forgetDevice();
 });
@@ -2091,27 +2075,40 @@ $("#acctScrim").onclick = e => { if (e.target.id === "acctScrim") Acct.close(); 
    questions for them. The prompt asks for exactly what the matching uses: what they're building, what they
    need and can give (needs meet offers), their team, the rare things about them (rare shared traits are what
    bond strangers), how they work, and who'd waste their time. Their pasted answer stands in for the voice chat. */
-const GPT_PROMPT = `I'm at the Gen AI Summit Hackathon in Athens (36 hours, teams of 1 to 5, everyone builds an AI agent that does real work). PairShake, the event's matchmaker, introduces each person to the one attendee they should meet. My agent talks to everyone else's agents to find the best fit, so it needs to know me well.
+const GPT_PROMPT = `I use PairShake, an app that introduces me to the right people wherever there's a crowd: events, conferences, co-working spaces. My agent there talks to other people's agents to decide who I should meet and why, so it needs to know me really well.
 
-Answer for me, using everything you know about me from your memory and our past chats.
+Using everything you know about me from our past conversations and your memory, write my profile.
 
-- Be concrete: real projects, real skills, things I've actually done. No flattery, no lines like "passionate about AI".
-- Only write what you actually know. If you're not sure about something, write "not sure". Never make things up.
-- Leave out anything private I wouldn't tell a stranger at a meetup (health, money, family, where I live). The person I'm matched with will read parts of this.
-- First person, short plain sentences, under 300 words in total.
-- If you know almost nothing about me, ask me 3 quick questions in one message first. Otherwise don't ask anything, just answer in exactly this format:
+- Be concrete and specific: real projects, companies, skills, places, things I've actually done. No flattery, no clichés.
+- Only write what you actually know. If you're not sure about something, write "not sure". Never make anything up.
+- Leave out anything I wouldn't tell a stranger (health, money, family, where I live).
+- First person. Fill in every line you can; more detail is better.
+- If you know very little about me, ask me 5 quick questions in one message first, then write it.
+
+Use exactly this format:
 
 PAIRSHAKE PROFILE
-Name: what I go by
-Who I am: my role in a few words
-Working on right now: what has taken most of my time these last weeks, in concrete terms
-What I need most: the one or two things that would help me most this week (a kind of person, a skill, users, feedback)
-Team: solo, looking for a team, or have a team and missing someone (say who)
-What I can give: what I could really help someone with in ten minutes
-Rare things about me: 3 specific things few people here would share (an unusual past, a place, an obsession, a strong opinion, a frustration)
-My personality: how I come across and how I work (big picture or details, fast or careful, quiet or loud), and the kind of people I click with
-I could talk for an hour about: 2 or 3 topics
+Name:
+Headline: who I am, in one line
+Based in: city and country
+Languages:
+Work now: my role, my company or project, and what I actually do day to day
+Working on right now: the main thing taking my time these weeks, in concrete terms
+Background: previous roles, companies, studies, things I've built or shipped
+Skills: what I'm genuinely good at
+Tools and tech:
+Industries I know:
+Looking for: the people, skills or help I want right now (a co-founder, users, investors, a job, a designer, feedback), most important first
+I can offer: what I could really help someone with, in ten minutes and in a longer collaboration
+Goals: this month, and this year
+Team: solo, looking for a team, or have a team and missing someone (who)
+Interests outside work:
+Rare things about me: 3 to 5 specific things few people would share (an unusual past, a place, an obsession, a strong opinion)
+Values: what I care about in work and in people
+Personality: how I come across, how I work, and the kind of people I click with
+I could talk for an hour about:
 Not a good match for me: who would waste my time
+Links: website, LinkedIn, X, GitHub, Instagram (only ones you know)
 In one sentence: one memorable line about me, in third person`;
 const GPT_KEY = "pairshake.gptAt";          // when they went off to ChatGPT (the sheet is open again if the page reloads)
 
@@ -2135,7 +2132,7 @@ const Gpt = {
     const t = this.text();
     $("#gptText").parentElement.classList.toggle("has", !!t);
     $("#gptGo").disabled = t.length < 40;
-    $("#gptErr").textContent = t.includes("Answer for me, using everything you know") ? `That's the prompt. Copy ${aiNamed().name}'s answer instead.` : "";
+    $("#gptErr").textContent = t.includes("Using everything you know about me from our past conversations") ? `That's the prompt. Copy ${aiNamed().name}'s answer instead.` : "";
     if ($("#gptErr").textContent) $("#gptGo").disabled = true;
   },
   async paste() {
@@ -2174,7 +2171,7 @@ function askAI(key) {
   Gpt.open();
 }
 function aiNamed() { const ai = AIS[kept("pairshake.ai")] || AIS.chatgpt; $("#gptTitle").textContent = `Paste ${ai.name}'s answer`; $("#gptAgain").textContent = `Open ${ai.name} again`; return ai; }
-document.querySelectorAll(".primary.ai").forEach(b => b.onclick = () => askAI(b.dataset.ai));
+document.querySelectorAll(".ai[data-ai]").forEach(b => b.onclick = () => askAI(b.dataset.ai));
 $("#gptAgain").onclick = () => askAI(kept("pairshake.ai") || "chatgpt");
 $("#gptText").oninput = () => Gpt.check();
 $("#gptPasteBtn").onclick = () => Gpt.paste();
