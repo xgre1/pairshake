@@ -756,6 +756,8 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 .evrow .who .semi{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
 .evrow .who .foot{margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .evrow .yes{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--fg)}
+.evrow.soon{cursor:default;color:inherit} .evrow.soon .ev-img,.evrow.soon .who{opacity:.5}
+.ev-soon{flex:none;font-size:13px;font-weight:500;color:var(--sec);background:var(--fill2);padding:5px 10px;border-radius:999px;white-space:nowrap}
 #evList .row + .row::before,#erPeople .row + .row::before{left:82px} #erPeople .row + .row::before{left:70px}
 .ev-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px var(--gut) 4px}
 .ev-cover{width:100%;aspect-ratio:1;max-width:220px;border-radius:24px;background:var(--fill2) center/cover;box-shadow:0 12px 32px rgba(0,0,0,.14)}
@@ -2364,14 +2366,19 @@ const Ev = {
   // only what's on right now (started, not ended; no end given: the 12 hours after it starts)
   on(e) { const t = Date.now(), a = Date.parse(e?.start || ""), b = Date.parse(e?.end || "") || a + 12 * 3600 * 1000; return t >= a && t <= b; },
   render() {
-    const box = $("#evList"); this.list = this.list.filter(e => this.on(e));
-    box.innerHTML = this.list.map((e, i) => `<button class="row evrow" data-i="${i}"><div class="ev-img" style="${this.img(e)}"></div>
+    // what's on now first (tap to join), then what hasn't started yet, soonest first (shown, can't be joined yet)
+    const box = $("#evList"), at = e => Date.parse(e?.start || "") || 0, soon = e => at(e) > Date.now();
+    this.list = this.list.filter(e => this.on(e) || soon(e)).sort((a, b) => (this.on(b) - this.on(a)) || at(a) - at(b));
+    box.innerHTML = this.list.map((e, i) => {
+      const on = this.on(e);
+      return `<button class="row evrow${on ? "" : " soon"}" data-i="${i}"${on ? "" : " disabled"}><div class="ev-img" style="${this.img(e)}"></div>
       <div class="who"><div class="semi">${esc(e.name)}</div><div class="foot sec">${esc(this.sub(e))}</div></div>` +
-      (e.here ? `<span class="yes">${e.here} here</span>` : "") + `<span class="s-chev">${CHEV}</span></button>`).join("");
+      (on ? (e.here ? `<span class="yes">${e.here} here</span>` : "") + `<span class="s-chev">${CHEV}</span>` : `<span class="ev-soon">Not started yet</span>`) + `</button>`;
+    }).join("");
     box.style.display = this.list.length ? "" : "none";
     $("#evEmpty").hidden = !!this.list.length;
-    $("#evEmpty").textContent = this.error || (this.q ? `Nothing on right now for “${this.q}”. Try another word, or paste the event's link.` : "No events on Luma happening right now. Search for yours.");
-    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => { buzz(8); this.pick(this.list[b.dataset.i]); });
+    $("#evEmpty").textContent = this.error || (this.q ? `Nothing on Luma for “${this.q}”. Try another word, or paste the event's link.` : "No events on Luma near you. Search for yours.");
+    box.querySelectorAll(".evrow:not(.soon)").forEach(b => b.onclick = () => { buzz(8); this.pick(this.list[b.dataset.i]); });
   },
   // a Luma event that's on now is a network like any other: joining puts you live in it, and finding starts there
   async pick(e) {
