@@ -62,6 +62,8 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 #room,#settings,#person,#about{padding-top:0}     /* their top bar already pads for the notch */
 .screen.on{display:flex;animation:fade .5s var(--smooth)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
+.screen.on.back-in{animation:backIn .32s cubic-bezier(.2,.8,.2,1)}     /* the screen a swipe went back to */
+@keyframes backIn{from{left:-70px;opacity:.55}to{left:0;opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 /* pinned bottom button that content scrolls under (Fade in app/Legacy) */
 .dock{position:sticky;bottom:0;margin-top:auto;padding:28px var(--gut) calc(8px + var(--safeB));
@@ -475,29 +477,29 @@ body.tabs #aFields .s-h:first-child{padding-top:6px}
 .you-need{padding:16px 16px 17px;font-size:22px;line-height:1.25}
 .sbody .row.you-fact{flex-direction:column;align-items:stretch;gap:2px;padding:11px 16px 12px}
 .you-fact .k{font-size:13px;color:var(--sec);letter-spacing:-.006em}
-#aView .primary{margin-top:30px} #aView .s-f{text-align:center}
-#aView .you-stats{margin-top:22px}
-/* your card, as the people you're introduced to see it */
+#aView .primary{margin-top:30px} #aView .s-f{text-align:center} #aView .s-f.you-note{text-align:left}
+/* your card, as the people you're introduced to see it (each line opens the editor) */
 .you-card{padding:18px 16px 16px;display:flex;flex-direction:column;gap:14px}
 .yc-top{display:flex;align-items:center;gap:14px}
 .yc-top h2{font-size:26px;line-height:1.1} .yc-top p{margin-top:3px;font-size:15px}
 .yc-line{font-size:18px;line-height:1.4;opacity:.9}
 .yc-facts{border-radius:12px;background:var(--fill2);overflow:hidden}
-.you-card .yc-facts .row{padding:10px 14px;min-height:0}
+.you-card .yc-facts .row{padding:10px 14px;min-height:0;display:block}
 .yc-handles{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--sec)}
 .yc-handles>span{display:flex;align-items:center;gap:6px} .yc-handles .tile{width:20px;height:20px;border-radius:5px}
 .yc-handles .tile svg{width:11px;height:11px}
 .yc-empty{font-size:15px}
-/* what Emma remembers: every line changes in place, and most can come off the card */
+/* what isn't on the card */
+.sbody .row.you-off{display:block;padding:11px 16px 12px}
+.you-off .k{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--sec);letter-spacing:-.006em}
+.you-off .k i{font-style:normal;color:var(--ter);display:flex;align-items:center;gap:4px}
+.you-off .v{display:block;margin-top:2px;color:var(--sec)}
+/* the editor: each line changes in place; the eye takes it off the card */
 .you-edit .a-f{cursor:text}
-.you-edit .a-k{display:flex!important;align-items:center;justify-content:space-between;gap:10px;min-height:22px}
-.you-edit .a-k i{font-style:normal;color:var(--ter)}
-.you-edit .eye{display:flex;align-items:center;gap:5px;font:500 12px/1 var(--sans);padding:5px 9px;border-radius:999px;background:var(--fill2);color:var(--fg);flex:none}
-.you-edit .off .eye{background:none;color:var(--sec);box-shadow:inset 0 0 0 1px var(--sep)}
+.you-edit .a-k{display:flex!important;align-items:center;justify-content:space-between;gap:10px;min-height:20px}
+.you-edit .eye{display:flex;align-items:center;gap:5px;font:500 12px/1 var(--sans);height:26px;min-width:34px;justify-content:center;padding:0 8px;margin:-4px -8px -4px 0;border-radius:999px;color:var(--sec);flex:none}
+.you-edit .off .eye{color:var(--fg);background:var(--fill2)}
 .you-edit .off textarea{color:var(--sec)}
-.you-edit textarea{padding-right:22px!important}
-.you-edit .pen{position:absolute;right:16px;bottom:15px;color:var(--ter);pointer-events:none;transition:opacity .15s}
-.you-edit .a-f:focus-within .pen{opacity:0}
 .you-edit .a-f:focus-within{background:var(--fill2)}
 /* You, before Emma knows you: one card for who you are, one row of AIs, one card of key points */
 .a-me{display:flex;align-items:center;gap:14px;padding:14px 16px}
@@ -2184,7 +2186,6 @@ $("#talkBtn").onclick = () => openRoom(S.result.mission);
 const CHEV = `<svg width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const EYE = `<svg width="15" height="11" viewBox="0 0 15 11"><path d="M1 5.5C2.6 2.6 4.9 1 7.5 1s4.9 1.6 6.5 4.5C12.4 8.4 10.1 10 7.5 10S2.6 8.4 1 5.5Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7.5" cy="5.5" r="2" fill="currentColor"/></svg>`;
 const EYE_OFF = `<svg width="15" height="13" viewBox="0 0 15 13"><path d="M1 6.5C2.6 3.6 4.9 2 7.5 2s4.9 1.6 6.5 4.5C12.4 9.4 10.1 11 7.5 11S2.6 9.4 1 6.5Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 12 13 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-const PEN = `<svg class="pen" width="13" height="13" viewBox="0 0 13 13"><path d="M8.6 2.2 10.8 4.4 4.3 10.9 1.6 11.4 2.1 8.7Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const factRows = rows => rows.filter(([, v]) => v).map(([k, v]) => `<div class="row fact"><div><b>${k}</b>${esc(v)}</div></div>`).join("");
 async function loadMe() {
   const id = S.id || kept(ID_KEY);
@@ -2489,14 +2490,14 @@ const About = {
           building: "What you're working on right now", offers: "What you could help others with",
           role: "Your job or what you study", line: "Who you are, in one line", spot: "Back left, green jumper"},
   KEY: ["needs", "building", "offers"],          // before Emma knows you, only the points that pick your match
-  editing: false, fresh: false,
+  editing: false, fresh: false, mode: "view",
   open(edit = false) {
     const me = S.me, fresh = !me;               // fresh: nothing yet, so the page is a form to fill in
-    this.editing = fresh || edit; this.fresh = fresh;
+    this.editing = fresh; this.fresh = fresh; this.mode = edit ? "edit" : "view";
     $("#aEmpty").style.display = "none"; $("#aStart").style.display = fresh ? "" : "none";
-    $("#aEdit").style.display = "none";          // (someone Emma knows edits right on the page)
-    $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
-    if (me && !this.editing) { this.view(); $("#aView").insertAdjacentHTML("beforeend", Traits.html(me)); }   // summary and, for the demo, the numbers
+    $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.mode === "edit" ? "Done" : "Edit";
+    $("#aView").style.display = me ? "" : "none"; $("#aBody").style.display = fresh ? "" : "none";
+    if (me) this.mode === "edit" ? this.editor() : this.view();
     if (fresh) $("#aMe").innerHTML = `${av({name: S.name || "?", color: "#B9A7FF", photo: S.photo}, 52)}` +
       `<div><div class="n">${esc(S.name || "You")}</div><div class="e">Emma doesn't know you yet</div></div>`;
     if (this.editing) {
@@ -2511,7 +2512,7 @@ const About = {
     if (this.editing) $("#aFields").querySelectorAll("textarea").forEach(t => {
       this.fit(t); t.oninput = () => { this.fit(t); this.fresh ? this.ready() : this.saveSoon(); };
     });
-    else $("#aView").querySelectorAll("textarea").forEach(t => this.fit(t));
+    else $("#aView").querySelectorAll("textarea").forEach(t => this.fit(t));     // (the editor's)
     if (fresh) this.ready();
   },
   fields() { const o = {}; $(this.editing ? "#aFields" : "#aView").querySelectorAll("textarea[data-k]").forEach(t => o[t.dataset.k] = t.value.trim()); return o; },
@@ -2527,68 +2528,80 @@ const About = {
       S.me ||= r.me; this.open();
     } catch { oops("Couldn't save. Check the connection."); this.ready(); }
   },
-  /* Someone Emma knows: their card exactly as others get it, then everything she remembers, each line
-     changed right where it is and shown on the card or hidden from it. */
-  ROWS: [["name", "Name"], ["role", "What you do"], ["line", "In one sentence"], ["building", "Working on"], ["needs", "Looking for"],
-         ["offers", "You can offer"], ["hooks", "Things to ask you about"], ["spot", "Where to find you"]],
+  /* Someone Emma knows. View: their card exactly as the people they're introduced to see it, then what isn't
+     on it. Edit: every line in three groups, changed in place; most can be hidden from the card. */
+  GROUPS: [["About you", [["name", "Name"], ["role", "What you do"], ["line", "In one sentence"]]],
+           ["What you're up to", [["building", "Working on"], ["needs", "Looking for"], ["offers", "You can offer"]]],
+           ["Extras", [["hooks", "Things to ask you about"], ["spot", "Where to find you"]]]],
   HIDEABLE: ["role", "building", "needs", "offers", "line", "hooks"],     // (the same list as the server's)
+  LABEL: {role: "What you do", line: "In one sentence", building: "Working on", needs: "Looking for", offers: "You can offer",
+          hooks: "Things to ask you about", spot: "Where to find you"},
+  val(k) { const v = S.me[k]; return Array.isArray(v) ? v.join(", ") : v || ""; },
   view() {
-    const me = S.me, c = S.contacts || [], so = S.socials || {}, hid = new Set(me.hidden || []);
-    const sent = c.reduce((n, x) => n + x.chat.filter(m => m.from === x.you).length, 0);
-    const handles = SOCIALS.filter(([k]) => so[k]);
-    const val = k => k === "hooks" ? (me.hooks || []).join(", ") : me[k] || "";
-    const NOTE = {spot: "Only after you both say yes", hooks: "Emma may bring these up", name: ""};
+    const me = S.me, hid = new Set(me.hidden || []);
+    // what Emma knows that isn't on the card, and why
+    const off = [...this.HIDEABLE.filter(k => hid.has(k) && this.val(k)).map(k => [k, "Hidden"]),
+      ...(!hid.has("hooks") && this.val("hooks") ? [["hooks", "Emma may bring these up"]] : []),
+      ...(this.val("spot") ? [["spot", "Shown once you both say yes"]] : [])];
     $("#aView").innerHTML =
-      `<p class="s-h">Your card</p><div class="group you-card" id="aCard"></div>` +
-      `<p class="s-f">This is what people Emma introduces you to see.</p>` +
-      `<div class="group you-stats"><div><b>${c.length}</b><span>Introduced</span></div><div><b>${c.filter(x => x.outcome).length}</b><span>Met</span></div><div><b>${sent}</b><span>Messages sent</span></div></div>` +
-      `<p class="s-h">What Emma remembers</p><div class="group a-form you-edit">` +
-        this.ROWS.map(([k, label]) => {
-          const can = this.HIDEABLE.includes(k), off = can && hid.has(k);
-          return `<div class="a-f${off ? " off" : ""}" data-row="${k}"><span class="a-k">${label}` +
-            (can ? `<button type="button" class="eye" data-eye="${k}" aria-pressed="${!off}">${off ? EYE_OFF + "Hidden" : EYE + "On your card"}</button>`
-                 : NOTE[k] ? `<i>${NOTE[k]}</i>` : "") + `</span>` +
-            `<textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="Not said yet. Tap to add">${esc(val(k))}</textarea>${PEN}</div>`;
-        }).join("") + `</div>` +
-      `<p class="s-f" id="aNote">Tap any line to change it. Hidden lines stay off your card, and Emma won't mention them to anyone.</p>` +
-      `<p class="s-h">Where people can follow you</p><div class="group">` +
-        (handles.length ? handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("")
-                        : `<button class="row" id="aHandles"><span class="s-l">Add your handles</span><span class="s-chev">${CHEV}</span></button>`) + `</div>` +
+      `<p class="s-h">How others see you</p><div class="group you-card" id="aCard"></div>` +
+      (off.length ? `<p class="s-h">Not on your card</p><div class="group">` + off.map(([k, why]) =>
+        `<button class="row you-off" data-go="${k}"><div><span class="k">${this.LABEL[k]}<i>${why === "Hidden" ? EYE_OFF : ""}${why}</i></span><span class="v">${esc(this.val(k))}</span></div></button>`).join("") + `</div>` : "") +
       `<button class="primary soft" id="aRetell">Tell Emma again<small>With ChatGPT or by voice</small></button>` +
       `<p class="s-f">What you don't mention stays as it is.</p>`;
     this.card();
-    $("#aView").querySelectorAll("textarea[data-k]").forEach(t => t.oninput = () => { this.fit(t); this.card(); this.saveSoon(); });
+    $("#aView").querySelectorAll("[data-go]").forEach(b => b.onclick = () => this.edit(b.dataset.go));
+    $("#aRetell").onclick = () => retell();
+  },
+  /** Straight to one line in the editor (tapping a line of the card, or of what isn't on it). */
+  edit(k) {
+    this.open(true);
+    const t = $(`#aView textarea[data-k="${k}"]`); if (!t) return;
+    t.closest(".a-f").scrollIntoView({block: "center"}); t.focus({preventScroll: true}); t.setSelectionRange(t.value.length, t.value.length);
+  },
+  editor() {
+    const me = S.me, hid = new Set(me.hidden || []), so = S.socials || {}, handles = SOCIALS.filter(([k]) => so[k]);
+    $("#aView").innerHTML = this.GROUPS.map(([title, rows]) => `<p class="s-h">${title}</p><div class="group a-form you-edit">` +
+      rows.map(([k, label]) => {
+        const can = this.HIDEABLE.includes(k), off = can && hid.has(k);
+        return `<div class="a-f${off ? " off" : ""}" data-row="${k}"><span class="a-k">${label}` +
+          (can ? `<button type="button" class="eye" data-eye="${k}" aria-pressed="${off}" aria-label="${off ? "Show on your card" : "Hide from your card"}">${off ? EYE_OFF + "Hidden" : EYE}</button>` : "") +
+          `</span><textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="${k === "hooks" ? "A few things, with commas" : "Add"}">${esc(k === "name" ? me.name : this.val(k))}</textarea></div>`;
+      }).join("") + `</div>` + (title === "Extras" ? `<p class="s-f you-note">Where to find you is shared only once you both say yes.</p>`
+        : title === "About you" ? `<p class="s-f you-note" id="aNote">Tap a line to change it. The eye hides it from your card: Emma still uses it to pick who you meet, but never mentions it.</p>` : "")).join("") +
+      `<p class="s-h">Where people can follow you</p><div class="group">` +
+        handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${TINT[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("") +
+        `<button class="row" id="aHandles"><span class="s-l">${handles.length ? "Change in Settings" : "Add your handles"}</span><span class="s-chev">${CHEV}</span></button></div>`;
+    $("#aView").querySelectorAll("textarea[data-k]").forEach(t => t.oninput = () => { this.fit(t); this.saveSoon(); });
     $("#aView").querySelectorAll("[data-eye]").forEach(b => b.onclick = () => this.hide(b.dataset.eye));
     $("#aView").querySelectorAll(".you-edit .a-f").forEach(r => r.onclick = e => { if (!e.target.closest("button,textarea")) r.querySelector("textarea").focus(); });
-    $("#aRetell").onclick = () => retell();
-    if ($("#aHandles")) $("#aHandles").onclick = () => Tabs.go(3);
+    $("#aHandles").onclick = async () => { await this.leave(); Tabs.go(3); };
   },
-  /** The card as someone you're introduced to sees it (the person page), from what's typed right now. */
+  /** The card as someone you're introduced to sees it (the person page). Tap a line to change it. */
   card() {
-    const me = S.me, f = this.fields(), hid = new Set(me.hidden || []);
-    const v = k => hid.has(k) ? "" : f[k] ?? me[k] ?? "";
-    const p = {...me, name: f.name || me.name};
-    const facts = factRows([["Building", v("building")], ["Looking for", v("needs")], ["Good at", v("offers")]]);
+    const me = S.me, hid = new Set(me.hidden || []), v = k => hid.has(k) ? "" : me[k] || "";
+    const fact = (k, label) => v(k) ? `<button class="row fact" data-go="${k}"><div><b>${label}</b>${esc(v(k))}</div></button>` : "";
+    const facts = fact("building", "Building") + fact("needs", "Looking for") + fact("offers", "Good at");
     const handles = SOCIALS.filter(([k]) => S.socials?.[k]);
     $("#aCard").innerHTML =
-      `<div class="yc-top">${av(p, 56)}<div><h2 class="serif">${esc(p.name)}</h2>${v("role") ? `<p class="sec">${esc(v("role"))}</p>` : ""}</div></div>` +
+      `<div class="yc-top">${av(me, 56)}<div><h2 class="serif">${esc(me.name)}</h2>${v("role") ? `<p class="sec">${esc(v("role"))}</p>` : ""}</div></div>` +
       (v("line") ? `<p class="serif yc-line">${esc(v("line"))}</p>` : "") +
-      (facts ? `<div class="yc-facts">${facts}</div>` : "") +
-      (handles.length ? `<div class="yc-handles">${handles.map(([k, , g]) => `<span><span class="tile" style="background:${TINT[k]}">${g}</span>@${esc(S.socials[k])}</span>`).join("")}</div>` : "") +
-      (!facts && !v("line") ? `<p class="sec yc-empty">Only your name is on your card.</p>` : "");
+      (facts ? `<div class="yc-facts">${facts}</div>` : `<p class="sec yc-empty">Only your name is on your card.</p>`) +
+      (handles.length ? `<div class="yc-handles">${handles.map(([k, , g]) => `<span><span class="tile" style="background:${TINT[k]}">${g}</span>@${esc(S.socials[k])}</span>`).join("")}</div>` : "");
+    $("#aCard").querySelectorAll("[data-go]").forEach(b => b.onclick = () => this.edit(b.dataset.go));
   },
   async hide(k) {
     const me = S.me, h = new Set(me.hidden || []);
     h.has(k) ? h.delete(k) : h.add(k);
     me.hidden = [...h]; buzz(8);
     const row = $(`#aView [data-row="${k}"]`), off = h.has(k), b = row.querySelector(".eye");
-    row.classList.toggle("off", off); b.setAttribute("aria-pressed", !off); b.innerHTML = off ? EYE_OFF + "Hidden" : EYE + "On your card";
-    this.card();
-    this.note().textContent = off ? "Hidden. It's off your card, and Emma won't bring it up." : "Back on your card.";
+    row.classList.toggle("off", off); b.setAttribute("aria-pressed", off);
+    b.setAttribute("aria-label", off ? "Show on your card" : "Hide from your card"); b.innerHTML = off ? EYE_OFF + "Hidden" : EYE;
+    this.note().textContent = off ? `${this.LABEL[k]} is off your card, and Emma won't bring it up.` : `${this.LABEL[k]} is back on your card.`;
     try { const r = await api("/profile", {id: S.id, hidden: me.hidden}); if (r.me) S.me = {...S.me, hidden: r.me.hidden}; }
     catch { this.note().textContent = "Couldn't save. Check the connection."; }
   },
-  note() { return $(this.editing ? "#aSaved" : "#aNote"); },
+  note() { return $(this.editing ? "#aSaved" : "#aNote") || document.createElement("p"); },     // (the card has no note)
   fit(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; },
   saveSoon() { clearTimeout(this.t); this.note().textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
   async save() {
@@ -2607,7 +2620,7 @@ const About = {
 $("#memCard").onclick = () => About.open();
 $("#aBack").onclick = async () => { await About.leave(); goHome(); };
 document.addEventListener("screen", () => { if (document.body.dataset.screen !== "about") About.leave(); });   // (leaving by the tab bar)
-$("#aEdit").onclick = async () => { const edit = !About.editing; await About.leave(); About.open(edit); };
+$("#aEdit").onclick = async () => { const edit = About.mode !== "edit"; await About.leave(); About.open(edit); };
 $("#aCreate").onclick = () => About.create();
 document.querySelectorAll(".a-ai").forEach(b => b.onclick = () => askAI(b.dataset.ai));    // the same as the first page's
 $("#forgetBtn").onclick = () => {
@@ -3794,6 +3807,64 @@ if (APP) {
     [0, 150, 450, 900].forEach(t => setTimeout(fix, t));
   });
 }
+/* Swipe in from the left edge to go back, as on iOS: on a screen with a back chevron the page follows the finger
+   (with a shadow on its left), and let go past a third of the width, or with a flick, it slides off and the back
+   button does its job; the screen it goes back to comes in from a little to the left. Not over a sheet or the
+   finding screen, and not on the tabs' own pages (they have no back). The page moves by `left`, not transform,
+   so its fixed bars (the message box) stay where they are. */
+(() => {
+  const EDGE = 22;
+  let g = null;
+  const backBtn = () => {
+    if (document.querySelector(".scrim.on, #find.on")) return null;
+    const b = document.querySelector(".screen.on .chev[aria-label='Back']");
+    return b && b.offsetParent !== null && !b.disabled ? b : null;
+  };
+  const place = (el, x, ms) => {
+    el.style.transition = ms ? `left ${ms}ms cubic-bezier(.2,.8,.2,1), box-shadow ${ms}ms` : "none";
+    el.style.left = x + "px";
+    el.style.boxShadow = x > 0 ? `-10px 0 28px rgba(0,0,0,${(.18 * (1 - x / innerWidth)).toFixed(3)})` : "";
+  };
+  const reset = el => { el.style.transition = el.style.left = el.style.boxShadow = ""; el.style.zIndex = ""; };
+  addEventListener("touchstart", e => {
+    const t = e.touches[0];
+    if (e.touches.length !== 1 || t.clientX > EDGE) return;
+    const btn = backBtn(); if (!btn) return;
+    g = {btn, el: document.querySelector(".screen.on"), x0: t.clientX, y0: t.clientY, dx: 0, on: false, last: [t.clientX, e.timeStamp], v: 0};
+  }, {passive: true});
+  addEventListener("touchmove", e => {
+    if (!g) return;
+    const t = e.touches[0], dx = t.clientX - g.x0, dy = t.clientY - g.y0;
+    if (!g.on) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { g = null; return; }     // scrolling, not going back
+      if (dx < 8) return;
+      g.on = true; g.el.style.zIndex = 5; document.activeElement?.blur?.();
+    }
+    e.preventDefault();
+    const dt = e.timeStamp - g.last[1];
+    if (dt > 0) g.v = .8 * ((t.clientX - g.last[0]) / dt) + .2 * g.v;
+    g.last = [t.clientX, e.timeStamp]; g.dx = Math.max(0, dx);
+    place(g.el, g.dx);
+  }, {passive: false});
+  const end = () => {
+    if (!g) return;
+    const {el, btn, dx, v, on} = g; g = null;
+    if (!on) return;
+    if (dx > innerWidth / 3 || (v > .45 && dx > 30)) {
+      const ms = Math.max(120, Math.min(260, (innerWidth - dx) / Math.max(v, 1.4)));     // a flick finishes faster
+      place(el, innerWidth, ms);
+      setTimeout(() => {
+        reset(el); btn.click(); buzz(6, "light");
+        const now = document.querySelector(".screen.on");
+        if (now && now !== el) { now.classList.remove("back-in"); void now.offsetWidth; now.classList.add("back-in"); setTimeout(() => now.classList.remove("back-in"), 400); }
+      }, ms);
+    } else {
+      place(el, 0, 220); setTimeout(() => reset(el), 230);
+    }
+  };
+  addEventListener("touchend", end); addEventListener("touchcancel", end);
+})();
+
 /* Continue with LinkedIn (edge/src/linkedin.js): a real name and face, the same person on any device. On the
    web the page goes to LinkedIn and comes back with ?li=<id>; in the app Apple's sign-in sheet opens and the
    app hands the id to PairShakeApp.onLogin. */
