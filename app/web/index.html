@@ -85,6 +85,16 @@ body.known #welcomeHands,body.known #wSub,body.known #memCard,body.known #people
 .net-empty{text-align:center;padding:12px 24px;font-size:17px}
 /* networks: a grid of square cards, the + first */
 #nets{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.netlive{position:relative;display:flex;align-items:center;gap:14px;width:100%;margin-bottom:12px;padding:16px;border-radius:24px;overflow:hidden;color:#fff;text-align:left;background:#0d1f14}
+.netlive[hidden]{display:none}
+.netlive .nl-bg{position:absolute;inset:-20px;background-size:cover;background-position:center;filter:blur(18px) brightness(.45)}
+.netlive>*:not(.nl-bg){position:relative}
+.nl-radar{position:relative;width:52px;height:52px;flex:none;display:grid;place-items:center}
+.nl-radar span{position:absolute;inset:0;border-radius:50%;border:2px solid #34C759;animation:radar 2.4s ease-out infinite;opacity:0}
+.nl-radar span:nth-child(2){animation-delay:1.2s}
+.nl-radar i{width:14px;height:14px;border-radius:50%;background:#34C759;box-shadow:0 0 12px #34C759}
+.nl-t{flex:1;min-width:0} .nl-t b{display:block;font:600 18px/1.2 var(--sans)} .nl-t small{display:block;opacity:.8;font-size:14px;margin-top:3px}
+.nl-faces{display:flex} .nl-faces .av{border:2px solid #0d1f14;margin-left:-10px}
 .ncard{position:relative;aspect-ratio:1;border-radius:24px;overflow:hidden;text-align:left;color:#fff;background:#222;transition:transform .12s}
 .ncard:active{transform:scale(.97)}
 .ncard-bg{position:absolute;inset:0;background-size:cover;background-position:center}
@@ -540,7 +550,7 @@ html.camfind body>*:not(#find){visibility:hidden}
   padding:12px;border-radius:var(--r);background:var(--mat);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);
   box-shadow:0 8px 40px rgba(0,0,0,.12);width:min(416px,calc(100% - 24px));text-align:left}
 .banner.on{display:flex;animation:drop .5s var(--spring)}
-.err{display:none;position:fixed;bottom:calc(20px + var(--safeB));left:50%;transform:translateX(-50%);background:#ff3b30;color:#fff;padding:10px 16px;border-radius:var(--r-s);font-size:15px;z-index:50}
+.err{display:none;position:fixed;top:calc(var(--safeT) + 10px);left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);text-align:center;background:#ff3b30;color:#fff;padding:10px 16px;border-radius:var(--r-s);font-size:15px;z-index:1000}
 
 /* Wide window: the room and a person's page use the same grid as the introduction (column on the
    left at the same edge, the rest on the right). Room: what you share on the left, the chat on the
@@ -711,6 +721,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <button class="ev-pill" id="evPill"></button>
   <!-- only for someone Emma already knows -->
   <div id="home">
+    <button class="netlive" id="netLive" hidden></button>
     <div id="nets"></div>
     <!-- one thing big: what Emma looks for next; the rest small under it -->
     <button class="memcard" id="memCard">
@@ -1105,7 +1116,7 @@ if (APP && navigator.audioSession) try { navigator.audioSession.type = "play-and
 async function api(path, body, method) {
   const r = await fetch(path, body === undefined ? {method: method || "GET"} :
     {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
-  if (!r.ok) throw new Error(path + " " + r.status);
+  if (!r.ok) { const e = new Error(path + " " + r.status); e.status = r.status; throw e; }
   return r.json();
 }
 function oops(msg) { const e = $("#err"); e.textContent = msg; e.style.display = "block"; setTimeout(() => e.style.display = "none", 5000); }
@@ -2448,6 +2459,14 @@ const Nets = {
         (n.you_live ? `<span class="ncard-live"><i></i>Live</span>` : "") + `<span class="ncard-time">${left(n.expires)} left</span>` +
         `<div class="ncard-name">${esc(n.name)}<small>${n.members} ${n.members === 1 ? "person" : "people"}</small></div></button>`).join("");
     $("#netNew").onclick = () => this.sheet("netChoose");
+    const on = this.list.find(n => n.you_live), bar = $("#netLive");          // live somewhere: it says so, big
+    document.body.classList.toggle("is-live", !!on); bar.hidden = !on;
+    if (on) {
+      const others = on.live - 1;
+      bar.innerHTML = `<div class="nl-bg" style='background-image:${netCover(on)}'></div><div class="nl-radar"><span></span><span></span><i></i></div>` +
+        `<div class="nl-t"><b>You're live in ${esc(on.name)}</b><small>${others > 0 ? `${others} ${others === 1 ? "person" : "people"} live with you` : "Looking for people"} \u00b7 ends in ${endsIn(on.expires)}</small></div>`;
+      bar.onclick = () => this.live(on);
+    }
     box.querySelectorAll(".ncard[data-i]").forEach(b => b.onclick = () => this.live(this.list[b.dataset.i]));
   },
   sheet(view) {
@@ -2506,10 +2525,17 @@ const Nets = {
     if (!code) return;
     if (!S.signed) { keep("pairshake.join", code); return; }          // after signing in
     try {
-      const r = await api("/network/join", {id: this.me(), code});
+      let r;
+      for (let i = 0; ; i++) {
+        try { r = await api("/network/join", {id: this.me(), code}); break; }
+        catch (e) { if (e.status === 404 || i >= 4) throw e; await new Promise(ok => setTimeout(ok, 800)); }
+      }
       keep("pairshake.join", null); this.scanClose(); this.close(); this.keep(r.network); buzz([40, 30, 40], "success");
       this.live(r.network);                                         // joining puts you live
-    } catch { $("#scanErr").textContent = "No network with that code, or it has ended."; if (!$("#scanOv").classList.contains("on")) oops("That network has ended."); }
+    } catch (e) {
+      const msg = e.status === 404 ? "No network with that code, or it has ended." : "Couldn't reach PairShake. Try again.";
+      $("#scanErr").textContent = msg; if (!$("#scanOv").classList.contains("on")) oops(msg);
+    }
   },
   // ---- live: you are discoverable here; the people in it come in as they join
   async live(n) {
@@ -2538,7 +2564,10 @@ const Nets = {
       const total = r.people.length;
       if (!total && !box.querySelector(".lv-wait")) box.innerHTML = `<p class="lv-wait" style="opacity:.7">Waiting for people to join</p>`;
       if (total) box.querySelector(".lv-wait")?.remove();
-    } catch { clearInterval(this.poll); oops("This network has ended."); this.load(); show("welcome"); Tabs.sync(); }
+    } catch (e) {
+      if (e.status !== 404) return;                     // a dropped connection: the next poll tries again
+      clearInterval(this.poll); oops("This network has ended."); this.load(); show("welcome"); Tabs.sync();
+    }
   },
   async toggle() {
     const n = this.cur; if (!n) return;
@@ -2582,7 +2611,7 @@ $("#netJoinBtn").onclick = () => Nets.scanOpen();
 $("#netCreateBtn").onclick = () => Nets.openCreate();
 $("#netHours").querySelectorAll("button").forEach(b => b.onclick = () => { Nets.hours = +b.dataset.h; $("#netHours").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
 $("#netPhoto").onchange = e => Nets.pickPhoto(e.target.files[0]);
-$("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); };
+$("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); Nets.load(); };
 $("#lvShare").onclick = () => Nets.cur && Nets.share(Nets.cur);
 $("#lvToggle").onclick = () => Nets.toggle();
 twoTaps($("#lvLeave"), "Leave", () => Nets.leave());
