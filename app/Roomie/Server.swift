@@ -4,7 +4,7 @@ import SwiftUI
 /// so it has to be an https address (the microphone only works on secure pages): the tunnel link,
 /// or the Mac on this Wi-Fi if it serves https.
 enum Server {
-    static let fallback = "https://roomie.binjto.workers.dev"     // Cloudflare: fixed address, see edge/
+    static let fallback = "https://pairshake.binjto.workers.dev"     // Cloudflare: fixed address, see edge/
     private static let key = "server.manual"      // only an address typed in by hand; older saved ones are ignored
 
     static var address: String {

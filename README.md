@@ -38,11 +38,11 @@ flowchart LR
 PairShake runs entirely on Cloudflare. To deploy a change, with `wrangler` signed in:
 
 ```sh
-make edge        # deploy to roomie.binjto.workers.dev
+make edge        # deploy to pairshake.binjto.workers.dev
 make backup      # save a copy of the room
 ```
 
-Open **https://roomie.binjto.workers.dev** on any phone or computer. To build the iPhone app, run `make app` and open `app/Roomie.xcodeproj` in Xcode. `make help` lists every command.
+Open **https://pairshake.binjto.workers.dev** on any phone or computer. To build the iPhone app, run `make app` and open `app/Roomie.xcodeproj` in Xcode. `make help` lists every command.
 
 The full setup, including secrets, logs and installing the app on phones, is in [docs/running.md](docs/running.md).
 
@@ -51,7 +51,7 @@ The full setup, including secrets, logs and installing the app on phones, is in 
 - [Architecture](docs/architecture.md): the parts, how a request travels, what is stored.
 - [API](docs/api.md): every HTTP endpoint and WebSocket message.
 - [Finding each other](docs/finding.md): Ultra Wideband, Bluetooth and GPS, and what was learned testing them.
-- [Running Roomie](docs/running.md): deploying, logs, backups, phones, and troubleshooting.
+- [Running PairShake](docs/running.md): deploying, logs, backups, phones, and troubleshooting.
 
 ## Credits
 

@@ -1,4 +1,4 @@
-/* PairShake's backend, for the iPhone app: https://roomie.binjto.workers.dev. Nothing runs on the Mac.
+/* PairShake's backend, for the iPhone app: https://pairshake.binjto.workers.dev. Nothing runs on the Mac.
 
    - The app's page (app/web: index.html and Emma's hands) is static and served from Cloudflare's edge, only to
      the app. The hands' models are checked against the copy in the app's bundle (ETag), so it rarely downloads them.
@@ -6,11 +6,11 @@
      ever voiced before; a new line goes to the room, which checks that Emma really says it.
    - Everything else (the API and the rooms' WebSockets) goes to the one Durable Object that is the room
      (room.js), so every attendee sees the same people, matches and chats. */
-import { Roomie } from "./room.js";
+import { PairShake } from "./room.js";
 import { hear, voiceKey } from "./voice.js";
 import ETAGS from "./etags.json";
 
-export { Roomie };
+export { PairShake };
 
 const API = new Set(["/start", "/turn", "/quick", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile",
   "/inbox", "/talk", "/ws", "/scan", "/me", "/suggest", "/room"]);

@@ -1,4 +1,4 @@
-/* Roomie matching: who meets whom, and what gets the two of them talking.
+/* PairShake matching: who meets whom, and what gets the two of them talking.
 
    A match is a pair plus a spark. The pair is chosen here in code: who is free, who has met whom, who has
    had no introduction yet. How strongly two people pull comes from their agents' talks when there are any

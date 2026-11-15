@@ -11,16 +11,16 @@
 make edge                   # edge/deploy.sh: copies app/web into edge/public and deploys
 ```
 
-Address: **https://roomie.binjto.workers.dev**, for the app only (a browser sees a note that PairShake is an iPhone app). The page is never cached, so after a deploy the app shows it the next time it opens; data is kept across deploys.
+Address: **https://pairshake.binjto.workers.dev**, for the app only (a browser sees a note that PairShake is an iPhone app). The page is never cached, so after a deploy the app shows it the next time it opens; data is kept across deploys.
 
 The keys are Worker secrets (see [edge/README.md](../edge/README.md)). They only need setting again if they change.
 
 ## 2. Watching it
 
 ```sh
-npx wrangler tail roomie    # live logs: every match, model error and voice fallback
+npx wrangler tail pairshake    # live logs: every match, model error and voice fallback
 make backup                 # the whole room, saved to backups/
-curl https://roomie.binjto.workers.dev/room      # numbers for the room
+curl https://pairshake.binjto.workers.dev/room      # numbers for the room
 ```
 
 ## 3. The iPhone app
