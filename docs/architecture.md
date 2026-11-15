@@ -36,26 +36,31 @@ Rooms (who is connected to which introduction right now) are the Durable Object'
 
 **Seed attendees.** Ten fictional people are always in the room, so the first real attendee still has someone to meet. When someone is introduced to one of them, Emma plays that person in the chat.
 
-**Language model.** Every decision is one Gemini call that returns JSON (`edge/src/llm.js`): flash-lite (about 1 s) for the chat and the quick jobs, flash (about 3 s) for the spark and the agents' talk. A failed call is tried once more. At most 16 calls are in flight at once.
+**Language model.** Every step is a Gemini call (`edge/src/llm.js`). The writing comes back as JSON: flash-lite (about 1 s) for the chat and the quick jobs, flash (about 3 s) for the spark and the agents' talk. A failed call is tried once more. The judge is Gemini Decision 1, through Google's Decisions API: closed questions about one text, answered as probabilities in one pass, with no text written; a call that fails because the API is busy or slow is tried once more. At most 16 calls are in flight at once.
 
 | Step | When | What it asks for |
 | --- | --- | --- |
 | Interview | each answer | Emma's next line, and whether she has heard enough |
-| Scan | once the profile is written, one call per candidate (up to 8) | your agent's question, their agent's reply, a fit score |
 | Profile | after the interview | the attendee's card, with the odd details worth asking about |
+| Judge | once the profile is written, one call for everyone the attendee hasn't been judged with yet (up to 333 people a call) | for each other person: is a talk worth the attendee's time, is it worth theirs, and which kind of reason fits |
+| Scan | after the judge, two calls per talk: 3 talks when the judge answered, up to 8 when it didn't | your agent's question; their agent's reply, yes or no, and a fit score |
 | Spark | once the pair is chosen, two calls in parallel | Emma's line to each of them, a small mission, three questions, what the two share |
 | Agent talk, suggestions, welcome back | later | the opening exchange, follow-up questions, Emma's greeting next time |
 
 **Choosing the pair** (`edge/src/matching.js`). The pair is chosen in code; the model only judges and writes.
 
-1. The attendee's profile is written first (in English whatever they spoke; what they can offer is read from their work if they didn't say).
-2. Their agent is sent to the people most worth a talk: 8 when the room is quiet, 4 or 3 when others are matching too. The order comes from the cards (rare words count more), with people nobody has introduced yet first, and people already holding two unanswered introductions and the seed attendees last. Talks take turns by rank, so everyone's first choices are heard before anyone's fifth, and a talk still waiting after 7 seconds is dropped.
-3. Each talk ends in a fit score. The best one wins, steadied by the cards and after the same fairness adjustment, so the match agrees with what the matching screen showed. Emma waits 9 seconds for the agents (13 if fewer than two are back); after that the cards decide.
-4. Someone who said whom they'd rather not meet is rarely sent that kind of person, or sent to them: it counts heavily against the pair.
-5. An introduction to a seed attendee doesn't count: whoever only got one of those is first in line when a real person arrives. An introduction nobody answered for 20 minutes no longer counts against that person either.
-6. People matching at the same moment see each other's choices, so they don't all pick the same person.
-7. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the agents found a strong fit.
-8. If the model fails at any step, the code still pairs people and writes a plain introduction.
+1. The attendee's profile is written first (in English whatever they spoke; what they can offer is read from their work if they didn't say). Looking again without a new chat reuses it.
+2. The judge, Gemini Decision 1, reads the attendee's card and everyone else's (with their persona when there is one). For each other person it answers three closed questions: would a five-minute talk be worth the attendee's time, would it be worth the other person's (no if either said they'd rather not meet people like that), and which kind of reason fits best: useful, twin, pain, clash, or none. The answers are kept in the room's memory per pair and read from both sides; a pair is judged again only when one of the two profiles changes. The match waits at most 5 seconds for the judge; answers that come later are kept for the next match.
+3. The pair is chosen in code from those answers. A pair scores high only when there is a reason to talk and both sides find it worth their time, so a talk only one side wants scores low. The judge's score counts for 80%, the cards for 20% (rare words count more), and then comes the fairness adjustment: people nobody has introduced yet first, people already holding two unanswered introductions and the seed attendees last. The judge's kind of reason sets the kind of introduction.
+4. Then the attendee's agent talks to the chosen person and the next two. Each talk is two agents, one model call each. The attendee's agent knows its own person and only the other's public card, and asks. The other person's agent knows its own person (whom they'd rather not meet, how many introductions they haven't answered) and only the attendee's public card, and answers yes or no for them. If the chosen person's agent says no, that person is set aside and the next best is chosen. Emma waits 9 seconds for these talks (13 if fewer than two are back).
+5. If the judge gives no answer (it is down or too slow), the agents decide. The attendee's agent is sent to the people most worth a talk: 8 when the room is quiet, 4 or 3 when others are matching too, in order of their cards and the same fairness. Each talk ends in a fit score, and anyone whose agent said no is set aside. The best one wins, steadied by the cards (80% the agents, 20% the cards) and after the same fairness adjustment, so the match agrees with what the matching screen showed. Emma waits 9 seconds after the profile for the agents (13 if fewer than two are back); after that the cards decide.
+6. Talks take turns by rank, so everyone's first choices are heard before anyone's fifth, and a talk still waiting after 7 seconds is dropped.
+7. Someone who said whom they'd rather not meet is rarely sent that kind of person, or sent to them: it counts heavily against the pair in the cards, and the judge and their agent are asked to say no.
+8. An introduction to a seed attendee doesn't count: whoever only got one of those is first in line when a real person arrives. An introduction nobody answered for 20 minutes no longer counts against that person either.
+9. People matching at the same moment see each other's choices, so they don't all pick the same person.
+10. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the judge or the agents found a strong fit.
+11. Traits only shape the tone of the introduction, never who meets whom. Three are used, how playful, how direct and how open to strangers each one is, and only when they were read with a confidence of at least 0.4 ([traits.md](traits.md)). Both playful: a more playful mission. Both hesitant with strangers: an easier first question and a low-pressure mission. Either one direct: direct questions. This adds one line to the spark's prompt, which says how to write and nothing about the people; with no usable trait there is no line.
+12. If the model fails at any step, the code still pairs people and writes a plain introduction.
 
 At most 16 model calls run at once, at most 12 of them agents' talks, however many people are matching.
 

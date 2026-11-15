@@ -16,7 +16,7 @@ All endpoints are served by Cloudflare at `https://pairshake.binjto.workers.dev`
 
 | Method | Path | Body or query | Returns |
 | --- | --- | --- | --- |
-| GET | `/scan` | `?id` | `{talks: [{person, ask, reply, fit}], total, muse}` (`muse`: Emma's `{start, looking}` lines). Your agent's conversations so far. |
+| GET | `/scan` | `?id` | `{talks: [{person, ask, reply, fit, no}], total, muse}` (`muse`: Emma's `{start, looking}` lines). Your agent's conversations so far; `no` is true when the other person's agent declined for them. |
 | POST | `/match` | `{id, socials}` | `{say, me, mission}`. The introduction. 409 `{cancelled: true}` if the search was stopped meanwhile. |
 | POST | `/match/cancel` | `{id}` | `{ok}`. Drops the match being worked out; nobody is introduced. |
 | POST | `/again` | `{id}` | `{ok}`. Look for someone new using what Emma already knows. |

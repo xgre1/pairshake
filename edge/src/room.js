@@ -10,7 +10,7 @@
 import { DurableObject } from "cloudflare:workers";
 import * as M from "./matching.js";
 import * as P from "./prompts.js";
-import { ask, QUICK, MAIN } from "./llm.js";
+import { ask, decide, QUICK, MAIN } from "./llm.js";
 import { speak } from "./voice.js";
 import * as Events from "./events.js";
 import { readTraits, DIMENSIONS, vector } from "./traits.js";
@@ -89,6 +89,8 @@ export class PairShake extends DurableObject {
     this.networks = {};         // network id -> {id, code, name, owner, created, members: [user ids]}  (D1: meta "networks")
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
+    this.judged = {};         // pair -> what the judge said about the two (matching.js judge); kept until a profile changes
+    this.profiles = new Map(); // user id -> {convo, me}: the profile written from that chat, so the same chat isn't read twice
     this.talkTasks = new Map();
     this.testWait = new Map();
     this.loginFails = new Map();
@@ -571,29 +573,36 @@ export class PairShake extends DurableObject {
   }
 
   /** The attendee's agent talks to the people most worth it (matching.shortlist), fewer when the room is busy
-      matching. A talk still waiting for its turn when the match is made, or after 7 seconds, is dropped. */
-  sendAgents(u, me, R, room) {
+      matching. A talk still waiting for its turn when the match is made, or after 7 seconds, is dropped.
+      Each talk is two agents, one model call each: the attendee's agent knows only its own person and the other's
+      public card, and asks; the other person's agent knows its own person (whom they'd rather not meet, how many
+      introductions they hold) and the attendee's public card, and answers yes or no for them. */
+  sendAgents(u, me, R, room, only) {
     const state = this.scans.get(u.id);
     if (state.sent) return state;
     const busy = [...this.scans.values()].filter(st => st.sent && !st.closed).length;
-    const who = M.shortlist(R, u.id, room.map(p => p.id), !busy ? 8 : busy < 5 ? 4 : 3);
+    const who = only || M.shortlist(R, u.id, room.map(p => p.id), !busy ? 8 : busy < 5 ? 4 : 3);   // (only: the judge's choice and the next best)
     state.total = who.length;
     state.sent = now();
-    const mine = JSON.stringify(M.card(me));
+    const pub = p => JSON.stringify(Object.fromEntries(Object.entries(M.card(p)).filter(([k]) => k !== "id" && k !== "avoid")));
+    const own = p => JSON.stringify(M.judgeCard({ ...p, persona: this.users[p.id]?.persona }));
+    const mine = own(me), myCard = pub(me), convo = this.convo(u);
     const one = async (rank, pid) => {
       const p = R.people[pid];
-      const other = {};
-      for (const k of ["role", "building", "needs", "offers", "hooks", "avoid"]) if (p[k] && !(Array.isArray(p[k]) && !p[k].length)) other[k] = p[k];
       try {
         await this.agentsTurns.take(rank);
-        let out;
+        let q, a;
         try {
           if (state.closed || now() - state.sent > 7) throw new Error("no longer needed");
-          out = await ask(this.env, M.fill(P.SCAN, { me: mine, convo: this.convo(u), name: p.name, first: firstName(p.name), other: JSON.stringify(other) }), { timeout: 30 });
+          q = await ask(this.env, M.fill(P.AGENT_ASK, { me: mine, convo, name: me.name || "the attendee", first: M.first(me),
+            other_name: p.name, other_first: M.first(p), other: pub(p) }), { timeout: 15 });
+          a = await ask(this.env, M.fill(P.AGENT_REPLY, { me: own(p), name: p.name, first: M.first(p), open: R.open[pid] || 0,
+            other_name: me.name || "an attendee", other_first: M.first(me), other: myCard, ask: str(q.ask).slice(0, 300) }), { timeout: 15 });
         } finally {
           this.agentsTurns.give();
         }
-        state.talks.push({ person: this.person(pid), ask: String(out.ask ?? ""), reply: String(out.reply ?? ""), fit: M.int(out.fit, 30) });
+        const no = a.meet === false;        // their agent declined for them
+        state.talks.push({ person: this.person(pid), ask: str(q.ask), reply: str(a.reply), fit: no ? Math.min(M.int(a.fit, 30), 15) : M.int(a.fit, 30), no });
       } catch (e) {
         if (e.message !== "no longer needed") console.log("scan error:", String(e));
         state.total--;
@@ -621,7 +630,7 @@ export class PairShake extends DurableObject {
     const t0 = now();
     this.startScan(u);
     const state = this.scans.get(u.id);
-    let p, s, talks = {}, t1 = t0, t2 = t0, me, room;
+    let p, s, talks = {}, t1 = t0, t2 = t0, me, room, judged = 0;
     try {
       const app = !!u.app;
       // on the app: another app user if there is one; always someone new (unless they've met everyone)
@@ -631,11 +640,16 @@ export class PairShake extends DurableObject {
       if (!room.length) room = fresh(this.candidates(u.id, app));
       if (!room.length) room = this.candidates(u.id, app);
       if (!room.length) throw new Error("nobody else in the room");
-      try {
-        me = await M.profile(this.convo(u), prompt => ask(this.env, prompt, { timeout: 15 }));
-      } catch (e) {               // the chat already gave Emma the basics
-        console.log("profile error:", String(e));
-        me = Object.fromEntries(Object.entries(u.known || {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]));
+      const convo = this.convo(u), kept = this.profiles.get(u.id);
+      if (kept && kept.convo === convo) me = { ...kept.me };     // looking again without a new chat: the same profile
+      else {
+        try {
+          me = await M.profile(convo, prompt => ask(this.env, prompt, { timeout: 15 }));
+          this.profiles.set(u.id, { convo, me: { ...me } });
+        } catch (e) {               // the chat already gave Emma the basics
+          console.log("profile error:", String(e));
+          me = Object.fromEntries(Object.entries(u.known || {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]));
+        }
       }
       if (u.memory) {             // back again: what they didn't mention stays as it was
         const said = Object.fromEntries(Object.entries(me).filter(([, v]) => v && !(Array.isArray(v) && !v.length)));
@@ -648,20 +662,53 @@ export class PairShake extends DurableObject {
       }));
       const R = new M.Room([...room.map(x => this.private(x)), me], past);
       t1 = now();
-      this.sendAgents(u, me, R, room);
-      talks = await this.verdicts(state, t1);
-      t2 = now();
+      // the judge reads the room for whoever it hasn't judged against them yet (one call, at most 5 s of waiting)
+      const forJudge = x => ({ ...x, persona: this.users[x.id]?.persona });
+      const rated = await M.rate(this.judged, forJudge(me), room.map(x => forJudge(this.private(x))),
+        (input, questions) => decide(this.env, input, questions, { timeout: 4 }), 5);
+      judged = Object.keys(rated.fits).length;
       // people matching at the same moment see each other's choices, so they don't all pick one person
-      this.claims = this.claims.filter(c => t2 - c.created < 90);
-      for (const c of this.claims) R.record(c.a, c.b);
-      p = await M.pick(R, u.id, null, Object.fromEntries(Object.entries(talks).map(([i, t]) => [i, t.fit])));
+      const claimed = () => {
+        this.claims = this.claims.filter(c => now() - c.created < 90);
+        for (const c of this.claims) R.record(c.a, c.b);
+      };
+      // someone whose agent said no for them isn't introduced: they are set aside, and the choice goes to the next of
+      // the people the agents talked to whose agent said yes (only when none did, to the next best by the judge)
+      const nos = () => Object.keys(talks).filter(i => talks[i].no);
+      const willing = fits => Object.fromEntries(Object.entries(fits).filter(([i]) => !talks[i]?.no));
+      const claim = () => { const c = this.users[p.b] ? { a: u.id, b: p.b, outcome: null, created: now() } : null; if (c) this.claims.push(c); return c; };
+      if (judged) {               // the pair comes from the judge; the agents then talk to that person and the next two
+        claimed();
+        p = await M.pick(R, u.id, null, rated.fits, rated.recipes);
+        const first = claim();
+        const free = new Set(R.candidates(u.id));
+        const order = M.talkTo(Object.fromEntries(Object.entries(rated.fits).filter(([i]) => free.has(i))), p.b);
+        this.sendAgents(u, me, R, room, order);
+        talks = await this.verdicts(state, now());
+        t2 = now();
+        if (talks[p.b]?.no) {
+          for (const i of nos()) R.record(u.id, i, false);
+          this.claims = this.claims.filter(c => c !== first);
+          const b = M.saidYes(order, talks);
+          p = b ? { ...p, b, recipe: rated.recipes[b] || R.links(u.id, b).recipe } : await M.pick(R, u.id, null, willing(rated.fits), rated.recipes);
+          claim();
+        }
+      } else {                    // no answer from the judge: the agents' verdicts decide, as before
+        this.sendAgents(u, me, R, room);
+        talks = await this.verdicts(state, now());
+        t2 = now();
+        claimed();
+        for (const i of nos()) R.record(u.id, i, false);
+        p = await M.pick(R, u.id, null, willing(Object.fromEntries(Object.entries(talks).map(([i, t]) => [i, t.fit]))));
+        claim();
+      }
       state.closed = true;
-      if (this.users[p.b]) this.claims.push({ a: u.id, b: p.b, outcome: null, created: now() });
-      s = await M.spark(R, [u.id, p.b], p.recipe, prompt => ask(this.env, prompt, { model: MAIN }), talks[p.b]);
+      s = await M.spark(R, [u.id, p.b], p.recipe, prompt => ask(this.env, prompt, { model: MAIN }), talks[p.b],
+        [this.traitsOf(u.id), this.traitsOf(p.b)]);     // (traits only shape the tone of the introduction)
     } finally {
       state.closed = true;
     }
-    console.log(`match ${u.id} -> ${p.b}: ${s.recipe}, ${p.mode}, by ${p.by}, ${Object.keys(talks).length}/${state.total} talks, ` +
+    console.log(`match ${u.id} -> ${p.b}: ${s.recipe}, ${p.mode}, by ${judged ? "judge" : p.by}, judged ${judged}/${room.length}, ${Object.keys(talks).length}/${state.total} talks, ${Object.values(talks).filter(t => t.no).length} said no, ` +
       `profile ${(t1 - t0).toFixed(1)} s, agents ${(t2 - t1).toFixed(1)} s, spark ${(now() - t2).toFixed(1)} s`);
     const sh = s.share;
     const note = pid => `${s.teases[pid]} Your mission together: ${s.mission}`;

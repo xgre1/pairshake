@@ -1,15 +1,15 @@
 /* Matching: who meets whom, and what gets the two of them talking.
 
    A match is a pair plus a spark. The pair is chosen here in code: who is free, who has met whom, who has
-   had no introduction yet. How strongly two people pull comes from their agents' talks when there are any
-   (the scan, the same talks the matching screen shows), else from the model rating a shortlist, else from
-   the cards alone. The model then writes the spark. If the model fails, the code still pairs people and
-   writes a plain spark, so there is always a match.
+   had no introduction yet. How strongly two people pull comes from the judge's stored answers about the
+   pair (judge, rate: below), else from their agents' talks, else from the cards alone. The model then writes
+   the spark. If the model fails, the code still pairs people and writes a plain spark, so there is always a
+   match.
 
      const room = new Room(people, missions)        // people: profile objects, missions: [{a, b, outcome, created, demo}]
      const who = shortlist(room, myId, ids, k)      // whom my agent should talk to: the k most worth it
-     const p = await pick(room, myId, llm, fits)    // fits: {id: 0-100} from the agents' talks
-     const s = await spark(room, [a, b], recipe, llm, talk)
+     const p = await pick(room, myId, llm, fits, recipes)   // fits: {id: 0-100} from the judge or the agents' talks
+     const s = await spark(room, [a, b], recipe, llm, talk, traits)   // traits: each one's traits (room.js traitsOf), for the tone
 
    `llm` is any `async (prompt) => object`. */
 
@@ -210,7 +210,7 @@ no "compatible", no praise words (amazing, great, perfect, love). Plain spoken E
 
 Why these people ({recipe}): {why}
 Hints from their cards (use only if they are real and interesting): {hints}
-{talk}`;
+{talk}{tone}`;
 
 // The spark is written in two halves at the same time: one call for all of it took twice as long.
 const SPARK_WORDS = `
@@ -280,8 +280,9 @@ export async function profile(convo, llm) {
 }
 
 /** Who `me` should meet next: {a, b, recipe, mode, by}; null only when nobody else is in the room. `fits` is
-    what the agents concluded, {id: 0-100}; with it the model isn't asked to rate again. */
-export async function pick(room, me, llm, fits) {
+    what the judge or the agents concluded, {id: 0-100}; with it the model isn't asked to rate again. `recipes`,
+    {id: recipe}, is the kind of pair the judge saw for each person. */
+export async function pick(room, me, llm, fits, recipes) {
   const cands = room.candidates(me);
   if (!cands.length) return null;
   const rng = room.rng, n = cands.length;
@@ -294,7 +295,7 @@ export async function pick(room, me, llm, fits) {
   // way shouldn't decide it); else the cards, a little lower when others were looked at closely
   let pulls = Object.fromEntries(cands.map(c => [c, [
     c in fits ? 0.8 * fits[c] + 0.2 * cards[c] : cards[c] - (hasFits ? 10 : 0),
-    (fits[c] || 0) >= STRONG && links[c].recipe === "wildcard" ? "useful" : links[c].recipe,
+    recipes?.[c] in RECIPES ? recipes[c] : (fits[c] || 0) >= STRONG && links[c].recipe === "wildcard" ? "useful" : links[c].recipe,
   ]]));
   if (n <= TINY) {                                  // a few people: go round, least-introduced first
     const b = minBy(cands, c => [room.intros[c] || 0, -pulls[c][0], rng.random()]);
@@ -352,8 +353,41 @@ export function plainSpark(people, recipe) {
   };
 }
 
-/** What gets them talking. `talk` is the agents' exchange about the first two, {ask, reply}. */
-export async function spark(room, ids, recipe, llm, talk) {
+/* The tone: three traits (docs/traits.md) shape how Emma words the spark, never who meets whom. A trait counts only
+   when it was read with confidence of at least SURE; the line says how to write, never what anyone is like. */
+const TONE = ["playfulness", "directness", "openness_to_strangers"];
+const SURE = 0.4;          // confidence a trait needs before it shapes the tone
+const HIGH = 0.65;         // a trait value this high or higher counts as high
+const LOW = 0.35;          // this low or lower counts as low
+
+/** The tone traits read well enough: {key: 0-1}. `t` is room.js traitsOf(), {v: {key: 0-1}, c: {key: 0-1}}, or null. */
+function toneTraits(t) {
+  const out = {};
+  for (const k of TONE) {
+    const v = Number(t?.v?.[k]), c = Number(t?.c?.[k]);
+    if (Number.isFinite(v) && Number.isFinite(c) && c >= SURE) out[k] = v;
+  }
+  return out;
+}
+
+/** One short line for the spark prompt on how to word it, from the people's traits (one per person, null while not
+    read yet): all playful, a more playful mission; all hesitant with strangers, an easier first question; anyone
+    direct, direct questions. "" when no trait is known well enough. */
+export function tone(traits) {
+  const ts = (Array.isArray(traits) ? traits : []).map(toneTraits);
+  const all = (k, f) => ts.length > 1 && ts.every(t => k in t && f(t[k]));
+  const any = (k, f) => ts.some(t => k in t && f(t[k]));
+  const hi = v => v >= HIGH, lo = v => v <= LOW;
+  const say = [];
+  if (all("playfulness", hi)) say.push("make the mission more playful than usual");
+  if (all("openness_to_strangers", lo)) say.push("make the first question easy to answer and the mission low-pressure");
+  if (any("directness", hi)) say.push("make the questions direct, no small talk");
+  return say.length ? `Tone: ${say.join("; ")}.\n` : "";
+}
+
+/** What gets them talking. `talk` is the agents' exchange about the first two, {ask, reply}. `traits`, one per person
+    in the order of `ids` (room.js traitsOf), only adds a line on tone to the prompt. */
+export async function spark(room, ids, recipe, llm, talk, traits) {
   const people = ids.map(i => room.people[i]);
   const out = plainSpark(people, recipe);
   if (!llm) return out;
@@ -363,6 +397,7 @@ export async function spark(room, ids, recipe, llm, talk) {
     n: people.length, recipe, why: RECIPES[recipe], names: Object.keys(RECIPES).join(", "),
     people: people.map(p => JSON.stringify(card(p))).join("\n"), hints: JSON.stringify(hints),
     talk: talk && talk.ask ? `Their agents already talked. ${first(people[0])}'s asked: "${talk.ask}" ${first(people[1])}'s answered: "${talk.reply || ""}"\n` : "",
+    tone: tone(traits),
     ids: ids.map(i => `"${i}": "..."`).join(", "),
   };
   const half = async prompt => {                    // a half that fails keeps its plain version
@@ -389,4 +424,135 @@ export async function spark(room, ids, recipe, llm, talk) {
     out.share = { rare, first_only: tags(sh.first_only), second_only: tags(sh.second_only), give: str(sh.give), get: str(sh.get) };
   }
   return out;
+}
+
+/* The judge: Gemini Decision 1 reads the whole room once for each person whose profile is new or changed, and for
+   every other person answers three closed questions: is the talk worth the first one's time, is it worth the other's,
+   and which kind of reason to talk fits (one of the recipes, or none). The answers are kept per pair, so the match
+   itself is code over stored answers, and the same pair isn't judged again until one of the two profiles changes.
+
+     const todo = toJudge(cache, me, people)                 // who needs judging against `me`
+     Object.assign(cache, await judge(me, todo, decide))     // decide: (input, questions) => answers
+     const { fits, recipes } = fitsFrom(cache, me.id, ids)   // fits: {id: 0-100}, recipes: {id: recipe}
+     const p = await pick(room, me.id, null, fits, recipes)
+
+   People can carry their `persona` (room.js) for the judge to read. */
+
+export const KINDS = {
+  useful: RECIPES.useful, twin: RECIPES.twin, pain: RECIPES.pain, clash: RECIPES.clash,
+  none: "there is no real reason for these two to talk",
+};
+const PER_CALL = 333;    // three questions a person, at most 1,000 questions in one call
+
+const filled = v => v != null && v !== "" && !(Array.isArray(v) && !v.length);
+
+/** What the judge reads about a person: their card, plus the parts of their persona that matter for an introduction. */
+export function judgeCard(p) {
+  const out = card(p);
+  delete out.id;
+  const ps = p.persona;
+  if (ps && typeof ps === "object") {
+    const w = ps.work || {}, g = ps.goals || {}, pe = ps.personality || {};
+    const more = { headline: ps.headline, project: w.current_project, skills: w.skills, looking_for: g.looking_for,
+      can_offer: ps.offers, rare: ps.rare, talks_about: ps.talk_about, avoid_people: pe.avoid };
+    for (const [k, v] of Object.entries(more)) if (filled(v)) out[k] = Array.isArray(v) ? v.slice(0, 6).map(x => String(x).slice(0, 200)) : String(v).slice(0, 300);
+  }
+  return out;
+}
+
+/** A short fingerprint of what the judge reads about someone: when it changes, their pairs are judged again. */
+export function sig(p) {
+  const s = JSON.stringify(judgeCard(p));
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+
+/** The people in `people` whose pair with `me` has no answer yet, or an answer from an older profile of either. */
+export function toJudge(cache, me, people) {
+  const mine = sig(me);
+  return people.filter(o => {
+    if (o.id === me.id) return false;
+    const e = cache[pair(me.id, o.id)];
+    return !e || e.s?.[me.id] !== mine || e.s?.[o.id] !== sig(o);
+  });
+}
+
+export function judgeInput(me, group) {
+  return `At a hackathon, a matchmaker is choosing whom to introduce to one attendee. The aim is not a perfect match but a\n` +
+    `good reason for two strangers to walk over and start talking.\n\nThe attendee, ${me.name || "them"}:\n${JSON.stringify(judgeCard(me))}\n\n` +
+    `The other people in the room:\n` + group.map((o, i) => `#${i} ${o.name || "someone"}: ${JSON.stringify(judgeCard(o))}`).join("\n");
+}
+
+export function judgeQuestions(me, group) {
+  const a = first(me), q = {};
+  group.forEach((o, i) => {
+    const b = `#${i} (${o.name || "someone"})`;
+    q[`a${i}`] = { type: "noul", instructions: `Would a five-minute talk with ${b} be worth ${a}'s time, given what ${a} is working on and looking for? No if ${a} said they would rather not meet people like them.` };
+    q[`b${i}`] = { type: "noul", instructions: `Would ${b} find a five-minute talk with ${a} worth their time, given what they are working on and looking for? No if they said they would rather not meet people like ${a}.` };
+    q[`k${i}`] = { type: "choice", instructions: `What is the best reason for ${a} and ${b} to talk?`, criteria: { ...KINDS } };
+  });
+  return q;
+}
+
+/** The judge's answers about `me` and each of `people`, as cache entries by pair. A call that fails leaves its people
+    out (they keep any older answer, or fall back to the cards); it never throws. */
+export async function judge(me, people, decide) {
+  const others = people.filter(o => o.id !== me.id);
+  const groups = [];
+  for (let i = 0; i < others.length; i += PER_CALL) groups.push(others.slice(i, i + PER_CALL));
+  const out = {}, mine = sig(me), at = Date.now() / 1000;
+  const results = await Promise.allSettled(groups.map(g => decide(judgeInput(me, g), judgeQuestions(me, g))));
+  results.forEach((r, gi) => {
+    if (r.status !== "fulfilled") { console.log("judge error:", String(r.reason).slice(0, 200)); return; }
+    const ans = r.value && typeof r.value === "object" ? r.value : {};
+    groups[gi].forEach((o, i) => {
+      const a = Number(ans[`a${i}`]?.noul), b = Number(ans[`b${i}`]?.noul), k = ans[`k${i}`]?.probabilities;
+      if (!Number.isFinite(a) || !Number.isFinite(b) || !k || typeof k !== "object") return;
+      const kinds = {};
+      for (const name of Object.keys(KINDS)) kinds[name] = Number.isFinite(Number(k[name])) ? Number(k[name]) : 0;
+      out[pair(me.id, o.id)] = { s: { [me.id]: mine, [o.id]: sig(o) }, p: { [me.id]: a, [o.id]: b }, kinds, at };
+    });
+  });
+  return out;
+}
+
+/** What the stored answers say about `me` and each of `ids`: a pull of 0-100 (a reason to talk, worth it to both)
+    and the kind of pair. People with no answer are left out, so pick() falls back to the cards for them. */
+export function fitsFrom(cache, me, ids) {
+  const fits = {}, recipes = {};
+  for (const id of ids) {
+    const e = cache[pair(me, id)];
+    const a = e?.p?.[me], b = e?.p?.[id];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    const reason = 1 - (e.kinds?.none || 0);
+    fits[id] = Math.round(100 * Math.max(0, reason) * Math.sqrt(Math.max(0, a) * Math.max(0, b)));
+    const best = Object.entries(e.kinds || {}).filter(([k]) => k !== "none").sort((x, y) => y[1] - x[1])[0];
+    if (best && best[1] > 0) recipes[id] = best[0];
+  }
+  return { fits, recipes };
+}
+
+/** The judge's view of `me` against `others`, for a live match: whoever isn't judged yet is judged now, but the
+    match waits at most `wait` seconds for it. Answers that arrive later are still kept for the next match. */
+export async function rate(cache, me, others, decide, wait = 5) {
+  const todo = decide ? toJudge(cache, me, others) : [];
+  if (todo.length) {
+    const done = judge(me, todo, decide).then(r => { Object.assign(cache, r); });
+    let timer;
+    await Promise.race([done, new Promise(r => { timer = setTimeout(r, wait * 1000); })]);
+    clearTimeout(timer);
+  }
+  return { ...fitsFrom(cache, me.id, others.map(o => o.id)), asked: todo.length };
+}
+
+/** Whom the attendee's agent talks to once the judge has spoken: the chosen person, then the next best. */
+export function talkTo(fits, chosen, k = 3) {
+  const rest = Object.keys(fits).filter(c => c !== chosen).sort((x, y) => fits[y] - fits[x]);
+  return [chosen, ...rest].slice(0, k);
+}
+
+/** After the chosen person's agent said no: the first of the people talked to, in order, whose agent said yes. */
+export function saidYes(order, talks) {
+  return order.find(i => talks[i] && !talks[i].no) || null;
 }

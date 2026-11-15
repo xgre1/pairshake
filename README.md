@@ -29,10 +29,13 @@ You tell Emma, by voice, what you're building and who you need. Your agent asks 
 
 Nobody can predict which two strangers will click ([Joel, Eastwick & Finkel 2017](https://www.psychologicalscience.org/news/releases/romantic-matches-are-hard-to-predict.html)), and a rare thing in common bonds people more than a common one ([Alves 2018](https://scinapse.io/papers/2802513993)). So PairShake doesn't look for a perfect match. It looks for a good reason to start talking.
 
-- **Code picks the pair, the model writes the words.** The agents' verdicts count for 80%, the two profiles for 20%.
+- **A judge reads the room.** Gemini Decision 1 answers three closed questions about you and each other person: would a five-minute talk be worth your time, would it be worth theirs, and what is the best reason to talk: one needs what the other offers, something rare in common, the same frustration, a friendly disagreement, or none. One call covers everyone you haven't been judged with yet. The answers are kept per pair, and a pair is judged again only when one of the two profiles changes.
+- **Code picks the pair, the model writes the words.** A pair scores high only when there is a reason to talk and both sides find it worth their time. The judge's answers (without them, the agents' verdicts) count for 80%, the two profiles for 20%.
+- **Two agents per talk.** Your agent knows you and only the other person's public card, and asks. Their agent knows them and only your public card, and answers for them, yes or no. Your agent talks to the chosen person and the next two. If the chosen person's agent says no, the next best is chosen.
 - **Five kinds of pair:** one needs what the other offers (useful), something rare in common (twin), the same frustration (pain), a friendly disagreement (clash), or no link at all (wildcard).
+- **Personality sets the tone, not the pair.** Three traits, how playful, how direct and how open to strangers each of you is, only change how Emma words the introduction: a more playful mission, direct questions, an easier first question. They never decide who meets whom, and the introduction never mentions them.
 - **Fair to the room.** People with no introduction yet go first. Two unanswered introductions make someone busy for 20 minutes. Nobody meets the same person twice unless they've met everyone.
-- **Always a match.** If the model fails, the code still pairs people and writes a plain introduction.
+- **Always a match.** If the judge doesn't answer, your agent talks to up to eight people and their agents' verdicts decide. If the model fails, the code still pairs people and writes a plain introduction.
 
 The code is in [`edge/src/matching.js`](edge/src/matching.js).
 

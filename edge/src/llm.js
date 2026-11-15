@@ -55,3 +55,35 @@ export async function ask(env, prompt, { model = QUICK, timeout = 25 } = {}) {
     free();
   }
 }
+
+export const DECIDE = "gemini-decision-1";
+
+/** Gemini Decision 1 (the Decisions API): closed questions about one input, answered as probabilities in one pass,
+    no text written. `questions` is {name: {type: "noul" | "choice" | "score", instructions, criteria}}; the
+    answers come back by the same names. A busy or timed-out call is tried once more. */
+export async function decide(env, input, questions, { timeout = 12 } = {}) {
+  const once = async () => {
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/decisions", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({ model: DECIDE, input, questions }),
+      signal: AbortSignal.timeout(timeout * 1000),
+    });
+    if (!r.ok) throw new Error(`decision ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const d = await r.json();
+    if (!d || typeof d.answers !== "object" || !d.answers) throw new Error("decision: no answers");
+    return d.answers;
+  };
+  await slot();
+  try {
+    try {
+      return await once();
+    } catch (e) {
+      if (!/decision (429|5\d\d)|TimeoutError|aborted/i.test(`${e?.name} ${e}`)) throw e;
+      console.log("decision retry:", String(e).slice(0, 200));
+      return await once();
+    }
+  } finally {
+    free();
+  }
+}

@@ -1,7 +1,7 @@
 # Traits: the data for matching
 
 Every person gets **44 numbers between 0 and 1**, each with a **confidence** between 0 and 1, plus a structured
-**persona**. Matching can work on these fixed values instead of free text. The code is `edge/src/traits.js`
+**persona**. The judge in matching reads the persona; three of the traits set the tone of Emma's introduction (see [architecture.md](architecture.md)); the rest are stored for later use. The code is `edge/src/traits.js`
 (the dimensions and how they are read) and `edge/src/room.js` (`enrich`, `traitsOf`).
 
 ## Where it comes from
