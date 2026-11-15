@@ -15,7 +15,7 @@ make server                 # same as: cd server && ~/Desktop/emma/.venv/bin/pyt
 
 It listens on port 8780 and serves the web app at `/`. Use Emma's environment: the system Python lacks the audio libraries her engine needs and the server stops at start-up. State is saved to `server/room.json`, so restarting is safe.
 
-Environment variables: `PORT` (default 8780), `ROOMIE_MODEL` (default `haiku`).
+Environment variables: `PORT` (default 8780), `ROOMIE_MODEL` (default `haiku`), `GEMINI_API_KEY` (optional: use Gemini instead of `claude`; may also go in `server/.env`, which stays out of git).
 
 ## 2. The tunnel
 

@@ -35,14 +35,25 @@ Rooms (who is connected to which introduction right now) are kept only in memory
 
 **Seed attendees.** Ten fictional people are always in the room, so the first real attendee still has someone to meet. When someone is introduced to one of them, Emma plays that person in the chat.
 
-**Language model.** Every decision is a one-shot `claude -p` call (model set by `ROOMIE_MODEL`, Haiku by default) that returns JSON:
+**Language model.** Every decision is a one-shot `claude -p` call (model set by `ROOMIE_MODEL`, Haiku by default) that returns JSON. With `GEMINI_API_KEY` set (in the environment or in `server/.env`), Gemini answers instead (`server/llm.py`).
 
 | Step | When | What it asks for |
 | --- | --- | --- |
 | Interview | each answer | Emma's next line, and whether she has heard enough |
 | Scan | after the interview, one call per candidate (up to 14, in parallel) | your agent's question, their agent's reply, a fit score |
-| Match | after the interview | the one person, Emma's two notes, what the two share |
+| Profile | after the interview | the attendee's card, with the odd details worth asking about |
+| Spark | once the pair is chosen, two calls in parallel | Emma's line to each of them, a small mission, three questions, what the two share |
 | Agent talk, suggestions, welcome back | later | the opening exchange, follow-up questions, Emma's greeting next time |
+
+**Choosing the pair** (`server/matching.py`). The pair is chosen in code; the model only judges and writes.
+
+1. The agents are sent to the 14 people most worth a talk: the attendee's own words against every card (rare words count more), people nobody has introduced yet first, people already holding two unanswered introductions and the seed attendees last.
+2. Each agent talk ends in a fit score. The person with the best score wins, after the same fairness adjustment, so the match agrees with what the matching screen showed. Agents that are late don't hold things up: after 10 seconds the cards decide.
+3. An introduction nobody answered for 20 minutes no longer counts against that person.
+4. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the agents found a strong fit.
+5. If the model fails at any step, the code still pairs people and writes a plain introduction.
+
+`matching.py` also has rounds (everyone paired at once, a trio for an odd count), not yet used by the server. Its rules are checked by `server/test_matching.py`.
 
 **Who can meet whom.** People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband); people on the web only meet web users. The seed attendees are in both. Test attendees never appear in real matches. The first app user, with nobody else on the app yet, gets a seed person, and is introduced to the next app user through their inbox.
 

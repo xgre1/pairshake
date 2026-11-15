@@ -16,5 +16,8 @@ server/room.json
 server/*.log
 server/*.jsonl
 
+# API keys
+.env
+
 # Self-signed TLS key for local testing
 server/certs/
