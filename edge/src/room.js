@@ -205,6 +205,12 @@ export class PairShake extends DurableObject {
       other by Ultra Wideband), and so is each event: someone who joined an event only meets people in it (and
       people in no event only each other). Emma's demo attendees are in all of them. */
   candidates(exclude, app = false, seeds = true) {
+    // live in a network: its room is the people live in it right now (real people only, from the app or the web)
+    const net = this.users[exclude]?.live?.network;
+    if (net && this.networks[net]) {
+      return this.networks[net].members.filter(id => id !== exclude && this.users[id]?.live?.network === net &&
+        this.users[id].profile && !this.users[id].test && !this.users[id].paused).map(id => this.person(id));
+    }
     const out = seeds ? SEED.map(s => this.person(s.id)) : [];
     const ev = this.users[exclude]?.event?.id || null;
     for (const [uid, u] of Object.entries(this.users)) {
@@ -466,9 +472,10 @@ export class PairShake extends DurableObject {
     if (!n || !n.members.includes(u.id)) throw new HttpError(404, "This network has ended.");
     const people = n.members.filter(id => id !== u.id && this.users[id]).map(id => {
       const p = this.person(id) || {};
-      return { id, name: p.name, color: p.color, photo: p.photo || "", role: p.role || "", live: this.users[id].live?.network === n.id };
+      return { id, name: p.name, color: p.color, photo: p.photo || "", role: p.role || "", live: this.users[id].live?.network === n.id,
+               ready: !!this.users[id].profile };
     }).sort((a, b) => b.live - a.live);
-    return { network: this.networkCard(n, u.id), people };
+    return { network: this.networkCard(n, u.id), people, ready: !!u.profile };
   }
 
   /** Live on or off in a network (discoverable or not), or leave it for good. */
