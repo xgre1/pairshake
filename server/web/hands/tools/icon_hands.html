@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hands still</title>
+<!-- Renders one still of Emma's hands (the same meshes and white material as the page) to a PNG with a
+     transparent background, for the app icon. Driven by app/tools/icon_hands.py:
+       await render({hands: {right: {shape, wrist, palm, fingers, forearm}, left: {...}},
+                     camera: {pos, look, fov}, orb: {pos, r}, size})  -> data URL -->
+<script type="importmap">{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }</script>
+<body style="margin:0;background:transparent">
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import init, { Clip, gesture, solve } from '../handkit_wasm.js';
+
+await init({ module_or_path: new URL('../handkit_wasm_bg.wasm', import.meta.url) });
+const shapes = {};
+const shape = (n) => (shapes[n] ||= (({ place, ...joints }) => joints)(JSON.parse(solve(gesture(n))).hands.right));
+
+// the page's hand material (hands.js handMaterial): white, edges a touch darker, forearm cut at the wrist
+function handMaterial() {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  if (vBind.y < 0.236) discard;')
+      .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n  if (!gl_FrontFacing) normal = vec3(0.0, 0.0, 1.0);')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+{ float fr = pow(1.0 - abs(dot(normal, normalize(vViewPosition))), 2.0); diffuseColor.rgb *= 1.0 - 0.22 * fr; }`);
+  };
+  return m;
+}
+
+const canvas = document.createElement('canvas');
+const r = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x000000, 0);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8e94a3, 1.5));
+const key = new THREE.DirectionalLight(0xffffff, 1.7); key.position.set(-0.4, 0.8, 1); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.5); fill.position.set(0.7, 0.1, 0.6); scene.add(fill);
+
+const loader = new GLTFLoader(), nodes = {}, meshes = {}, roots = {};
+for (const side of ['r', 'l']) {
+  const g = await loader.loadAsync(new URL(`../hand_${side}.glb`, import.meta.url).href);
+  g.scene.traverse((o) => { if (o.name) nodes[o.name] = o; if (o.isSkinnedMesh) { o.material = handMaterial(); o.frustumCulled = false; meshes[side] = o; } });
+  roots[side] = g.scene; scene.add(g.scene);
+}
+// Emma's orb: her four colours (sky, blush, iris, lilac) swirled over a sphere that glows a little
+const tex = (() => {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const g = c.getContext('2d'); g.fillStyle = '#B9A7FF'; g.fillRect(0, 0, 512, 256);
+  for (const [x, y, rad, col] of [[90, 120, 150, '#8FD3FF'], [250, 90, 140, '#FFB8CF'], [400, 160, 150, '#8FD3FF'], [330, 210, 120, '#6E6BF2'], [520, 110, 140, '#FFB8CF'], [-10, 110, 140, '#FFB8CF']]) {
+    const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, col); gr.addColorStop(1, col + '00');
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 256);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const orb = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48),
+  new THREE.MeshPhysicalMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.45, roughness: 0.3, clearcoat: 1 }));
+orb.rotation.set(0.3, 2.2, 0.1);
+scene.add(orb);
+
+const hand = (h) => ({ ...structuredClone(shape(h.shape)),
+  place: { wrist: h.wrist, palm_facing: h.palm, fingers_toward: h.fingers, ...(h.forearm ? { forearm_toward: h.forearm } : {}) } });
+
+window.render = async (spec) => {
+  const hands = {};
+  for (const s of ['right', 'left']) if (spec.hands[s]) hands[s] = hand(spec.hands[s]);
+  const clip = new Clip(JSON.stringify({ version: 1, fps: 30, idle: { amount: 0 }, collide: !!spec.collide, duration: 0.1, keys: [{ t: 0, hands }] }));
+  const b = JSON.parse(clip.bones(0)); clip.free();
+  for (const [name, j] of Object.entries(b.joints)) {
+    const n = nodes[name]; if (!n) continue;
+    n.position.set(...j.t); n.quaternion.set(...j.r); n.scale.setScalar(j.s ?? 1);
+  }
+  for (const [side, k] of [['r', 'skin_R'], ['l', 'skin_L']]) {
+    const inf = meshes[side]?.morphTargetInfluences, w = b.morph?.[k];
+    if (inf && w) for (let i = 0; i < inf.length; i++) inf[i] = w[i] ?? 0;
+  }
+  roots.r.visible = !!spec.hands.right; roots.l.visible = !!spec.hands.left;
+  orb.visible = !!spec.orb;
+  if (spec.orb) { orb.position.set(...spec.orb.pos); orb.scale.setScalar(spec.orb.r); }
+  const size = spec.size || 1024;
+  r.setSize(size, size, false);
+  const cam = new THREE.PerspectiveCamera(spec.camera.fov || 25, 1, 0.01, 10);
+  cam.position.set(...spec.camera.pos); cam.lookAt(...spec.camera.look);
+  r.render(scene, cam);
+  return canvas.toDataURL('image/png');
+};
+window.ready = true;
+</script>

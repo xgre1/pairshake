@@ -42,13 +42,13 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 
 /* one phone-width column, like the app; centred on a computer */
 .screen{display:none;flex-direction:column;min-height:100dvh;max-width:440px;margin:0 auto;position:relative;padding-top:var(--safeT)}
-#room{padding-top:0}
+#room,#settings,#person{padding-top:0}     /* their top bar already pads for the notch */
 .screen.on{display:flex;animation:fade .5s var(--smooth)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 /* pinned bottom button that content scrolls under (Fade in the app) */
 .dock{position:sticky;bottom:0;margin-top:auto;padding:28px 24px calc(8px + var(--safeB));
-  background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 45%);z-index:2}
+  background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 28px);z-index:2}
 
 /* PrimaryButton */
 .primary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;
@@ -110,11 +110,13 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 #home,#againBtn{display:none}
 body.known #home{display:flex} body.known #againBtn{display:flex}
 body.known .new-only{display:none!important}
+/* Update: someone Emma knows back on the first page to tell her again (ChatGPT or voice); X goes home */
+#updBack{display:none} body.updating #updBack{display:grid} body.updating #gearBtn,body.updating #devSkip{display:none!important}
 body.known #welcome>.spacer{display:none}
 body.known #welcomeHands{height:180px}
 body.known #wTitle{margin-top:-6px!important}
 body.known #wFoot{position:sticky;bottom:0;margin-top:auto;padding-top:28px;z-index:2;
-  background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 45%)}
+  background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 28px)}   /* solid behind every button, however many */
 #home{flex-direction:column;gap:28px;padding:28px 24px 8px}
 .sect{display:flex;flex-direction:column;gap:10px}
 body.known #wSub{display:none}
@@ -274,18 +276,17 @@ body.ring3d #intro .hero>*{visibility:hidden}
 .overlap{display:flex;flex-direction:column;gap:26px;padding:8px 24px 0}
 .venn{position:relative;height:220px;width:100%}
 .venn>*{position:absolute;left:50%;top:50%}
-.venn .c{width:196px;height:196px;border-radius:50%;margin:-98px 0 0 -98px;transition:transform .9s var(--spring) .15s}
-.venn .c.a{transform:translateX(-132px)} .venn .c.b{transform:translateX(132px)}
-.venn.together .c.a{transform:translateX(-62px)} .venn.together .c.b{transform:translateX(62px)}
+/* everything here is already where it belongs and only fades in (the circles, then the words, then the cards) */
+.venn .c{width:196px;height:196px;border-radius:50%;margin:-98px 0 0 -98px;opacity:0;transition:opacity .8s var(--smooth)}
+.venn .c.a{transform:translateX(-62px)} .venn .c.b{transform:translateX(62px)}
 .venn .lobe{width:92px;margin-left:-46px;text-align:center;font-size:11px;color:var(--sec);display:flex;flex-direction:column;gap:6px;
-  transition:transform .9s var(--spring) .15s}
+  opacity:0;transition:opacity .7s var(--smooth) .25s}
 .venn .lobe b{color:var(--fg);font-size:12px}
-.venn .lobe.a{transform:translate(-174px,-50%)} .venn .lobe.b{transform:translate(174px,-50%)}
-.venn.together .lobe.a{transform:translate(-104px,-50%)} .venn.together .lobe.b{transform:translate(104px,-50%)}
-.venn .lens{text-align:center;transform:translate(-50%,-50%) scale(.6);opacity:0;transition:transform .9s var(--spring) .15s,opacity .9s .15s}
-.venn.together .lens{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.venn .lobe.a{transform:translate(-104px,-50%)} .venn .lobe.b{transform:translate(104px,-50%)}
+.venn .lens{text-align:center;transform:translate(-50%,-50%);opacity:0;transition:opacity .7s var(--smooth) .35s}
+.venn.together .c,.venn.together .lobe,.venn.together .lens{opacity:1}
 .rare{display:block;width:100%;text-align:left;padding:16px;background:var(--bg2);border-radius:20px;opacity:0}
-.together-on .rare{animation:rise .6s var(--smooth) forwards}
+.together-on .rare{animation:fade .6s var(--smooth) forwards}
 .rare:active{opacity:.6!important}
 .rare .serif{font-size:20px;line-height:1.25}
 .rare .op{display:flex;gap:6px;font-size:15px;color:var(--sec);margin-top:8px;letter-spacing:-.015em}
@@ -414,6 +415,7 @@ body:not(.in-app) .app-only{display:none!important}
 #acctScrim .sheet{height:auto;min-height:400px}
 #acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
 .acct-err{color:#FF3B30;min-height:18px}
+.sheet h3{text-wrap:balance}
 #gptScrim .sheet{height:auto;max-height:calc(100dvh - var(--safeT) - 16px);overflow-y:auto;gap:14px}
 #gptScrim .acct-err{min-height:0;margin:-6px 0}
 .gpt-open{background:var(--fill2);color:var(--fg);text-decoration:none}
@@ -438,10 +440,11 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- Welcome -->
 <section class="screen on" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
+  <button class="leave" id="updBack" aria-label="Back"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="welcomeHands"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
   <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center;margin-top:52px">Hi, I'm Emma.</h1>
-  <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px">Tell me what you're building, and I'll introduce you to someone here.</p>
+  <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">I'll introduce you to the one person here you should meet.</p>
   <p class="foot ter new-only" style="text-align:center;margin-top:12px;padding:0 44px" id="micNote"></p>
   <!-- only for someone Emma already knows -->
   <div id="home">
@@ -459,7 +462,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="startBtn">Start talking</button><button class="primary new-only" id="gptBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Let ChatGPT answer for me<small>No talking. It already knows what you're up to.</small></button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
+  <div id="wFoot" style="padding:0 24px calc(12px + var(--safeB))"><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="plainbtn foot new-only" id="devSkip" style="color:var(--ter);margin-top:4px">Dev: skip the talk</button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button><button class="primary app-only" id="testBtn" hidden style="background:var(--fill2);color:var(--fg);margin-top:10px">Test: find another phone<small>Pairs with a test phone that's online and points to it (UWB)</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -631,7 +634,7 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- No talking: ChatGPT, which already knows you, answers Emma's questions -->
 <div class="scrim" id="gptScrim">
   <div class="sheet">
-    <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT answer for you</h3>
+    <h3 class="serif" style="font-size:30px;line-height:1.15">Let ChatGPT introduce you</h3>
     <p class="sec">ChatGPT already knows what you've been working on. Ask it with our prompt, then paste its answer here.</p>
     <div>
       <a class="primary gpt-open" id="gptOpen" target="_blank" rel="noopener">1. Ask ChatGPT<small id="gptOpenSub">Copies the prompt and opens ChatGPT</small></a>
@@ -644,7 +647,7 @@ body:not(.in-app) .app-only{display:none!important}
     </div>
     <input class="field" id="gptSpot" placeholder="Where are you in the room? (optional)" autocomplete="off" enterkeyhint="done">
     <p class="foot acct-err" id="gptErr"></p>
-    <button class="primary" id="gptGo" disabled>Introduce me</button>
+    <button class="primary" id="gptGo" disabled>Continue</button>
   </div>
 </div>
 <div class="scrim" id="meetScrim">
@@ -835,7 +838,12 @@ const Voice = {
   async say(text, barge = false) {
     this.init();
     const gen = this.gen;                                 // (the chat was left meanwhile: say nothing)
-    let buf; try { buf = await this.buffer(text); } catch { return false; }
+    let buf;
+    for (let i = 0; !buf && i < 2; i++) try { buf = await this.buffer(text); } catch {}   // one more try
+    if (!buf) { APP?.post({t: "log", m: `say failed: ${text.slice(0, 50)}`}); return false; }
+    // iOS pauses the audio when the app goes to the background (to ChatGPT, say): wake it, or she plays silence
+    if (this.ctx.state !== "running") { try { await Promise.race([this.ctx.resume(), sleep(400)]); } catch {} }
+    APP?.post({t: "log", m: `say (${this.ctx.state}): ${text.slice(0, 50)}`});
     const wait = this.fillerUntil - performance.now(); if (wait > 0) await sleep(wait);
     if (gen !== this.gen) return false;
     if (this.phase === "speaking") this.endSpeaking(false, true);
@@ -1149,13 +1157,40 @@ $("#introduceBtn").onclick = () => {
 };
 
 /* ---------------------------------------------------------------- 3. agents talking */
+/* Emma thinking out loud while she looks: what she makes of you (from ChatGPT's write-up or your chat with
+   her), what kind of person she's after, and a word when a strong fit answers. One line at a time, never
+   over each other; the reveal waits for her to finish the line she's on, and the rest is dropped. */
+const STRONG = ["Ooh. {n} might be it."];                         // one line per name, voiced once (see speak_wav)
+const Muse = {
+  run: 0, busy: Promise.resolve(), said: new Set(),
+  start() { this.run++; this.said = new Set(); this.busy = Promise.resolve(); },
+  say(key, text) {
+    if (!text || this.said.has(key)) return;
+    this.said.add(key);
+    const run = this.run, prev = this.busy;
+    this.busy = (async () => {
+      await prev;
+      if (run !== this.run || !$("#matching").classList.contains("on")) return;
+      if (key === "looking" && this.said.has("strong")) return;     // someone good already answered: say that instead
+      await Voice.say(text);
+    })();
+  },
+  strong(p) { this.say("strong", STRONG[Math.floor(Math.random() * STRONG.length)].replace("{n}", first(p))); },
+  finish(max = 6000) { this.run++; return Promise.race([this.busy, sleep(max)]); },   // let the current line end
+};
+
 function findMatch(socials) {
   const run = ++S.mrun;
   S.talks = []; S.total = 0; S.chosen = null; S.result = null;
   show("matching"); if (!Net.running) Net.start();   // the dev shortcut has already started it
+  Muse.start();
   (async () => {
-    while ($("#matching").classList.contains("on")) {
-      try { const r = await api("/scan?id=" + S.id); S.total = r.total; S.talks = r.talks; if (r.total && r.talks.length >= r.total) break; } catch {}
+    for (let polls = 0; $("#matching").classList.contains("on") && run === S.mrun; polls++) {
+      try {
+        const r = await api("/scan?id=" + S.id); S.total = r.total; S.talks = r.talks;
+        if (r.muse) { Muse.say("start", r.muse.start); Muse.say("looking", r.muse.looking); }
+        if (r.total && r.talks.length >= r.total && (r.muse || polls > 15)) break;
+      } catch {}
       await sleep(700);
     }
   })();
@@ -1166,7 +1201,7 @@ function findMatch(socials) {
    introduced), and you're back on the first page. */
 function stopMatching() {
   S.mrun++; Net.cancelled = true; Net.running = false; cancelAnimationFrame(Net.raf);
-  Voice.stopSpeaking();
+  Muse.run++; Voice.stopSpeaking();
   if (S.id) api("/match/cancel", {id: S.id}).catch(() => {});
   S.talks = []; S.total = 0; S.chosen = null; S.result = null;
   show("welcome");
@@ -1289,6 +1324,7 @@ const Net = {
     const [v, c] = this.verdict(talk);
     this.chips.push({i, text: v, color: c === "v-strong" ? "#34C759" : c === "v-maybe" ? "#FF9500" : null, t0: performance.now()});
     this.fill(card, talk); this.counter(); this.inflight--;
+    if (!this.converging && (talk.fit >= 70 || talk.person.id === S.chosen)) Muse.strong(talk.person);
   },
   async converge() {
     this.converging = true;
@@ -1561,7 +1597,7 @@ function revealMatch() {
   show("intro"); startInbox(); ringTo("intro");
   setTimeout(() => { $("#faces").classList.remove("apart"); ["#introBody", "#introDock"].forEach(s => $(s).classList.add("in")); }, 80);
   buzz([60, 40, 60], "success");
-  Voice.say(r.say);
+  Muse.finish().then(() => { if (S.result === r) Voice.say(r.say); });     // after the line she's on
 }
 function socialRows(p, sel) {
   const followed = new Set((localStorage.getItem("following") || "").split(",").filter(Boolean));
@@ -1605,7 +1641,7 @@ function preview(c) {
 }
 function renderHome() {
   const me = S.me;
-  document.body.classList.add("known");
+  document.body.classList.remove("updating"); document.body.classList.add("known");
   $("#wTitle").textContent = `Welcome back, ${first(me)}.`;
   $("#memNeed").textContent = me.needs || "Someone worth meeting.";
   $("#memRest").innerHTML = [["Building", me.building], ["You can offer", me.offers]].filter(([, v]) => v)
@@ -1625,7 +1661,15 @@ $("#againBtn").onclick = async () => {
   try { await api("/again", {id: S.id}); } catch { return oops("Can't reach the Roomie server."); }
   findMatch(S.socials);
 };
-$("#retalkBtn").onclick = () => { Voice.init(); Voice.ctx.resume(); Ears.setup(Voice.ctx); interview(); };
+/* Update: back to the first page, to tell Emma again with ChatGPT or by voice. What she remembers stays
+   until the new answer replaces it (what isn't mentioned stays as it was); the X goes back home. */
+$("#retalkBtn").onclick = () => {
+  document.body.classList.remove("known"); document.body.classList.add("updating");
+  $("#wTitle").textContent = `Hi again, ${first(S.me)}.`;
+  delete $("#welcomeHands").dataset.inline; delete $("#welcomeHands").dataset.fitWide;   // Emma big again
+  show("welcome");
+};
+$("#updBack").onclick = () => goHome();
 $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null);
   location.reload();
@@ -2186,10 +2230,31 @@ function startInbox() {
 }
 
 // someone Emma already knows opens on their home page (the stage demo always starts fresh)
+/* Tapping a text field in the app: WebKit scrolls the page to show the field above the keyboard, but the app
+   already makes the page end where the keyboard starts and the message boxes sit at the bottom anyway, so that
+   scroll only shoves the whole page up, and the top bars with it (they stop sticking while it's shoved).
+   Put the page back where it was, and scroll only if the field would really be hidden. */
+if (APP) {
+  let y0 = 0;
+  addEventListener("touchstart", () => { y0 = scrollY; }, {passive: true, capture: true});     // before the tap moves anything
+  addEventListener("focusin", e => {
+    const field = e.target;
+    if (!/INPUT|TEXTAREA/.test(field.tagName)) return;
+    const fix = () => {
+      if (document.activeElement !== field) return;
+      if (Math.abs(scrollY - y0) > 1) scrollTo(0, y0);
+      const r = field.getBoundingClientRect(), vh = visualViewport?.height || innerHeight;
+      if (r.bottom > vh - 8 || r.top < 0) field.scrollIntoView({block: "nearest"});
+    };
+    [0, 150, 450, 900].forEach(t => setTimeout(fix, t));
+  });
+}
 if (!demo) loadMe().catch(() => {}).finally(() => {
   // back from ChatGPT and the page was reloaded meanwhile: the paste sheet is open again
-  if (Date.now() - (+kept(GPT_KEY) || 0) < 20 * 60e3 && !document.body.classList.contains("known")
-      && $("#welcome").classList.contains("on")) Gpt.open();
+  if (Date.now() - (+kept(GPT_KEY) || 0) < 20 * 60e3 && $("#welcome").classList.contains("on")) {
+    if (document.body.classList.contains("known")) $("#retalkBtn").click();     // they were updating
+    Gpt.open();
+  }
 });
 </script>
 <script type="module">

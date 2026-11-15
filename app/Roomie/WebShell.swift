@@ -61,6 +61,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         web.scrollView.backgroundColor = .systemBackground
         web.scrollView.contentInsetAdjustmentBehavior = .never   // the page pads for the notch itself
         web.scrollView.bounces = false
+        hideFormBar(web)
         let root = UIView()
         root.backgroundColor = .systemBackground
         web.frame = root.bounds
@@ -143,6 +144,11 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         UIView.animate(withDuration: time, delay: 0, options: UIView.AnimationOptions(rawValue: UInt(curve) << 16)) {
             self.view.setNeedsLayout()
             self.view.layoutIfNeeded()
+        } completion: { _ in
+            // WebKit scrolls the focused field above the keyboard as it comes up, before the page has been made
+            // shorter; once it has, that scroll only pushes the whole page up (top bar under the status bar,
+            // a gap under the message box). The page fits now, so it goes back in place.
+            self.settle()
         }
     }
 
@@ -432,6 +438,23 @@ final class Locator: NSObject, CLLocationManagerDelegate {
         let course = l.course >= 0 ? String(l.course) : "null"
         onFix?("window.RoomieApp && RoomieApp.geo({latitude:\(l.coordinate.latitude),longitude:\(l.coordinate.longitude),accuracy:\(l.horizontalAccuracy),speed:\(speed),heading:\(course)})")
     }
+}
+
+/// No ^ v ✓ bar above the keyboard: WebKit adds it to every text field, and a native chat screen has none.
+/// The view that holds the page's text input is switched to a subclass whose inputAccessoryView is empty.
+@MainActor private func hideFormBar(_ web: WKWebView) {
+    guard let content = web.scrollView.subviews.first(where: { String(describing: type(of: $0)).hasPrefix("WKContent") })
+    else { return }
+    let base: AnyClass = type(of: content)
+    let name = "\(NSStringFromClass(base))_NoFormBar"
+    var cls: AnyClass? = NSClassFromString(name)
+    if cls == nil, let made = objc_allocateClassPair(base, name, 0) {
+        let none: @convention(block) (AnyObject) -> UIView? = { _ in nil }
+        class_addMethod(made, #selector(getter: UIResponder.inputAccessoryView), imp_implementationWithBlock(none), "@@:")
+        objc_registerClassPair(made)
+        cls = made
+    }
+    if let cls { object_setClass(content, cls) }
 }
 
 struct WebShellView: UIViewControllerRepresentable {

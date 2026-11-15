@@ -15,6 +15,7 @@ __pycache__/
 server/room.json
 server/*.log
 server/*.jsonl
+server/voice_cache/
 
 # API keys
 .env

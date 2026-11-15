@@ -12,10 +12,12 @@
 		7F2FB6B96CE63DD01CF7A6A4 /* Server.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A3361EA1CAEEE3115F89FE6 /* Server.swift */; };
 		81D7C701971C4159A15E6481 /* RoomieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7485286477B072A3BD85E815 /* RoomieApp.swift */; };
 		B886986D6807FEA46CE249D1 /* LocalServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F25C4CB4597142C13A4845B /* LocalServer.swift */; };
+		E24C589249FA034987E9A5F2 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		1A3361EA1CAEEE3115F89FE6 /* Server.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Server.swift; sourceTree = "<group>"; };
+		1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		3E761134F746C1380CBE4DF5 /* WebShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebShell.swift; sourceTree = "<group>"; };
 		4CC688F2B85BA987B361D42B /* Finder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Finder.swift; sourceTree = "<group>"; };
 		5F25C4CB4597142C13A4845B /* LocalServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServer.swift; sourceTree = "<group>"; };
@@ -44,6 +46,7 @@
 		9E12DFE66965AEBAD79A19B7 /* Roomie */ = {
 			isa = PBXGroup;
 			children = (
+				1C53659E3CC6A20E28E4A3E7 /* AppIcon.icon */,
 				4CC688F2B85BA987B361D42B /* Finder.swift */,
 				72192AB4CAC2852CF9FAEC92 /* Info.plist */,
 				5F25C4CB4597142C13A4845B /* LocalServer.swift */,
@@ -63,6 +66,7 @@
 			buildPhases = (
 				9449AC61AFA907EBB73DE0AD /* Sources */,
 				19361183783C68205BA96640 /* Bundle the hands' models and three.js */,
+				A34EC853055C2AC40F380438 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -108,6 +112,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A34EC853055C2AC40F380438 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E24C589249FA034987E9A5F2 /* AppIcon.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		19361183783C68205BA96640 /* Bundle the hands' models and three.js */ = {

@@ -33,12 +33,31 @@ from engine.tts import Voice  # noqa: E402
 
 PORT = int(os.environ.get("PORT", 8780))
 MODEL = os.environ.get("ROOMIE_MODEL", "haiku")
-MAX_TURNS = 6
+# The chat is only there to get to an introduction: Emma asks at most two things after her opener.
+MAX_TURNS = 3
 STATE_FILE = os.path.join(HERE, "room.json")
+# Roomie's voice: Emma's own designed voice (ROOMIE_VOICE picks another ElevenLabs voice; "Annika",
+# j08RBkJwvXYv5AZ961JE, was tried on 2026-11-15 and he went back to this one).
+VOICE_ID = os.environ.get("ROOMIE_VOICE", "OSxQoMnSFe6QtcNVSptL")
 
-OPENER = ("Hi, I'm Emma. I know pretty much everyone in this room, and I'd love to introduce you to someone. "
-          "First, what's your name, and what are you building?")
-THINKING = ("Lovely. I think I know someone. While I check, add your handles so they can follow you.")
+OPENER = "Hey, I'm Emma. What's your name, and what are you working on?"
+THINKING = "Got it. Add your handles, and I'll go find your person."
+
+# Testing (on by default for now; ROOMIE_SCRIPT=0 turns it off): Emma follows one fixed script, so every line
+# is voiced once and then always comes from the disk (see speak_wav). The model still works out who someone
+# is and who they should meet; only what she says out loud is fixed. Names make the only variations
+# ("Meet Eleni."), and each of those is voiced once too.
+SCRIPT = os.environ.get("ROOMIE_SCRIPT", "1") != "0"
+ASK = {"name": "And what's your name?", "building": "And what are you working on?",
+       "needs": "Who'd you want to meet tonight?"}
+SCRIPT_BACK = "Hey, welcome back. Still on the same thing, or something new?"
+SCRIPT_MUSE = {"start": "Okay, I've got a feel for you. Let me find you the right person.",
+               "looking": "I want someone who has exactly what you're missing."}
+SCRIPT_FALLBACK = ["Mm, go on.", "Okay. Tell me a bit more?", "Right. And then?"]
+
+
+def script_reveal(p):
+    return f"Meet {(p.get('name') or 'them').split()[0]}. I think you two should talk."
 
 # ---------------------------------------------------------------------------------------------
 # Fictional attendees so the room is never empty. Real attendees are added as they finish.
@@ -177,6 +196,26 @@ def candidates(exclude, app=False, seeds=True):
 # ---------------------------------------------------------------------------------------------
 # Language model: one-shot `claude -p` calls on the subscription (no tools, no MCP, no CLAUDE.md).
 
+# No user settings, plugins, hooks, saved sessions or coding system prompt: these calls only write JSON, and
+# all of that costs seconds at start-up and thousands of tokens per call.
+LEAN = ["--strict-mcp-config", "--tools", "", "--setting-sources", "", "--no-session-persistence",
+        "--disable-slash-commands", "--system-prompt", "You write the requested JSON and nothing else."]
+
+
+def _llm_env():
+    env = dict(os.environ, CLAUDE_CODE_DISABLE_CLAUDE_MDS="1")
+    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"):
+        env.pop(k, None)
+    return env
+
+
+def _json_of(text, err=""):
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise RuntimeError(f"no JSON from model: {text[:200]!r} {err[:200]!r}")
+    return json.loads(m.group(0))
+
+
 _gates = {}
 
 
@@ -223,22 +262,99 @@ async def ask_llm(prompt, timeout=40):
 async def _ask_llm(prompt, timeout):
     if llm.GEMINI_KEY:                 # Gemini when its key is set (llm.py)
         return await llm.ask(prompt, timeout)
-    env = dict(os.environ, CLAUDE_CODE_DISABLE_CLAUDE_MDS="1")
-    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"):
-        env.pop(k, None)
     proc = await asyncio.create_subprocess_exec(
-        "claude", "-p", "--model", MODEL, "--strict-mcp-config", "--tools", "", "--output-format", "text",
-        prompt, cwd=HERE, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        "claude", "-p", "--model", MODEL, *LEAN, "--output-format", "text",
+        prompt, cwd=HERE, env=_llm_env(), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     try:
         out, err = await asyncio.wait_for(proc.communicate(), timeout)
     except asyncio.TimeoutError:
         proc.kill()
         raise RuntimeError("model timed out")
-    text = out.decode()
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
-        raise RuntimeError(f"no JSON from model: {text[:200]!r} {err.decode()[:200]!r}")
-    return json.loads(m.group(0))
+    return _json_of(out.decode(), err.decode())
+
+
+class Warm:
+    """What Emma says in the chat has to come back like a person's answer, not after 8 seconds. Starting
+    `claude` takes about 4 s by itself, so a couple of processes are started ahead of time and wait for
+    their one question (low effort: a reply in about 2 s). Each is used once, so no chat carries over to
+    the next person; a used one is replaced at once, and one that waited 10 minutes is replaced too."""
+    ARGS = ["claude", "-p", "--model", MODEL, *LEAN, "--effort", "low",
+            "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
+    SIZE, MAX_AGE = 2, 600
+
+    def __init__(self):
+        self.ready = []           # [(process, started)]
+        self.filling = False
+
+    async def fill(self):
+        if self.filling:
+            return
+        self.filling = True
+        try:
+            now = time.time()
+            for p, t in self.ready:
+                if now - t > self.MAX_AGE and p.returncode is None:
+                    p.kill()
+            self.ready = [(p, t) for p, t in self.ready if p.returncode is None and now - t <= self.MAX_AGE]
+            while len(self.ready) < self.SIZE:
+                p = await asyncio.create_subprocess_exec(
+                    *self.ARGS, cwd=HERE, env=_llm_env(), stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=1 << 22)
+                self.ready.append((p, time.time()))
+        finally:
+            self.filling = False
+
+    async def take(self):
+        now = time.time()
+        while self.ready:
+            p, t = self.ready.pop(0)
+            if p.returncode is None and now - t <= self.MAX_AGE:
+                asyncio.ensure_future(self.fill())
+                return p
+            if p.returncode is None:
+                p.kill()
+        while not self.ready:              # none waiting (a rush): one starts now
+            await self.fill()
+            await asyncio.sleep(.05)       # (someone else may be filling, or may take the one just started)
+        p, _ = self.ready.pop(0)
+        asyncio.ensure_future(self.fill())
+        return p
+
+
+warm = Warm()
+
+
+async def ask_fast(prompt, timeout=25):
+    """One quick answer from a waiting `claude` (see Warm); for what Emma says out loud in the chat."""
+    if llm.GEMINI_KEY:
+        return await llm.ask(prompt, timeout)
+    p = await warm.take()
+
+    async def result():
+        while True:
+            line = await p.stdout.readline()
+            if not line:
+                raise RuntimeError("claude closed without an answer")
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if d.get("type") == "result":
+                if d.get("is_error"):
+                    raise RuntimeError(f"claude: {str(d.get('result'))[:200]}")
+                return str(d.get("result") or "")
+
+    try:
+        p.stdin.write((json.dumps({"type": "user", "message": {"role": "user", "content": prompt}}) + "\n").encode())
+        await p.stdin.drain()
+        text = await asyncio.wait_for(result(), timeout)
+    finally:
+        try:
+            p.stdin.close()                # its one question is done: it exits by itself
+        except Exception:
+            pass
+        asyncio.get_running_loop().call_later(5, lambda: p.returncode is None and p.kill())
+    return _json_of(text)
 
 
 def convo(u):
@@ -252,6 +368,7 @@ def convo(u):
 
 
 KNOWN = ("name", "building", "needs", "offers", "spot")
+NEEDED = ("name", "building", "needs")     # enough to introduce them; the rest is kept only if they say it
 
 
 def known_of(u):
@@ -269,44 +386,56 @@ def met(uid):
     return {m["b"] if m["a"] == uid else m["a"] for m in missions.values() if uid in (m["a"], m["b"])}
 
 
-INTERVIEW = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens: warm, perceptive, a little
-playful, like a friend who knows everyone in the room and loves setting people up. You are getting to
-know one attendee BY VOICE so you can introduce them to the one person here they should meet.
+INTERVIEW = """You are Emma, the matchmaker at the Gen AI Summit Hackathon in Athens. Think of a real person in a
+loud room full of builders: quick, warm, a bit dry, never gushing. You're talking BY VOICE with one attendee
+for maybe thirty seconds, just long enough to know who to introduce them to. The introduction is the point,
+not this chat, so keep it moving.
 
-You need five things: their name; what they're building; what they need most right now; what they could
-help someone else with in ten minutes; where they are in the room and something to spot them by (clothes,
-a laptop sticker, anything).
+You need three things: their name, what they're working on, and who or what would help them most right now
+(a kind of person, a skill, users, feedback). That's all. If they also say what they're good at or where
+they are, keep it, but never ask for it.
 {returning}
-What you had worked out before their latest answer (JSON, an empty string means not known yet):
+What you had worked out before their latest answer (JSON, "" means not known yet):
 {known}
 
-First, update what you know from the WHOLE conversation:
-- People answer out of order and several things at once. "I'm Nikos, backend guy, I need a designer" gives
-  you a name, something to offer and a need; "I need people to try it" is a need. Anything they said
-  counts as answered, even in passing, even in reply to a different question, even in their very first
-  sentence.
-- A rough answer is enough. Don't dig for precision and don't ask them to confirm what they said.
-- This is speech recognition, so words come out garbled: take a name or a word as it is, or guess the
-  obvious meaning, and never ask them to repeat or spell it.
+First, update what you know from the WHOLE conversation. People answer out of order and several things at
+once: "I'm Nikos, backend guy, building a booking agent, I really need a designer" fills name "Nikos",
+building "a booking agent", needs "a designer" and offers "backend". Any person, skill, users, help or
+feedback they say they need, want, are missing or are looking for is their need. Anything they said counts,
+even in passing. A rough answer is enough. It's speech recognition, so take garbled words at
+their obvious meaning and never ask them to repeat or spell anything.
 
-Then decide what to say:
-- NEVER ask for something you already know, and never ask the same question twice, not even in other
-  words. If they didn't answer what you asked (they talked about something else, or it came out garbled),
-  don't repeat the question: come at it once from a different side, tied to what they just said. If that
-  doesn't land either, leave it empty and move on.
-- This is spoken aloud, by a friend, not a form. One short reaction that shows you really heard them (pick
-  up a detail of what they said; never generic praise), then exactly ONE question about the first thing
-  still missing, in this order: building, needs, offers, spot.
-- Say their first name once, the first time you hear it, and not again after that.
-- Every question has to get you one of the missing things. One sentence about what they're building is
-  enough: don't ask for more detail about their project, their users or their tech out of curiosity.
-- Make the question easy to answer without thinking: let it grow out of what they just said and give it
-  something to hold on to, a guess or two options ("is it more the model side, or finding users?"). Never
-  a bare checklist question like "What do you need?".
-- Under 30 words in total. No lists, no emojis, no stage directions.
-- If they cut you off, don't repeat what you were saying: just respond to them.
-- When nothing is missing, set done to true and say only a short handover line like "Perfect. Give me a
-  second, I'm looking around the room."
+Then write what you say next. Look at your "known" first: ask about the first one of name, building, needs
+that is still empty, and nothing else. Once all three are filled, set done to true and say only "Okay, give
+me a second."
+
+How you talk, like a person, not an assistant:
+- Short: one sentence, 4 to 15 words. Often just the question.
+- A reaction is optional. If you give one, it adds something of your own (a dry aside, an honest opinion, a
+  quick joke) in a few words. Otherwise go straight to the question.
+- Ask the way a friend would, never like a form. For the need: who they'd want to meet tonight, what's
+  slowing them down, or a guess they can just say yes to.
+- If they joke, swear or wander off, go along in a few words and steer back once. If something still doesn't
+  come, leave it "" and move on. If they cut you off, just answer what they said.
+- Plain spoken English with contractions. No lists, no emojis, no stage directions.
+
+Never:
+- repeat, rephrase or sum up what they just said ("So you need a designer who...", "Menus in any language,",
+  "X and Y, got it.")
+- praise or grade it: no "nice", "great", "cool", "love that", "bold", "lovely", "amazing", "gold"
+- start with "Ha", "Oh", "Nice", "So", "Okay so", or "Nice to meet you"
+- say their name
+- ask for something you already know, ask twice, or ask for more detail about their project, users or tech
+
+Examples of the right feel:
+  Attendee: I'm Kai, I quit my bank job to build an agent that reads menus in any language.
+  Emma: Brave. Who'd you want to meet tonight?
+  Attendee: I'm building a game, it's simple, I'm just bad at design.
+  Emma: Then we'll find you a designer. What's your name?
+  Attendee: Sofia.
+  Emma: And what are you working on?
+  Attendee: a tool that grades essays for teachers
+  Emma: Teachers will love you. What's slowing you down right now?
 
 Conversation so far:
 {convo}
@@ -318,10 +447,9 @@ RETURNING = """
 This attendee is BACK: you met before, and the first line of the conversation is what you remember about
 them. You opened by bringing up what they were doing last time. Treat everything you remember as already
 answered and never ask for it again. Whatever they say has changed replaces what you remembered; anything
-they don't change stays as it was. Then ask only about what is still open, which is usually just where
-they are in the room today (that changes every time).
+they don't change stays as it was. Usually their first answer is enough: then you're done.
 """
-RETURN_OPENER = "Welcome back, {first}. Last time you told me about what you were building. Are you still on it, or has something moved?"
+RETURN_OPENER = "Hey {first}, welcome back. Still on the same thing, or something new?"
 
 BACK = """You are Emma, the matchmaker of the Gen AI Summit Hackathon in Athens: warm, a little playful, a friend
 who knows everyone in the room. Someone you already know has just come back to talk to you again.
@@ -336,19 +464,22 @@ bring it up, the way a friend does who remembers: mention what they were buildin
 for, in your own words and in concrete terms, and, if you introduced them to someone, that person by first
 name. Then ask ONE easy, open question about how it stands now ("are you still on that?", "did you find
 your designer?", "did you two get to talk?"). Use their first name once. Never ask "what's changed" and
-never say "I remember what you told me": show it by what you bring up. Under 35 words, no lists, no emojis.
+never say "I remember what you told me": show it by what you bring up. Talk like a friend, not a host: short,
+contractions, no praise. Under 22 words, no lists, no emojis.
 
 Reply with JSON only: {{"say": "..."}}"""
 
 
 async def welcome_back(u):
     """What Emma says to someone who comes back: something of theirs, brought up by her."""
+    if SCRIPT:
+        return SCRIPT_BACK
     src = u.get("profile") or u.get("memory") or {}
     mem = {k: src.get(k, "") for k in ("name", "role", "building", "needs", "offers")}
     names = [n for n in ((person(pid) or {}).get("name") for pid in met(u["id"])) if n]
     try:
-        out = await ask_llm(BACK.format(memory=json.dumps(mem, ensure_ascii=False),
-                                        met=", ".join(names) or "nobody yet"), timeout=15)
+        out = await ask_fast(BACK.format(memory=json.dumps(mem, ensure_ascii=False),
+                                         met=", ".join(names) or "nobody yet"), timeout=15)
         say = str(out.get("say", "")).strip()
         if say:
             return say
@@ -393,11 +524,32 @@ hearing = None              # Emma's Parakeet speech-to-text, for the web page
 audio_cache = {}
 
 
+VOICE_DIR = os.path.join(HERE, "voice_cache")    # every line Emma has said, in her current voice, kept for good
+
+
 async def speak_wav(text):
-    key = hashlib.sha1(text.encode()).hexdigest()
-    if key not in audio_cache:
-        res = await asyncio.wrap_future(voice.submit(text))
-        audio_cache[key] = res["wav"]
+    """A line in Emma's voice: voiced once by ElevenLabs, then kept on disk and never voiced again (it costs
+    from a small monthly allowance). A line that only Kokoro could voice (ElevenLabs was down) isn't kept."""
+    key = hashlib.sha1(f"{VOICE_ID}|{text}".encode()).hexdigest()
+    if key in audio_cache:
+        return audio_cache[key]
+    path = os.path.join(VOICE_DIR, key + ".wav")
+    try:
+        with open(path, "rb") as f:
+            audio_cache[key] = f.read()
+        return audio_cache[key]
+    except OSError:
+        pass
+    res = await asyncio.wrap_future(voice.submit(text))
+    audio_cache[key] = res["wav"]
+    if voice.engine == "elevenlabs" and time.time() >= voice.eleven_down_until:
+        try:
+            os.makedirs(VOICE_DIR, exist_ok=True)
+            with open(path + ".tmp", "wb") as f:
+                f.write(res["wav"])
+            os.replace(path + ".tmp", path)
+        except OSError as e:
+            print("voice cache:", e, flush=True)
     return audio_cache[key]
 
 
@@ -414,7 +566,7 @@ async def h_start(req):
         u["memory"] = dict(u["profile"])
         # her greeting was written when she last matched them (no wait); if not, it is written now
         say = u.pop("back", None) or await welcome_back(u)
-        u.update(transcript=[("emma", say)], turns=0, known={})
+        u.update(transcript=[("emma", say)], turns=0, known={}, asked=[])
         scans.pop(u["id"], None)
         pending.pop(u["id"], None)
         save()
@@ -447,20 +599,32 @@ async def h_turn(req):
             prompt = INTERVIEW.format(convo=convo(u), known=json.dumps(known_of(u), ensure_ascii=False),
                                       returning=RETURNING if u.get("memory") else "")
             try:
-                out = await ask_llm(prompt)
+                out = await ask_fast(prompt)
             except Exception as e:          # one quiet second try before she has to ask them to go on
                 print("interview retry:", e, flush=True)
                 out = await ask_llm(prompt)
-            # what Emma knows only grows: once she has all five she stops asking, whatever the model says
+            # what Emma knows only grows: once she has what she needs she stops asking, whatever the model says
             got = out.get("known") if isinstance(out.get("known"), dict) else {}
             u["known"] = {k: str(got.get(k) or "").strip() or v for k, v in known_of(u).items()}
-            if all(u["known"].values()):
+            if all(u["known"][k] for k in NEEDED):
                 out["done"] = True
+            elif SCRIPT:                    # the script's question for the first thing still missing, each once
+                asked = u.setdefault("asked", [])
+                gap = [k for k in NEEDED if not u["known"][k] and k not in asked]
+                if gap:
+                    out["say"] = ASK[gap[0]]
+                    asked.append(gap[0])
+                else:
+                    out["done"] = True
         except Exception as e:
             print("interview error:", e, flush=True)
             # (their answer is already written down: she never asks them to repeat it)
-            out = {"say": random.choice(["Mm, go on.", "Okay. Tell me a bit more?", "Right. And then?"]), "done": False}
-    say = str(out.get("say", "")).strip() or THINKING
+            out = {"say": random.choice(SCRIPT_FALLBACK), "done": False}
+    say = str(out.get("say", "")).strip()
+    # the quick model sometimes still opens like an assistant ("Ha, ...", "Nice, ...")
+    say = re.sub(r"^(?:(?:ha(?:ha)?|oh|nice|great|cool|love (?:it|that))[,!.]|so,?|okay,? so,?)\s+(?=\w)", "", say,
+                 flags=re.I)
+    say = (say[:1].upper() + say[1:]) or THINKING
     u["transcript"].append(("emma", say))
     if out.get("done"):
         say = THINKING
@@ -503,7 +667,8 @@ async def h_match(req):
     else:                              # a seed person: Emma plays them in the chat
         prepare_bot(mid)
     save()
-    return web.json_response({"say": r.get("say", ""), "me": person(u["id"]), "mission": mission_for(mid, u["id"])})
+    say = script_reveal(them) if SCRIPT else r.get("say", "")
+    return web.json_response({"say": say, "me": person(u["id"]), "mission": mission_for(mid, u["id"])})
 
 
 pending = {}      # user id -> running match task
@@ -530,12 +695,47 @@ they'd rather not meet ("avoid") and the other is that, score under 20.
 Reply with JSON only: {{"ask": "...", "reply": "...", "fit": 0}}"""
 
 
+MUSE = """You are Emma, the matchmaker at the Gen AI Summit Hackathon in Athens: warm, quick, a bit dry, a real
+person. You've just got to know one attendee, and now you're looking around the room for the one person they
+should meet, thinking out loud while you look.
+
+What you know about them:
+{about}
+
+Write the two things you say out loud while you look.
+- "start": you've just got who they are. Pick up one or two specific, real things from their experience (a
+  skill, something they've built, an unusual past) and say what that means for who you're looking for, then
+  that you're on it. Like: "Oh, you've actually shipped iOS apps, and you left banking for this. Okay, let me
+  find you the right person." 12 to 26 words.
+- "looking": a quick thought halfway through the search about the kind of person you're after, concrete.
+  Like: "I want someone who can make it look good, and who gets restaurants." 8 to 16 words.
+
+Talk like a person: contractions, no praise words (amazing, impressive, great, love), no lists, don't say
+their name. Use only what's written above, never invent anything about them.
+
+Reply with JSON only: {{"start": "...", "looking": "..."}}"""
+
+
+async def prepare_muse(u, state):
+    """What Emma says while she looks (written as the search starts, voiced before the page asks for it)."""
+    try:
+        out = SCRIPT_MUSE if SCRIPT else await ask_fast(MUSE.format(about=convo(u)))
+        lines = {k: str(out.get(k) or "").strip() for k in ("start", "looking")}
+        for k in ("start", "looking"):
+            if lines[k]:
+                await speak_wav(lines[k])
+        state["muse"] = lines
+    except Exception as e:
+        print("muse error:", e, flush=True)
+
+
 def start_scan(u):
     """The matching screen can start at once; the agents go out when run_match has the profile (send_agents)."""
     if u["id"] in scans:
         return
-    state = {"talks": [], "total": 0, "sent": 0, "closed": False}
+    state = {"talks": [], "total": 0, "sent": 0, "closed": False, "muse": None}
     scans[u["id"]] = state
+    asyncio.ensure_future(prepare_muse(u, state))
 
 
 def send_agents(u, me, R, room):
@@ -582,7 +782,7 @@ async def h_scan(req):
         raise web.HTTPNotFound()
     start_scan(u)
     st = scans[u["id"]]
-    return web.json_response({"talks": st["talks"], "total": st["total"]})
+    return web.json_response({"talks": st["talks"], "total": st["total"], "muse": st.get("muse")})
 
 
 async def h_again(req):
@@ -656,7 +856,11 @@ def _int(v, default):
 
 async def ask_quick(prompt, timeout=15):
     """For the short writing jobs of a match: the quickest model call there is."""
-    return await ask_llm(prompt, 25)
+    try:
+        return await ask_fast(prompt, timeout)
+    except Exception as e:
+        print("quick retry:", e, flush=True)
+        return await ask_llm(prompt, 25)
 
 
 async def verdicts(state, t):
@@ -1217,10 +1421,20 @@ async def on_start(app):
     except Exception as e:                              # needs Emma's venv (mlx); the page then uses the browser's
         print(f"no Parakeet ({e}); the web page will use the browser's speech recognition", flush=True)
     print("loading Emma's voice…", flush=True)
-    voice = await asyncio.to_thread(Voice)
-    print(f"voice ready ({voice.engine}, {voice.load_ms:.0f} ms)", flush=True)
-    for line in (OPENER, THINKING):                 # pre-render so the first seconds are instant
+    class RoomieVoice(Voice):
+        def _load(self):                            # no "Ready." test line at start: every restart would pay for it
+            return 0.0                              # (if ElevenLabs is down, the first line falls back to Kokoro)
+    voice = await asyncio.to_thread(RoomieVoice)
+    voice.cfg["voice_id"] = VOICE_ID                # Roomie's voice, not the desktop Emma's
+    await warm.fill()                               # Emma's first answer doesn't wait for `claude` to start
+    print(f"voice ready ({voice.engine}, {voice.load_ms:.0f} ms, voice {VOICE_ID})", flush=True)
+    lines = [OPENER, THINKING]
+    if SCRIPT:                                      # the whole script, voiced only the first time ever
+        lines += [*ASK.values(), SCRIPT_BACK, *SCRIPT_MUSE.values(), *SCRIPT_FALLBACK]
+    for line in lines:                              # ready before anyone asks, so the first seconds are instant
         await speak_wav(line)
+    print(f"script {'on' if SCRIPT else 'off'}; {len(os.listdir(VOICE_DIR)) if os.path.isdir(VOICE_DIR) else 0} "
+          f"lines kept in {VOICE_DIR}", flush=True)
 
 
 def main():
