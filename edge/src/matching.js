@@ -460,12 +460,16 @@ export function judgeCard(p) {
   return out;
 }
 
-/** A short fingerprint of what the judge reads about someone: when it changes, their pairs are judged again. */
-export function sig(p) {
-  const s = JSON.stringify(judgeCard(p));
+/** A short fingerprint of a text (FNV-1a). */
+export function hash(s) {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16);
+}
+
+/** A short fingerprint of what the judge reads about someone: when it changes, their pairs are judged again. */
+export function sig(p) {
+  return hash(JSON.stringify(judgeCard(p)));
 }
 
 /** The people in `people` whose pair with `me` has no answer yet, or an answer from an older profile of either. */
@@ -507,7 +511,8 @@ export async function judge(me, people, decide) {
     if (r.status !== "fulfilled") { console.log("judge error:", String(r.reason).slice(0, 200)); return; }
     const ans = r.value && typeof r.value === "object" ? r.value : {};
     groups[gi].forEach((o, i) => {
-      const a = Number(ans[`a${i}`]?.noul), b = Number(ans[`b${i}`]?.noul), k = ans[`k${i}`]?.probabilities;
+      const num = v => typeof v === "number" || (typeof v === "string" && v.trim()) ? Number(v) : NaN;    // (a blank answer is no answer, not a 0)
+      const a = num(ans[`a${i}`]?.noul), b = num(ans[`b${i}`]?.noul), k = ans[`k${i}`]?.probabilities;
       if (!Number.isFinite(a) || !Number.isFinite(b) || !k || typeof k !== "object") return;
       const kinds = {};
       for (const name of Object.keys(KINDS)) kinds[name] = Number.isFinite(Number(k[name])) ? Number(k[name]) : 0;

@@ -95,6 +95,7 @@ export class PairShake extends DurableObject {
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
     this.judged = {};         // pair -> what the judge said about the two (matching.js judge); kept until a profile changes
+    this.gen = new Map();     // user id -> how many times their match was stopped (a match begun before a stop introduces nobody)
     this.profiles = new Map(); // user id -> {convo, me}: the profile written from that chat, so the same chat isn't read twice
     this.talkTasks = new Map();
     this.testWait = new Map();
@@ -213,8 +214,9 @@ export class PairShake extends DurableObject {
       people in no event only each other). Emma's demo attendees are in all of them. */
   candidates(exclude, app = false, seeds = true) {
     // live in a network: its room is the people live in it right now (real people only, from the app or the web)
+    if (this.users[exclude]?.test) return [];        // a test attendee never starts a real introduction
     const net = this.users[exclude]?.live?.network;
-    if (net && this.networks[net]) {
+    if (net && this.networks[net] && this.networks[net].expires > now()) {
       return this.networks[net].members.filter(id => id !== exclude && this.users[id]?.live?.network === net &&
         this.users[id].profile && !this.users[id].test && !this.users[id].paused).map(id => this.person(id));
     }
@@ -596,8 +598,7 @@ export class PairShake extends DurableObject {
     if (spot) transcript.push(["emma", "And where are you in the room?"], ["you", spot]);
     Object.assign(u, { transcript, turns: 0, known: {}, via: "chatgpt" });
     this.writePersona(u, text);   // the structured persona, in the background (the match doesn't wait for it)
-    delete u.cancelled;
-    this.scans.delete(u.id);
+    this.stopMatch(u);            // (one still being worked out from before is dropped)
     this.beginMatch(u);           // think while they add their handles
     this.save();
     return { id: u.id, code: u.code, say: P.THINKING };
@@ -608,41 +609,64 @@ export class PairShake extends DurableObject {
     p.catch(() => {});            // (whoever awaits it later sees the error)
     this.pending.set(u.id, p);
     this.startScan(u);
+    return p;
+  }
+
+  /** Stop the match being worked out for them: it introduces nobody, and whom it had chosen is free again. */
+  stopMatch(u) {
+    this.gen.set(u.id, (this.gen.get(u.id) || 0) + 1);
+    this.pending.delete(u.id);
+    this.scans.delete(u.id);
+    this.claims = this.claims.filter(c => c.a !== u.id);
   }
 
   // ---- matching -------------------------------------------------------------------------------------------
   async match(d) {
     const u = this.user(d.id) || notFound();
-    u.socials = {};
+    u.socials = u.socials || {};        // handles sent here are added; an empty box doesn't erase one saved before
     for (const [k, v] of Object.entries(isObj(d.socials) ? d.socials : {})) if (str(v)) u.socials[k.slice(0, 20)] = str(v).replace(/^@+/, "").slice(0, 100);
     if (d.wait) return this.settle(u);
-    delete u.cancelled;
-    const task = this.pending.get(u.id) || this.runMatch(u);
-    this.pending.delete(u.id);
+    const gen = this.gen.get(u.id) || 0, stopped = () => (this.gen.get(u.id) || 0) !== gen;
+    // a second /match while one is being worked out waits for the same one; a result is used once
+    const take = async task => { try { return await task; } finally { if (this.pending.get(u.id) === task) this.pending.delete(u.id); } };
+    const here = r => this.candidates(u.id, !!u.app).some(x => x.id === r.match_id);
     let r, room;
     try {
-      [r, room] = await task;
+      [r, room] = await take(this.pending.get(u.id) || this.beginMatch(u));
+      if (!stopped() && !here(r)) {      // the one chosen left, paused or deleted their account meanwhile: look again
+        this.scans.delete(u.id);
+        [r, room] = await take(this.beginMatch(u));
+      }
     } catch (e) {
+      if (stopped()) return json({ cancelled: true }, 409);
       console.log("match error:", String(e));
       if (/nobody else in the room/.test(String(e.message || e))) throw new HttpError(422, "Nobody new to meet here yet.");
       throw new HttpError(502, String(e.message || e));
     }
-    if (u.cancelled) { delete u.cancelled; return json({ cancelled: true }, 409); }    // they stopped looking meanwhile
+    if (stopped()) return json({ cancelled: true }, 409);    // they stopped looking meanwhile
+    const them = this.person(r.match_id);
+    if (!them || !here(r)) throw new HttpError(409, "They just left. Try again.");
     u.profile = r.me || u.profile || {};
+    if (r.from) u.from = r.from; else delete u.from;
     u.name = u.profile.name || u.name;
     if (!u.traits) this.writePersona(u, this.sourceText(u));     // (after a voice chat; the pasted kind started already)
-    const them = this.person(r.match_id) || room[0];
-    const mid = hexId(8);
-    this.missions[mid] = {
-      id: mid, a: u.id, b: them.id, intro_a: r.intro_me || "", intro_b: r.intro_them || "",
-      overlap: cleanOverlap(r.overlap || {}), created: now(), outcome: null,
-    };
+    this.claims = this.claims.filter(c => !(c.a === u.id && c.b === them.id));     // the introduction itself counts from here on
+    // two people who found each other at the same moment (or already have one waiting) share one introduction
+    const open = Object.values(this.missions).find(m => m.outcome == null && !m.test &&
+      ((m.a === u.id && m.b === them.id) || (m.a === them.id && m.b === u.id)));
+    const mid = open ? open.id : hexId(8);
+    if (!open) {
+      this.missions[mid] = {
+        id: mid, a: u.id, b: them.id, intro_a: r.intro_me || "", intro_b: r.intro_them || "",
+        overlap: cleanOverlap(r.overlap || {}), created: now(), outcome: null,
+      };
+      this.agentTalk(mid).catch(e => console.log("talk error:", String(e)));    // agents talk while Emma reveals the match
+      this.stats.intros++;
+      if (this.users[them.id]) this.users[them.id].inbox.push(mid);            // a real person: their phone gets it too
+    }
     u.match = mid;
-    this.agentTalk(mid).catch(e => console.log("talk error:", String(e)));    // agents talk while Emma reveals the match
     this.prepareBack(u).catch(e => console.log("back error:", String(e)));    // and her greeting for next time is written
     this.stats.spoke++;
-    this.stats.intros++;
-    if (this.users[them.id]) this.users[them.id].inbox.push(mid);            // a real person: their phone gets it too
     this.save();
     const say = SCRIPT ? scriptReveal(them) : r.say || "";
     this.said.add(say);
@@ -674,9 +698,8 @@ export class PairShake extends DurableObject {
       Each talk is two agents, one model call each: the attendee's agent knows only its own person and the other's
       public card, and asks; the other person's agent knows its own person (whom they'd rather not meet, how many
       introductions they hold) and the attendee's public card, and answers yes or no for them. */
-  sendAgents(u, me, R, room, only) {
-    const state = this.scans.get(u.id);
-    if (state.sent) return state;
+  sendAgents(state, u, me, R, room, only) {
+    if (!state || state.sent) return state;      // (state: the run's own, so a run stopped meanwhile can't take a new one's)
     const busy = [...this.scans.values()].filter(st => st.sent && !st.closed).length;
     const who = only || M.shortlist(R, u.id, room.map(p => p.id), !busy ? 8 : busy < 5 ? 4 : 3);   // (only: the judge's choice and the next best)
     state.total = who.length;
@@ -700,8 +723,10 @@ export class PairShake extends DurableObject {
         } finally {
           this.agentsTurns.give();
         }
+        const person = this.person(pid);
+        if (!person) throw new Error("no longer needed");      // (they deleted their account meanwhile)
         const no = a.meet === false;        // their agent declined for them
-        state.talks.push({ person: this.person(pid), ask: str(q.ask), reply: str(a.reply), fit: no ? Math.min(M.int(a.fit, 30), 15) : M.int(a.fit, 30), no });
+        state.talks.push({ person, ask: str(q.ask), reply: str(a.reply), fit: no ? Math.min(M.int(a.fit, 30), 15) : M.int(a.fit, 30), no });
       } catch (e) {
         if (e.message !== "no longer needed") console.log("scan error:", String(e));
         state.total--;
@@ -731,11 +756,13 @@ export class PairShake extends DurableObject {
   /** In a room (a Luma event or a network): write their card from what they told Emma and stop there. Nobody is
       introduced; they start finding from the room when they want ({wait: true} on /match). */
   async settle(u) {
-    u.cancelled = true; this.pending.delete(u.id); this.scans.delete(u.id);     // the match begun on the way here is dropped
+    this.stopMatch(u);            // the match begun on the way here is dropped
     let me;
-    try { me = await M.profile(this.convo(u), prompt => ask(this.env, prompt, { timeout: 15 })); }
+    const heard = M.hash(JSON.stringify(u.transcript || []));
+    try { me = await M.profile(this.convo(u), prompt => ask(this.env, prompt, { timeout: 15 })); u.from = heard; }
     catch (e) {
       console.log("profile error:", String(e));
+      delete u.from;
       me = Object.fromEntries(Object.entries(u.known || {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]));
     }
     if (u.memory) {
@@ -753,10 +780,11 @@ export class PairShake extends DurableObject {
 
   /** Who they meet (matching.js): their profile, the agents' verdicts, the pair, then the spark. */
   async runMatch(u) {
-    const t0 = now();
+    const t0 = now(), gen = this.gen.get(u.id) || 0;
+    const live = () => { if ((this.gen.get(u.id) || 0) !== gen) throw new Error("stopped"); };    // stopped meanwhile: nobody is chosen
     this.startScan(u);
     const state = this.scans.get(u.id);
-    let p, s, talks = {}, t1 = t0, t2 = t0, me, room, judged = 0;
+    let p, s, talks = {}, t1 = t0, t2 = t0, me, room, judged = 0, byJudge = false, from = null;
     try {
       const app = !!u.app;
       // on the app: another app user if there is one; always someone new (unless they've met everyone)
@@ -766,16 +794,19 @@ export class PairShake extends DurableObject {
       if (!room.length) room = fresh(this.candidates(u.id, app));
       if (!room.length) room = this.candidates(u.id, app);
       if (!room.length) throw new Error("nobody else in the room");
-      const convo = this.convo(u), kept = this.profiles.get(u.id);
-      if (kept && kept.convo === convo) me = { ...kept.me };     // looking again without a new chat: the same profile
+      const convo = this.convo(u), kept = this.profiles.get(u.id), heard = M.hash(JSON.stringify(u.transcript || []));
+      if (u.profile && u.from === heard) { me = { ...u.profile }; from = heard; }   // nothing new said since their card was written: the card as it is now (with what they changed by hand)
+      else if (kept && kept.convo === convo) { me = { ...kept.me }; from = heard; }     // looking again without a new chat: the same profile
       else {
         try {
           me = await M.profile(convo, prompt => ask(this.env, prompt, { timeout: 15 }));
           this.profiles.set(u.id, { convo, me: { ...me } });
+          from = heard;
         } catch (e) {               // the chat already gave Emma the basics
           console.log("profile error:", String(e));
           me = Object.fromEntries(Object.entries(u.known || {}).filter(([, v]) => v).map(([k, v]) => [k, String(v)]));
         }
+        live();
       }
       if (u.memory) {             // back again: what they didn't mention stays as it was
         const said = Object.fromEntries(Object.entries(me).filter(([, v]) => v && !(Array.isArray(v) && !v.length)));
@@ -793,25 +824,29 @@ export class PairShake extends DurableObject {
       const rated = await M.rate(this.judged, forJudge(me), room.map(x => forJudge(this.private(x))),
         (input, questions) => decide(this.env, input, questions, { timeout: 4 }), 5);
       judged = Object.keys(rated.fits).length;
+      live();
       // people matching at the same moment see each other's choices, so they don't all pick one person
       const claimed = () => {
         this.claims = this.claims.filter(c => now() - c.created < 90);
-        for (const c of this.claims) R.record(c.a, c.b);
+        for (const c of this.claims) if (c.a !== u.id) R.record(c.a, c.b);     // (not their own: a run of theirs that was stopped)
       };
       // someone whose agent said no for them isn't introduced: they are set aside, and the choice goes to the next of
       // the people the agents talked to whose agent said yes (only when none did, to the next best by the judge)
       const nos = () => Object.keys(talks).filter(i => talks[i].no);
       const willing = fits => Object.fromEntries(Object.entries(fits).filter(([i]) => !talks[i]?.no));
       const claim = () => { const c = this.users[p.b] ? { a: u.id, b: p.b, outcome: null, created: now() } : null; if (c) this.claims.push(c); return c; };
-      if (judged) {               // the pair comes from the judge; the agents then talk to that person and the next two
+      // the judge decides when it answered for most of the room (a few old answers from an earlier room aren't enough)
+      byJudge = judged >= Math.max(1, room.length / 2);
+      if (byJudge) {              // the pair comes from the judge; the agents then talk to that person and the next two
         claimed();
         p = await M.pick(R, u.id, null, rated.fits, rated.recipes);
         const first = claim();
         const free = new Set(R.candidates(u.id));
         const order = M.talkTo(Object.fromEntries(Object.entries(rated.fits).filter(([i]) => free.has(i))), p.b);
-        this.sendAgents(u, me, R, room, order);
+        this.sendAgents(state, u, me, R, room, order);
         talks = await this.verdicts(state, now());
         t2 = now();
+        live();
         if (talks[p.b]?.no) {
           for (const i of nos()) R.record(u.id, i, false);
           this.claims = this.claims.filter(c => c !== first);
@@ -820,9 +855,10 @@ export class PairShake extends DurableObject {
           claim();
         }
       } else {                    // no answer from the judge: the agents' verdicts decide, as before
-        this.sendAgents(u, me, R, room);
+        this.sendAgents(state, u, me, R, room);
         talks = await this.verdicts(state, now());
         t2 = now();
+        live();
         claimed();
         for (const i of nos()) R.record(u.id, i, false);
         p = await M.pick(R, u.id, null, willing(Object.fromEntries(Object.entries(talks).map(([i, t]) => [i, t.fit]))));
@@ -837,13 +873,13 @@ export class PairShake extends DurableObject {
     } finally {
       state.closed = true;
     }
-    console.log(`match ${u.id} -> ${p.b}: ${s.recipe}, ${p.mode}, by ${judged ? "judge" : p.by}, judged ${judged}/${room.length}, ${Object.keys(talks).length}/${state.total} talks, ${Object.values(talks).filter(t => t.no).length} said no, ` +
+    console.log(`match ${u.id} -> ${p.b}: ${s.recipe}, ${p.mode}, by ${byJudge ? "judge" : p.by}, judged ${judged}/${room.length}, ${Object.keys(talks).length}/${state.total} talks, ${Object.values(talks).filter(t => t.no).length} said no, ` +
       `profile ${(t1 - t0).toFixed(1)} s, agents ${(t2 - t1).toFixed(1)} s, spark ${(now() - t2).toFixed(1)} s`);
     const sh = s.share;
     const note = pid => `${s.teases[pid]} Your mission together: ${s.mission}`;
     delete me.id;
     return [{
-      me, match_id: p.b, intro_me: note(u.id), intro_them: note(p.b), say: s.say,
+      me, from, match_id: p.b, intro_me: note(u.id), intro_them: note(p.b), say: s.say,
       overlap: { rare: sh.rare, you_only: sh.first_only, them_only: sh.second_only, give: sh.give, get: sh.get, ladder: s.ladder, mission: s.mission, recipe: s.recipe },
     }, room];
   }
@@ -858,14 +894,14 @@ export class PairShake extends DurableObject {
   again(d) {
     const u = this.user(d.id);
     if (!u || !u.profile) notFound();
-    this.scans.delete(u.id);
+    this.stopMatch(u);            // (a second tap starts over: the first one introduces nobody)
     this.beginMatch(u);
     return { ok: true };
   }
 
   cancel(d) {
     const u = this.user(d.id);
-    if (u) { u.cancelled = true; this.scans.delete(u.id); }
+    if (u) this.stopMatch(u);
     return { ok: true };
   }
 
@@ -899,7 +935,7 @@ export class PairShake extends DurableObject {
 
   inbox(q) {
     const u = this.user(q.get("id")) || notFound();
-    return { missions: u.inbox.filter(mid => this.missions[mid]).map(mid => this.missionFor(mid, u.id)) };
+    return { missions: u.inbox.filter(mid => this.missions[mid]).map(mid => this.missionFor(mid, u.id)).filter(m => m.person) };   // (not from someone who deleted their account)
   }
 
   /** Two agents talk first. Generated once, kept on the mission. */
