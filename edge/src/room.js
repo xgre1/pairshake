@@ -1,4 +1,4 @@
-/* The room: one Durable Object that is the whole of Roomie's server. Emma interviews each attendee, finds the
+/* The room: one Durable Object that is the whole of PairShake's server. Emma interviews each attendee, finds the
    one person in the room they should meet, and gives both of them an icebreaker mission instead of a DM.
 
    Everyone and every introduction is kept in D1 (the `users` and `missions` tables), loaded when the room
@@ -74,7 +74,7 @@ function sameHex(a, b) {
   return x.length === y.length && crypto.subtle.timingSafeEqual(x, y);
 }
 
-export class Roomie extends DurableObject {
+export class PairShake extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.users = {};          // id -> {id, name, transcript[], profile{}, socials{}, code, color, match, inbox[]}
@@ -605,7 +605,7 @@ export class Roomie extends DurableObject {
     this.users[uid] = {
       id: uid, name, transcript: [], socials: {}, code: String(randint(1000, 9999)), color: pick1(P.PALETTE), match: null,
       inbox: [], turns: 0, app, test: true,
-      profile: { name, role, building, needs, offers, spot: "Holding the other test phone", line: `${firstName(name)} is testing Roomie.` },
+      profile: { name, role, building, needs, offers, spot: "Holding the other test phone", line: `${firstName(name)} is testing PairShake.` },
     };
     return this.users[uid];
   }
@@ -618,7 +618,7 @@ export class Roomie extends DurableObject {
       intro_a: `A test match: ${firstName(b.name)} is on the other phone. Say yes to meet, then follow the arrow.`,
       intro_b: `A test match: ${firstName(a.name)} is on the other phone. Say yes to meet, then follow the arrow.`,
       overlap: cleanOverlap({
-        rare: [{ text: "You're both testing Roomie right now", opener: "Which phone are you on?" },
+        rare: [{ text: "You're both testing PairShake right now", opener: "Which phone are you on?" },
           { text: "Both your phones can find each other by Ultra Wideband", opener: "Ready to find each other?" }],
         you_only: [pa.building, pa.offers], them_only: [pb.building, pb.offers], give: pa.offers, get: pb.offers,
         ladder: ["What are you building?", "What's the hardest part so far?", "What would make tonight a win?"],

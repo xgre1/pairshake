@@ -60,7 +60,7 @@ flowchart LR
 PairShake runs entirely on Cloudflare. With `wrangler` signed in:
 
 ```sh
-make edge        # deploy to roomie.binjto.workers.dev
+make edge        # deploy to pairshake.binjto.workers.dev
 make backup      # save a copy of the room
 ```
 

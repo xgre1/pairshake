@@ -1,6 +1,6 @@
 # API
 
-All endpoints are served by Cloudflare at `https://roomie.binjto.workers.dev` (`edge/`). Bodies are JSON unless noted. A user is identified by the `id` the server hands out; there is no other session token.
+All endpoints are served by Cloudflare at `https://pairshake.binjto.workers.dev` (`edge/`). Bodies are JSON unless noted. A user is identified by the `id` the server hands out; there is no other session token.
 
 ## Talking to Emma
 

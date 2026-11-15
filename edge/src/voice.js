@@ -6,7 +6,7 @@
    hear(): 16 kHz mono int16 PCM in, Whisper's text out. */
 import { Buffer } from "node:buffer";
 
-export const VOICE_ID = "OSxQoMnSFe6QtcNVSptL";       // Roomie's voice: Emma's own designed ElevenLabs voice
+export const VOICE_ID = "OSxQoMnSFe6QtcNVSptL";       // PairShake's voice: Emma's own designed ElevenLabs voice
 const ELEVEN_MODEL = "eleven_v4_turbo";
 const SR = 24000;
 
