@@ -14,9 +14,9 @@ flowchart LR
   end
   W -- "https, wss" --> CF["Cloudflare Worker<br/>roomie.binjto.workers.dev"]
   A -- "in-app localhost server" --> CF
-  CF -- "Workers VPC + named tunnel" --> S["server.py on the Mac<br/>aiohttp, port 8780"]
-  S --> V["Emma's voice and ears<br/>ElevenLabs or Kokoro, Parakeet"]
-  S --> L["Language model<br/>claude -p"]
+  CF --> S["Durable Object 'room'<br/>people, matching, chats"]
+  S --> V["Emma's voice and ears<br/>ElevenLabs, Whisper"]
+  S --> L["Language model<br/>Gemini"]
   A <-. "Ultra Wideband, Bluetooth" .-> A2["the other iPhone"]
 ```
 
@@ -30,32 +30,32 @@ flowchart LR
 
 | Path | What it is |
 | --- | --- |
-| [`server/`](server/) | The Python server: Emma's interview, matching, rooms, accounts. It also serves the web app. |
+| [`edge/`](edge/) | The backend, all on Cloudflare: Emma's interview, matching, rooms, accounts, voice. It also serves the web app. |
 | [`server/web/`](server/web/) | The web app (a single page) and Emma's hands (three.js and Handkit). |
+| [`server/`](server/) | The first backend, in Python on a Mac. No longer used in production; kept for local tools and the matching tests. |
 | [`app/`](app/) | The iPhone app: the web app full screen, with finding by Ultra Wideband and Bluetooth. |
-| [`edge/`](edge/) | The Cloudflare Worker that gives PairShake its public https address. |
 | [`docs/`](docs/) | Architecture, API, finding, and how to run everything. |
 | [`prototypes/`](prototypes/) | An early standalone demo of the matching screen. |
 
 ## Quick start
 
-You need a Mac with Emma's engine and Python environment in `~/Desktop/emma`, `cloudflared`, Xcode and XcodeGen.
+PairShake runs entirely on Cloudflare. To deploy a change, with `wrangler` signed in:
 
 ```sh
-make server      # PairShake on http://localhost:8780
-make tunnel      # connect the Mac to Cloudflare
+make edge        # deploy to roomie.binjto.workers.dev
+make backup      # save a copy of the room
 ```
 
-Then open **https://roomie.binjto.workers.dev** on any phone or computer. To build the iPhone app, run `make app` and open `app/Roomie.xcodeproj` in Xcode. `make help` lists every command.
+Open **https://roomie.binjto.workers.dev** on any phone or computer. To build the iPhone app, run `make app` and open `app/Roomie.xcodeproj` in Xcode. `make help` lists every command.
 
-The full setup, including the Worker and installing the app on phones, is in [docs/running.md](docs/running.md).
+The full setup, including secrets, logs and installing the app on phones, is in [docs/running.md](docs/running.md).
 
 ## Documentation
 
 - [Architecture](docs/architecture.md): the parts, how a request travels, what is stored.
 - [API](docs/api.md): every HTTP endpoint and WebSocket message.
 - [Finding each other](docs/finding.md): Ultra Wideband, Bluetooth and GPS, and what was learned testing them.
-- [Running Roomie](docs/running.md): server, tunnel, Worker, phones, and troubleshooting.
+- [Running Roomie](docs/running.md): deploying, logs, backups, phones, and troubleshooting.
 
 ## Credits
 

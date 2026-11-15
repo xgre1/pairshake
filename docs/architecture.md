@@ -1,6 +1,6 @@
 # Architecture
 
-PairShake has four parts: a Python server on a Mac, a single-page web app, an iPhone app, and a Cloudflare Worker in front of all of it.
+PairShake has three parts, and nothing runs on a Mac: a backend on Cloudflare (a Worker and one Durable Object), a single-page web app, and an iPhone app.
 
 ```mermaid
 flowchart TB
@@ -13,29 +13,31 @@ flowchart TB
   end
   Browser["Web page in a browser"] --> W
   LS --> W["Cloudflare Worker (edge/)"]
-  W -- "hands' models" --> EA["Worker static assets"]
-  W -- "everything else" --> T["Workers VPC service<br/>named tunnel 'roomie'"]
-  T --> S["server.py (server/)"]
-  S --> R[("room.json")]
-  S --> TTS["Emma's engine: voice and ears"]
-  S --> LLM["claude -p"]
+  W -- "page, hands" --> EA["static assets"]
+  W -- "/hear" --> AI["Workers AI: Whisper"]
+  W -- "/speak, a line voiced before" --> R2[("R2: Emma's lines")]
+  W -- "API, WebSocket" --> S["Durable Object 'room' (edge/src/room.js)"]
+  S --> ST[("its storage: people, introductions, chats")]
+  S --> LLM["Gemini"]
+  S --> TTS["ElevenLabs"]
+  TTS --> R2
 ```
 
-## Server (`server/server.py`)
+## Backend (`edge/`)
 
-An aiohttp app on port 8780. It is the only place with state.
+A Cloudflare Worker (`edge/src/index.js`) in front of one Durable Object, the room (`edge/src/room.js`). The room is the only place with state; every request that needs it goes to the same object, so everyone sees the same people and matches. It is a port of the first server, `server/server.py`, with the same API.
 
-**What it stores.** Everything lives in memory and is written to `server/room.json` after each change, so a restart loses nothing:
+**What it stores.** Everything is kept in memory and written to the Durable Object's own storage after each change, one key per person (`u:<id>`) and per introduction (`m:<id>`), so restarts and deploys lose nothing. `make backup` saves a copy:
 
-- `users`: one record per attendee. A random 10-character id, Emma's transcript, the profile she wrote (name, role, what they are building, what they need, what they offer, where they are standing), social handles, a colour, introductions waiting for them (`inbox`), and flags: `app` (joined from the iPhone app), `test` (a made-up attendee from the test button). With an account, also an email and a salted scrypt hash of the password.
+- `users`: one record per attendee. A random 10-character id, Emma's transcript, the profile she wrote (name, role, what they are building, what they need, what they offer, where they are standing), social handles, a colour, introductions waiting for them (`inbox`), and flags: `app` (joined from the iPhone app), `test` (a made-up attendee from the test button). With an account, also an email and a salted PBKDF2-SHA256 hash of the password.
 - `missions`: one per introduction. Who the two people are, Emma's note to each, what they share (`overlap`), the chat, each person's yes or no, and the outcome.
 - `stats`: counts for the room screen.
 
-Rooms (who is connected to which introduction right now) are kept only in memory.
+Rooms (who is connected to which introduction right now) are the Durable Object's WebSockets, with hibernation: an open chat costs nothing while nobody types. A match being worked out and the agents' talks are kept only in memory.
 
 **Seed attendees.** Ten fictional people are always in the room, so the first real attendee still has someone to meet. When someone is introduced to one of them, Emma plays that person in the chat.
 
-**Language model.** Every decision is a one-shot `claude -p` call (model set by `ROOMIE_MODEL`, Haiku by default) that returns JSON. With `GEMINI_API_KEY` set (in the environment or in `server/.env`), Gemini answers instead (`server/llm.py`).
+**Language model.** Every decision is one Gemini call that returns JSON (`edge/src/llm.js`): flash-lite (about 1 s) for the chat and the quick jobs, flash (about 3 s) for the spark and the agents' talk. A failed call is tried once more. At most 16 calls are in flight at once.
 
 | Step | When | What it asks for |
 | --- | --- | --- |
@@ -45,7 +47,7 @@ Rooms (who is connected to which introduction right now) are kept only in memory
 | Spark | once the pair is chosen, two calls in parallel | Emma's line to each of them, a small mission, three questions, what the two share |
 | Agent talk, suggestions, welcome back | later | the opening exchange, follow-up questions, Emma's greeting next time |
 
-**Choosing the pair** (`server/matching.py`). The pair is chosen in code; the model only judges and writes.
+**Choosing the pair** (`edge/src/matching.js`, a port of `server/matching.py`). The pair is chosen in code; the model only judges and writes.
 
 1. The attendee's profile is written first (in English whatever they spoke; what they can offer is read from their work if they didn't say).
 2. Their agent is sent to the people most worth a talk: 8 when the room is quiet, 4 or 3 when others are matching too. The order comes from the cards (rare words count more), with people nobody has introduced yet first, and people already holding two unanswered introductions and the seed attendees last. Talks take turns by rank, so everyone's first choices are heard before anyone's fifth, and a talk still waiting after 7 seconds is dropped.
@@ -58,11 +60,11 @@ Rooms (who is connected to which introduction right now) are kept only in memory
 
 At most 12 agent talks and 8 other model calls run at once, however many people are matching.
 
-`matching.py` also has rounds (everyone paired at once, a trio for an odd count), not yet used by the server. Its rules are checked by `server/test_matching.py`.
+`server/matching.py` also has rounds (everyone paired at once, a trio for an odd count), not used. Its rules are checked by `server/test_matching.py`; the JavaScript port gives the same scores.
 
 **Who can meet whom.** People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband); people on the web only meet web users. The seed attendees are in both. Test attendees never appear in real matches. The first app user, with nobody else on the app yet, gets a seed person, and is introduced to the next app user through their inbox.
 
-**Voice.** `/speak` turns Emma's line into a WAV with her own engine (ElevenLabs, with the local Kokoro voice as fallback). `/hear` takes 16 kHz mono PCM and returns Parakeet's transcript. The common lines are rendered at start-up so the first seconds are instant.
+**Voice.** `/speak` turns Emma's line into a WAV with ElevenLabs, once: every line is kept in the R2 bucket `roomie-voice` and served from there ever after. It only voices lines Emma really says (her script, what she said lately, the page's own lines about someone in the room). If ElevenLabs is down, Workers AI's voice stands in and that line isn't kept. `/hear` takes 16 kHz mono PCM and returns Whisper's transcript (Workers AI). The script's lines are checked at start-up, so the first seconds are instant.
 
 ## Web app (`server/web/index.html`)
 
@@ -85,16 +87,10 @@ The app shows the web app full screen, so the two never drift apart; what the ap
 - **`Finder.swift`** finds the other phone with Nearby Interaction (Ultra Wideband), a Bluetooth link between the two phones, and the gyroscope. Its readings reach the page about 15 times a second.
 - **`Legacy/`** is the first, fully native SwiftUI version, kept for reference and not compiled.
 
-## Edge (`edge/`)
-
-A Cloudflare Worker at `roomie.binjto.workers.dev` is the public address for both the audience and the app.
-
-- The hands' heavy files (about 7 MB) are deployed with the Worker as static assets, so phones get them from the nearest Cloudflare data centre. Each request still asks the Mac whether its copy changed (a 304 when it hasn't). If the Mac is away, the edge copy is used.
-- Everything else goes to `server.py` through a Workers VPC service bound to the named tunnel `roomie`, which `cloudflared` keeps open from the Mac over HTTP/2. No public hostname or open port is needed.
-
 ## Security and privacy
 
 - A user id is a random secret; whoever has it is that user. It lives in the device's local storage.
-- Accounts are an email and a password. Passwords are stored only as salted scrypt hashes, and sign-in attempts are throttled after five failures.
-- The tunnel token is kept in `~/.cloudflared/roomie.token`, outside the repository. `room.json`, logs and the local TLS key are ignored by git.
+- Accounts are an email and a password. Passwords are stored only as salted PBKDF2-SHA256 hashes, and sign-in attempts are throttled after five failures.
+- The API keys (Gemini, ElevenLabs) and the admin token are Worker secrets, never in the repository. Local copies live in `server/.env`, which git ignores, as do backups.
+- Calls that cost money are rate limited per address, and `/speak` won't voice text Emma doesn't say.
 - Deleting an account removes the user record; introductions that pointed to it stop showing that person.

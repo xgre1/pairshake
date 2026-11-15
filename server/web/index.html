@@ -117,16 +117,18 @@ body.known #welcomeHands{height:180px}
 body.known #wTitle{margin-top:-6px!important}
 body.known #wFoot{position:sticky;bottom:0;margin-top:auto;padding-top:28px;z-index:2;
   background:linear-gradient(to bottom,color-mix(in srgb,var(--bg) 0%,transparent),var(--bg) 28px)}   /* solid behind every button, however many */
-#home{flex-direction:column;gap:28px;padding:28px 24px 8px}
+#home{flex-direction:column;gap:28px;padding:18px 24px 8px}
 .sect{display:flex;flex-direction:column;gap:10px}
 body.known #wSub{display:none}
-.memcard{background:var(--bg2);border-radius:22px;padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
-.mc-top{display:flex;align-items:center;gap:7px}
-.mc-top .t{flex:1;font-size:13px;font-weight:600;color:var(--sec);letter-spacing:-.006em}
-.mc-l{font-size:13px;color:var(--sec);margin-bottom:3px;letter-spacing:-.006em}
-.memcard{width:100%;text-align:left;color:var(--fg)} .memcard:active{opacity:.6}
-.mc-need{font-size:26px;line-height:1.2;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.mc-more{display:flex;align-items:center;justify-content:space-between;padding-top:13px;border-top:.5px solid var(--sep);font-size:15px;font-weight:600;color:var(--sec)}
+/* What Emma remembers, on the first page: no box. One sentence under her greeting, set like the greeting
+   itself, and a small pill that opens the whole of it. */
+.memcard{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;padding:0 12px;text-align:center;color:var(--fg)}
+.memcard:active{opacity:.55}
+.mc-l{font-size:15px;color:var(--sec);letter-spacing:-.015em}
+.mc-need{font-size:24px;line-height:1.25;max-width:320px;text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.mc-more{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 12px 7px 14px;border-radius:999px;background:var(--fill2);
+  font-size:13px;font-weight:600;letter-spacing:-.006em;color:var(--sec)}
+.mc-more svg{width:6px;height:11px}
 .prow{width:100%;text-align:left}
 .prow:active{background:var(--fill2)}
 .prow .who{flex:1;min-width:0}
@@ -260,6 +262,32 @@ body.ring3d #intro .hero>*{visibility:hidden}
 .reveal.in{opacity:1;transform:none}
 
 /* Room */
+/* Rubber band: pulled past the top or the bottom, only the content stretches. The bars and buttons that
+   belong to the screen (top bar, back and close buttons, message box, bottom buttons) stay where they are. */
+.topbar,.leave{translate:0 var(--pull,0px)}
+.dock,.composer,body.known #wFoot,#tabbar{translate:0 var(--push,0px)}
+/* Tab bar (phones, once Emma knows you): Home, People, Chats, You. In the app it is iOS's own bar
+   (WebShell.swift draws it and the page only leaves room); in a browser it is this one. */
+#tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;padding:6px 8px var(--safeB);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-top:.5px solid var(--sep)}
+#tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:43px;justify-content:center;
+  font-size:10px;font-weight:500;letter-spacing:.01em;color:var(--sec)}
+#tabbar button.on{color:var(--fg)} #tabbar svg{width:25px;height:25px}
+body.tabs:not(.native-tabs) #tabbar{display:flex}
+body.tabs{--tabH:49px} body.tabs.native-tabs{--tabH:60px}
+body.tabs .screen.on{padding-bottom:calc(var(--tabH) + var(--safeB) + 12px)}
+body.tabs.known #wFoot{bottom:calc(var(--tabH) + var(--safeB));padding-bottom:12px!important}
+body.tabs #peopleBox,body.tabs #forgetBtn,body.tabs #gearBtn{display:none!important}
+#aGear{color:var(--sec);display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--fill2)}
+#aHead{display:none} body.tabs #aHead{display:flex}
+body.tabs #about{padding-top:var(--safeT)} body.tabs #about .topbar{display:none}
+body.tabs #aFields .s-h:first-child{padding-top:6px}
+/* every tab starts the same way: its name, large, right under the status bar (the screen already pads for the notch) */
+.tab-h{font-size:34px;line-height:1.1;padding:6px 24px 14px;display:flex;align-items:center;justify-content:space-between}
+.tab-list{padding:0 20px} .tab-list .row + .row::before{left:70px}
+.tab-empty{padding:40px 44px;text-align:center;color:var(--sec);text-wrap:balance}
+.yes{font-size:12px;font-weight:600;color:var(--sec);background:var(--fill2);padding:3px 8px;border-radius:999px;flex:none}
 .topbar{display:flex;align-items:center;gap:10px;padding:calc(10px + var(--safeT)) 20px 10px;position:sticky;top:0;z-index:3;background:var(--bg)}
 .chev{color:var(--sec);padding:4px 2px;display:none}
 #room.chatting .chev{display:block}
@@ -448,9 +476,9 @@ body:not(.in-app) .app-only{display:none!important}
   <div id="home">
     <!-- one thing big: what Emma looks for next; the rest small under it -->
     <button class="memcard" id="memCard">
-      <div class="mc-top"><span class="t">Emma remembers</span></div>
-      <div><p class="mc-l">Looking for</p><p class="serif mc-need" id="memNeed"></p></div>
-      <div class="mc-more"><span>Show more</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="mc-l">You're looking for</span>
+      <span class="serif mc-need" id="memNeed"></span>
+      <span class="mc-more">Show more<svg viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     </button>
     <div class="sect" id="peopleBox">
       <p class="foot semi sec">People you've met</p>
@@ -495,9 +523,28 @@ body:not(.in-app) .app-only{display:none!important}
   </div>
 </section>
 
+<!-- Tabs: the people Emma introduced you to, and your conversations with them -->
+<section class="screen" id="tabPeople">
+  <h1 class="serif tab-h">People</h1>
+  <div class="tab-list"><div class="group" id="tpList"></div></div>
+  <p class="tab-empty" id="tpEmpty">Nobody yet. Ask Emma to find you someone on the first tab.</p>
+</section>
+<section class="screen" id="tabChats">
+  <h1 class="serif tab-h">Chats</h1>
+  <div class="tab-list"><div class="group" id="tcList"></div></div>
+  <p class="tab-empty" id="tcEmpty">No messages yet. Open someone under People and say hi.</p>
+</section>
+<nav id="tabbar">
+  <button data-i="0"><svg viewBox="0 0 26 26"><path d="M4 11.5 13 4l9 7.5V21a1 1 0 0 1-1 1h-5v-6h-6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</button>
+  <button data-i="1"><svg viewBox="0 0 26 26"><circle cx="9.5" cy="9" r="3.8" fill="currentColor"/><path d="M2 21c0-4 3.3-6.5 7.5-6.5S17 17 17 21z" fill="currentColor"/><circle cx="18.5" cy="10" r="3" fill="currentColor"/><path d="M18.9 21c0-2.300-.8-4.200-2.200-5.600.6-.2 1.200-.3 1.900-.3 3.200 0 5.400 2.300 5.400 5.900z" fill="currentColor"/></svg>People</button>
+  <button data-i="2"><svg viewBox="0 0 26 26"><path d="M13 4c5.500 0 10 3.700 10 8.300s-4.500 8.300-10 8.300c-1 0-2-.1-2.900-.4L5.500 22.500l1-3.900C4.400 17.100 3 14.800 3 12.300 3 7.700 7.500 4 13 4z" fill="currentColor"/></svg>Chats</button>
+  <button data-i="3"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="13" cy="10.500" r="3.400" fill="currentColor"/><path d="M6.600 19.600c1.200-2.600 3.600-4 6.400-4s5.200 1.400 6.400 4a9.900 9.900 0 0 1-12.800 0z" fill="currentColor"/></svg>You</button>
+</nav>
+
 <!-- Everything Emma remembers about you: read it all, fix it by hand, or tell her again -->
 <section class="screen" id="about">
   <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
+  <h1 class="serif tab-h" id="aHead">You<button id="aGear" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.800" fill="currentColor"/></svg></button></h1>
   <div class="sbody">
     <div id="aFields"></div>
     <p class="s-f" id="aSaved">Saved as you type.</p>
@@ -726,7 +773,7 @@ async function api(path, body, method) {
   return r.json();
 }
 function oops(msg) { const e = $("#err"); e.textContent = msg; e.style.display = "block"; setTimeout(() => e.style.display = "none", 5000); }
-function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); document.body.dataset.screen = id; window.scrollTo(0, 0); mountHands();
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); document.body.dataset.screen = id; window.scrollTo(0, 0); mountHands(); document.dispatchEvent(new Event("screen"));
   if (id !== "matching" && id !== "intro" && window.Ring?.ok) Ring.park(); }
 // the 3D hands' layer: over the matching box or the introduction's hero, or the right side of a wide window
 const wide = () => matchMedia("(min-width: 900px)").matches;
@@ -957,6 +1004,11 @@ const Voice = {
 const S = { mrun: 0, id: null, result: null, mission: null, talks: [], total: 0, chosen: null, mode: "idle", answers: 0, seen: new Set(),
             me: null, socials: {}, contacts: [] };
 // Emma remembers you on this device: your id is kept, and the server keeps what you told her
+addEventListener("scroll", () => {
+  const root = document.documentElement, over = scrollY - (root.scrollHeight - innerHeight);
+  root.style.setProperty("--pull", Math.min(0, scrollY) + "px");
+  root.style.setProperty("--push", Math.max(0, over) + "px");
+}, {passive: true});
 const ID_KEY = "roomie.id";
 const keep = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const kept = k => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -1651,7 +1703,7 @@ function renderHome() {
   const me = S.me;
   document.body.classList.remove("updating"); document.body.classList.add("known");
   $("#wTitle").textContent = `Welcome back, ${first(me)}.`;
-  $("#memNeed").textContent = me.needs || "Someone worth meeting.";
+  $("#memNeed").textContent = (me.needs || "Someone worth meeting").replace(/[.\s]+$/, "");
   $("#peopleBox").style.display = S.contacts.length ? "" : "none";
   $("#people").innerHTML = S.contacts.map((c, i) => `<button class="row prow" data-i="${i}">${av(c.person, 40)}
     <div class="who"><div class="semi">${esc(c.person.name)}</div><div class="foot sec" style="margin-top:1px">${esc(preview(c))}</div></div>${CHEV}</button>`).join("");
@@ -1660,8 +1712,44 @@ function renderHome() {
   $("#welcomeHands").dataset.inline = "1";                          // small hands above the page, not behind it
   $("#welcomeHands").dataset.fitWide = "0.32,0.25";                // on a computer: big, to weigh as much as the column
   if (document.body.dataset.screen === "welcome") mountHands();
+  Tabs.sync();
 }
 async function goHome() { await loadMe(); show("welcome"); }
+/* Tabs: on a phone, once Emma knows you, the first page is split in four so nothing piles up: Home (Emma
+   and who you're looking for), People, Chats, You (what she remembers, settings). A computer has room for
+   it all on one page and keeps that. */
+const Tabs = {
+  ids: ["welcome", "tabPeople", "tabChats", "about"], last: 0,
+  on() { const b = document.body.classList; return b.contains("known") && !b.contains("updating") && !isDesk() && this.ids.includes(document.body.dataset.screen); },
+  sync() {
+    const on = this.on(), i = this.ids.indexOf(document.body.dataset.screen);
+    if (on) this.last = i;
+    document.body.classList.toggle("tabs", on); document.body.classList.toggle("native-tabs", !!APP?.tabs);
+    $("#tabbar").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
+    if (APP?.tabs) APP.post({t: "tabs", on, sel: Math.max(0, i)});
+  },
+  go(i) {
+    if (i === 1 || i === 2) this.lists();
+    if (i === 3) return About.open();
+    show(this.ids[i]);
+  },
+  async back() { await loadMe(); isDesk() ? show("welcome") : this.go(this.last); },     // where they came from
+  lists() {
+    const row = (c, i, sub, tag) => `<button class="row prow" data-i="${i}">${av(c.person, 40)}<div class="who"><div class="semi">${esc(c.person.name)}</div>` +
+      `<div class="foot sec" style="margin-top:1px">${esc(sub)}</div></div>${tag}${CHEV}</button>`;
+    const fill = (box, empty, items) => {
+      $(box).innerHTML = items.join(""); $(box).style.display = items.length ? "" : "none"; $(empty).style.display = items.length ? "none" : "";
+      $(box).querySelectorAll(".prow").forEach(b => b.onclick = () => openPerson(S.contacts[b.dataset.i]));
+    };
+    fill("#tpList", "#tpEmpty", S.contacts.map((c, i) => row(c, i, c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
+    fill("#tcList", "#tcEmpty", S.contacts.map((c, i) => c.chat.length ? row(c, i, preview(c), "") : "").filter(Boolean));
+  },
+};
+document.addEventListener("screen", () => Tabs.sync());
+addEventListener("resize", () => Tabs.sync());
+$("#tabbar").querySelectorAll("button").forEach(b => b.onclick = () => { buzz(8); Tabs.go(+b.dataset.i); });
+if (APP) APP.onTab = i => Tabs.go(i);
+$("#aGear").onclick = async () => { await About.leave(); Settings.open(); };
 $("#againBtn").onclick = async () => {
   Voice.init(); Voice.ctx.resume();
   try { await api("/again", {id: S.id}); } catch { return oops("Can't reach the PairShake server."); }
@@ -1673,7 +1761,7 @@ const retell = () => {
   document.body.classList.remove("known"); document.body.classList.add("updating");
   $("#wTitle").textContent = `Hi again, ${first(S.me)}.`;
   delete $("#welcomeHands").dataset.inline; delete $("#welcomeHands").dataset.fitWide;   // Emma big again
-  show("welcome");
+  show("welcome"); Tabs.sync();
 };
 $("#updBack").onclick = () => goHome();
 /* The whole of what Emma remembers, on its own page: each part can be fixed by hand (saved as you type),
@@ -1704,6 +1792,7 @@ const About = {
 };
 $("#memCard").onclick = () => About.open();
 $("#aBack").onclick = async () => { await About.leave(); goHome(); };
+document.addEventListener("screen", () => { if (document.body.dataset.screen !== "about") About.leave(); });   // (leaving by the tab bar)
 $("#aRetell").onclick = async () => { await About.leave(); retell(); };
 $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null);
@@ -1764,7 +1853,7 @@ const Settings = {
   },
 };
 $("#gearBtn").onclick = () => Settings.open();
-$("#sBack").onclick = () => { clearTimeout(Settings.t); if (Settings.t) Settings.save(); goHome(); };
+$("#sBack").onclick = () => { clearTimeout(Settings.t); if (Settings.t) Settings.save(); Tabs.back(); };
 $("#sName").oninput = () => Settings.saveSoon();
 $("#sVoice").querySelectorAll("button").forEach(b => b.onclick = () => {
   Prefs.set("voice", +b.dataset.v); if (Voice.out) Voice.out.gain.value = +b.dataset.v;
@@ -1939,7 +2028,7 @@ function openPerson(c) {
   $("#pInput").value = ""; $("#pSend").disabled = true; $("#pInput").placeholder = `Message ${first(p)}`;
   show("person");
 }
-$("#pBack").onclick = () => goHome();
+$("#pBack").onclick = () => Tabs.back();
 $("#pInput").oninput = e => $("#pSend").disabled = !e.target.value.trim();
 $("#pForm").onsubmit = e => {                                       // write here, carry on in the chat
   e.preventDefault(); const t = $("#pInput").value.trim(); if (!t) return;

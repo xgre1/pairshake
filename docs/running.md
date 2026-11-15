@@ -2,40 +2,30 @@
 
 ## What you need
 
-- A Mac with Emma's engine and its Python environment in `~/Desktop/emma` (it provides the voice, the speech recogniser, and `aiohttp`).
-- The `claude` command line tool, signed in. The server calls it for every decision.
-- `cloudflared` (`brew install cloudflared`), and for the Worker, `wrangler` signed in to the Cloudflare account.
+- `wrangler`, signed in to the Cloudflare account (`npx wrangler login`). Nothing else has to run anywhere: PairShake lives entirely on Cloudflare.
 - For the iPhone app: Xcode and XcodeGen (`brew install xcodegen`).
 
-## 1. The server
+## 1. Deploying
 
 ```sh
-make server                 # same as: cd server && ~/Desktop/emma/.venv/bin/python -u server.py
+make edge                   # edge/deploy.sh: copies server/web into edge/public and deploys
 ```
 
-It listens on port 8780 and serves the web app at `/`. Use Emma's environment: the system Python lacks the audio libraries her engine needs and the server stops at start-up. State is saved to `server/room.json`, so restarting is safe.
+Public address: **https://roomie.binjto.workers.dev**. Share this with the audience. The page is never cached, so a deploy shows at once; data is kept across deploys.
 
-Environment variables: `PORT` (default 8780), `ROOMIE_MODEL` (default `haiku`), `GEMINI_API_KEY` (optional: use Gemini instead of `claude`; may also go in `server/.env`, which stays out of git).
+The keys are Worker secrets (see [edge/README.md](../edge/README.md)). They only need setting again if they change.
 
-## 2. The tunnel
+## 2. Watching it
 
 ```sh
-make tunnel                 # edge/tunnel.sh
+npx wrangler tail roomie    # live logs: every match, model error and voice fallback
+make backup                 # the whole room, saved to backups/
+curl https://roomie.binjto.workers.dev/room      # numbers for the room
 ```
 
-This connects the Mac to Cloudflare through the named tunnel `roomie`, over HTTP/2 (steadier on venue Wi-Fi than QUIC). The token is read from `~/.cloudflared/roomie.token`, which is not in the repository. Keep it running alongside the server. If the Mac restarts, start both again.
+## 3. The old Mac server
 
-## 3. The Worker
-
-Only needed when `edge/` changes or the hands' models change on the server:
-
-```sh
-make edge                   # edge/deploy.sh: copies the models, notes their ETags, deploys
-```
-
-The Worker reaches the Mac through the Workers VPC service `roomie-origin`, which points at `127.0.0.1:8780` through the tunnel. (It points at `127.0.0.1` rather than `localhost`: `localhost` resolved to IPv6 first, where the server doesn't listen.)
-
-Public address: **https://roomie.binjto.workers.dev**. Share this with the audience.
+`make server` still starts `server/server.py` on port 8780 (with Emma's Python environment). Production doesn't use it; it is only there for local tools such as `app/tools/icon_hands.py`, which render pages from `localhost:8780`.
 
 ## 4. The iPhone app
 
@@ -60,7 +50,7 @@ First time on a phone:
 
 After that, phones on the same Wi-Fi as the Mac can be updated without a cable. With a free Apple developer account the app stops opening after 7 days; install it again.
 
-Only native changes need a reinstall. The page, Emma and matching come from the server, so closing and reopening the app is enough.
+Only native changes need a reinstall. The page, Emma and matching come from Cloudflare, so closing and reopening the app is enough.
 
 ## Testing finding between two phones
 
@@ -79,9 +69,9 @@ xcrun devicectl device copy from --device <device id> --domain-type appDataConta
 
 | Symptom | Cause and fix |
 | --- | --- |
-| The app says "Connecting to PairShake…" | The server or the tunnel is down. Start both. The app retries every 2 seconds. Shake the phone to change the server address. |
-| The Worker answers "PairShake's server isn't reachable" | Same: `make server` and `make tunnel`. |
-| The server stops with `No module named 'soundfile'` | It was started with the system Python. Use `make server`. |
+| The app says "Connecting to PairShake…" | The phone is offline, or a server address typed in by hand no longer answers. The app retries every 2 seconds. Shake the phone to change the server address. |
+| Emma's lines come out in a different voice | ElevenLabs failed (allowance used up, or down), so Workers AI's voice stands in. `wrangler tail` shows why. |
+| Matches come back plain ("I want you to meet …") | The model failed; the code still paired people. Check `wrangler tail` for `gemini 4xx/5xx`. |
 | On the web in Safari, a top bar sits halfway down after typing | An iOS 26 WebKit bug (the page isn't panned back after the keyboard closes, WebKit bug 297779). The app avoids it by shrinking the page above the keyboard; the web page nudges the scroll after the keyboard closes. |
 | The arrow doesn't turn | See [finding.md](finding.md). Hold the phone up and follow the hint on screen. |
 | A `trycloudflare.com` link stopped working | Quick tunnels are for testing and can disappear at any time. Use the Worker address. |

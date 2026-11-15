@@ -10,8 +10,9 @@ import WebKit
 ///   wired into the page's own finding screen.
 /// - GPS from Core Location (one permission prompt, no "this website wants your location").
 /// - Real haptics, microphone and motion granted without the web prompts, screen kept awake.
-final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UITabBarDelegate {
     private var web: WKWebView!
+    private let tabs = UITabBar()                      // iOS's own tab bar, shown when the page asks ("tabs")
     private var finder: Finder?
     private var findRoom: String?
     private var pushTimer: Timer?
@@ -60,12 +61,27 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         web.backgroundColor = .systemBackground
         web.scrollView.backgroundColor = .systemBackground
         web.scrollView.contentInsetAdjustmentBehavior = .never   // the page pads for the notch itself
-        web.scrollView.bounces = false
+        web.scrollView.bounces = true                  // rubber band at the ends of pages that scroll, like any iOS list
+        web.scrollView.alwaysBounceVertical = false    // (a page that fits the screen stays still)
+        web.scrollView.alwaysBounceHorizontal = false
         hideFormBar(web)
         let root = UIView()
         root.backgroundColor = .systemBackground
         web.frame = root.bounds
         root.addSubview(web)
+        // The tab bar is the system's; which screen each tab opens is the page's business (RoomieApp.onTab).
+        tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("Chats", "bubble.left.and.bubble.right.fill"),
+                      ("You", "person.crop.circle.fill")].enumerated().map { i, t in
+            UITabBarItem(title: t.0, image: UIImage(systemName: t.1), tag: i)
+        }
+        tabs.delegate = self
+        tabs.tintColor = .label
+        tabs.isHidden = true
+        tabs.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(tabs)
+        NSLayoutConstraint.activate([tabs.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+                                     tabs.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+                                     tabs.bottomAnchor.constraint(equalTo: root.bottomAnchor)])
         buildWaiting(in: root)
         view = root
 
@@ -209,6 +225,11 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         if let host { present(host, animated: true) }
     }
 
+    func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        UISelectionFeedbackGenerator().selectionChanged()
+        js("window.RoomieApp && RoomieApp.onTab && RoomieApp.onTab(\(item.tag))")
+    }
+
     // MARK: messages from the page
 
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -220,6 +241,9 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             if let s = d["token"] as? String, let data = Data(base64Encoded: s) { finderFor(nil).received(data) }
         case "geo":
             (d["on"] as? Bool ?? false) ? gps.start() : gps.stop()
+        case "tabs":                                        // the page is on one of its tab screens (or not)
+            tabs.isHidden = !(d["on"] as? Bool ?? false)
+            if let i = d["sel"] as? Int, tabs.items?.indices.contains(i) == true { tabs.selectedItem = tabs.items?[i] }
         case "server":                                      // Settings > Server
             askForServer(problem: nil)
         case "log":
@@ -365,7 +389,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.roomie.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.RoomieApp = {
-        native: true, post, onFix: null, onToken: null,
+        native: true, tabs: true, post, onTab: null, onFix: null, onToken: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {
