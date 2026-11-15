@@ -73,11 +73,74 @@ flowchart LR
 | [`docs/`](docs/) | Architecture, API, finding, and how to run everything. |
 | [`prototypes/`](prototypes/) | An early standalone demo of the matching screen. |
 
-## Run it yourself
+## Try it on your iPhone
 
-PairShake is an iPhone app with its backend on Cloudflare. To run your own copy you need a Cloudflare account, Node.js, a Mac with Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), and an iPhone with iOS 18 or later (finding by Ultra Wideband needs an iPhone 11 or newer; older ones use Bluetooth and GPS).
+PairShake is an iPhone app. You don't need to set up any server: the app talks to our live backend on Cloudflare (`https://pairshake.binjto.workers.dev`). You only build the app and install it on your phone.
 
-**1. The backend**
+**What you need**
+
+- A Mac with [Xcode](https://apps.apple.com/app/xcode/id497799835) 16 or later (free on the Mac App Store).
+- [Homebrew](https://brew.sh) and XcodeGen: `brew install xcodegen`.
+- An iPhone with iOS 18 or later, and a cable to connect it to the Mac. Finding by Ultra Wideband needs an iPhone 11 or newer; older ones use Bluetooth and GPS.
+- An Apple ID. A free one is enough (the app then stops opening after 7 days; install it again).
+
+**1. Download the code**
+
+```sh
+git clone https://github.com/xgre1/pairshake.git
+cd pairshake
+```
+
+(Or on GitHub: Code → Download ZIP, then unzip it and `cd` into the folder.)
+
+**2. Turn on Developer Mode on the iPhone**
+
+1. Connect the iPhone to the Mac with the cable. On the iPhone, tap **Trust** and enter your passcode.
+2. Open Xcode once (it may ask to install extra components: let it).
+3. On the iPhone: **Settings → Privacy & Security → Developer Mode**, turn it on and tap **Restart**.
+4. After the restart, unlock the iPhone and tap **Turn On** when it asks again.
+
+(If Developer Mode isn't in the list, open Xcode with the iPhone connected and it will appear.)
+
+**3. Sign in to Xcode with your Apple ID**
+
+Xcode → **Settings → Accounts → +** → Apple Account, and sign in.
+
+**4. Make the app yours**
+
+The app's ID is taken by our team, so give it your own. In `app/project.yml`, change:
+
+```yaml
+    DEVELOPMENT_TEAM: ZZYK46YQNL                       # delete this line (you pick your team in Xcode)
+        PRODUCT_BUNDLE_IDENTIFIER: com.jtobin.pairshake    # -> e.g. com.yourname.pairshake
+```
+
+Then generate the Xcode project and open it:
+
+```sh
+make app                       # runs xcodegen in app/
+open app/PairShake.xcodeproj
+```
+
+**5. Install it on the iPhone**
+
+1. In Xcode, click **PairShake** in the left sidebar → the **PairShake** target → **Signing & Capabilities**, and choose your Apple ID under **Team** (it shows as "Your Name (Personal Team)").
+2. At the top of the window, pick your iPhone as the device.
+3. Press **Run** (▶ or ⌘R). The first build takes a few minutes.
+
+**6. Trust the app on the iPhone (first time only)**
+
+The first time, the iPhone won't open it ("Untrusted Developer"). Go to **Settings → General → VPN & Device Management**, tap your Apple ID under Developer App, then **Trust**. Open PairShake again.
+
+**7. Use it**
+
+Sign in with LinkedIn or Google, and allow the microphone, Bluetooth, Nearby Interaction, camera and location when it asks (finding the other person needs them). Then introduce yourself with your AI, and create a network or join one.
+
+To see a match you need at least two people in the same network, so two iPhones: install it on a second phone the same way, create a network on one and scan its QR code with the other. The test tools (the hammer on the first page) can also pair two test phones directly.
+
+## Run your own backend (optional)
+
+Only if you want your own server instead of ours. You need a Cloudflare account and Node.js.
 
 ```sh
 npx wrangler login
@@ -100,18 +163,7 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET   #   and .../auth/google/callback
 cd .. && make edge                             # copies app/web into the Worker and deploys
 ```
 
-**2. The iPhone app**
-
-In `app/PairShake/Server.swift`, set `fallback` to your Worker's address. Then:
-
-```sh
-make app                       # generates app/PairShake.xcodeproj
-open app/PairShake.xcodeproj
-```
-
-Pick your team in Signing & Capabilities, choose your iPhone and run. The first time, trust the developer certificate in Settings → General → VPN & Device Management, and allow the microphone, Bluetooth, Nearby Interaction, camera and location.
-
-To try matching you need at least two people in the same network, so two iPhones. The test tools (the hammer on the first page) can pair two test phones directly.
+Then point the app at it: in `app/PairShake/Server.swift`, set `fallback` to your Worker's address, and install the app again (step 5 above).
 
 `make help` lists every command. Logs, backups, installing on several phones and troubleshooting are in [docs/running.md](docs/running.md).
 
