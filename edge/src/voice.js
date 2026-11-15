@@ -28,11 +28,13 @@ function wav(pcm, sr) {
 
 let elevenDownUntil = 0;
 
-/** {body, type, kept}: the line as audio, from R2 when it was ever voiced before. */
-export async function speak(env, text) {
+/** {body, type, kept}: the line as audio, from R2 when it was ever voiced before. A line never voiced before
+    costs money, so `mayVoiceNew()` is asked first; when it says no, the result is null. */
+export async function speak(env, text, mayVoiceNew = async () => true) {
   const key = await voiceKey(text);
   const hit = await env.VOICE.get(key);
   if (hit) return { body: await hit.arrayBuffer(), type: "audio/wav", kept: true };
+  if (!(await mayVoiceNew())) return null;
   if (Date.now() >= elevenDownUntil && env.ELEVENLABS_API_KEY) {
     try {
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=pcm_${SR}`, {

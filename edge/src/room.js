@@ -20,6 +20,11 @@ const SCRIPT = true;
 const KNOWN = ["name", "building", "needs", "offers", "spot"];
 const NEEDED = ["name", "building", "needs"];     // enough to introduce them; the rest is kept only if they say it
 const NUDGES = ["Take your time.", "No rush, I'm listening.", "I'm here whenever you're ready."];   // the page's own lines
+const FILLERS = ["Mm-hm.", "Okay.", "Right."];        // the page's sounds while Emma thinks
+// New lines cost from the ElevenLabs allowance: at most this many a day for the whole room, and per address in
+// ten minutes. A line voiced before costs nothing and is never limited here.
+const VOICE_DAILY = 300;
+const VOICE_PER_IP = 25;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PBKDF2_ITER = 100_000;
 
@@ -84,6 +89,7 @@ export class Roomie extends DurableObject {
     this.loginFails = new Map();
     this.rooms = new Map();   // mission id -> what a room keeps only in memory: {gps, replying}
     this.said = new Set();    // lines Emma came up with lately: the only new lines /speak will voice
+    this.voicedBy = new Map();// address -> times it had a new line voiced, in the last ten minutes
     this.agentsTurns = new Turns(12);
     ctx.blockConcurrencyWhile(async () => {
       for (const [prefix, into] of [["u:", this.users], ["m:", this.missions]]) {
@@ -96,7 +102,7 @@ export class Roomie extends DurableObject {
       if (s) { Object.assign(this.stats, JSON.parse(s)); this.written.set("stats", s); }
     });
     // the whole script, voiced (or found in R2) ahead of the first person, so the first seconds are instant
-    const lines = [P.OPENER, P.THINKING, ...(SCRIPT ? [...Object.values(P.ASK), P.SCRIPT_BACK, ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK] : []), ...NUDGES];
+    const lines = [P.OPENER, P.THINKING, ...(SCRIPT ? [...Object.values(P.ASK), P.SCRIPT_BACK, ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK] : []), ...NUDGES, ...FILLERS];
     ctx.waitUntil(Promise.all(lines.map(l => speak(env, l).catch(e => console.log("voice warm-up:", String(e))))));
   }
 
@@ -338,7 +344,7 @@ export class Roomie extends DurableObject {
     try {
       const out = SCRIPT ? P.SCRIPT_MUSE : await ask(this.env, M.fill(P.MUSE, { about: this.convo(u) }));
       const lines = { start: str(out.start), looking: str(out.looking) };
-      for (const k of ["start", "looking"]) if (lines[k]) { this.said.add(lines[k]); await speak(this.env, lines[k]); }
+      for (const k of ["start", "looking"]) if (lines[k]) this.said.add(lines[k]);     // voiced only if the page asks (sound on)
       state.muse = lines;
     } catch (e) {
       console.log("muse error:", String(e));
@@ -807,7 +813,7 @@ export class Roomie extends DurableObject {
   /** Only lines Emma could really say are voiced: her script, what she came up with lately, and the page's own
       lines about someone in the room. Anything else would spend the voice allowance on whatever anyone sends. */
   mayVoice(text) {
-    if (this.said.has(text) || NUDGES.includes(text)) return true;
+    if (this.said.has(text) || NUDGES.includes(text) || FILLERS.includes(text)) return true;
     if ([P.OPENER, P.THINKING, P.SCRIPT_BACK, ...Object.values(P.ASK), ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK].includes(text)) return true;
     if (Object.values(this.users).some(u => u.back === text)) return true;
     const people = [...SEED, ...Object.values(this.users).filter(u => u.profile).map(u => this.person(u.id))];
@@ -820,11 +826,26 @@ export class Roomie extends DurableObject {
     return false;
   }
 
-  async speakLine(d) {
+  /** Whether one more new line may be voiced for this address: the room's daily allowance, then the address's. */
+  async voiceBudget(ip) {
+    const t = Date.now(), recent = (this.voicedBy.get(ip) || []).filter(x => t - x < 600_000);
+    if (recent.length >= VOICE_PER_IP) { console.log("voice: per-address limit", ip); return false; }
+    const day = "voice:" + new Date().toISOString().slice(0, 10);
+    const used = (await this.ctx.storage.get(day)) || 0;
+    if (used >= VOICE_DAILY) { console.log("voice: daily allowance used up"); return false; }
+    await this.ctx.storage.put(day, used + 1);
+    recent.push(t);
+    this.voicedBy.set(ip, recent);
+    if (this.voicedBy.size > 5000) this.voicedBy.clear();
+    return true;
+  }
+
+  async speakLine(d, ip) {
     const text = str(d.text).slice(0, 600);
     if (!text) throw new HttpError(400, "Nothing to say.");
     if (!this.mayVoice(text)) throw new HttpError(403, "Emma doesn't say that.");
-    const a = await speak(this.env, text);
+    const a = await speak(this.env, text, () => this.voiceBudget(ip));
+    if (!a) throw new HttpError(429, "Emma's voice is resting. Her words are still on the screen.");
     return new Response(a.body, { headers: { "content-type": a.type, "cache-control": "no-store" } });
   }
 
@@ -872,7 +893,7 @@ export class Roomie extends DurableObject {
           case "/account": return await this.account(d, app);
           case "/profile": return json(this.profile(d));
           case "/suggest": return json(await this.suggest(d));
-          case "/speak": return await this.speakLine(d);
+          case "/speak": return await this.speakLine(d, req.headers.get("cf-connecting-ip") || "?");
           case "/admin/import": return json(this.importAll(d));
         }
       }

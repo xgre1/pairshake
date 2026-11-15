@@ -70,8 +70,8 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         web.frame = root.bounds
         root.addSubview(web)
         // The tab bar is the system's; which screen each tab opens is the page's business (RoomieApp.onTab).
-        tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("Chats", "bubble.left.and.bubble.right.fill"),
-                      ("You", "person.crop.circle.fill")].enumerated().map { i, t in
+        tabs.items = [("Home", "house.fill"), ("People", "person.2.fill"), ("You", "person.crop.circle.fill"),
+                      ("Settings", "gearshape.fill")].enumerated().map { i, t in
             UITabBarItem(title: t.0, image: UIImage(systemName: t.1), tag: i)
         }
         tabs.delegate = self

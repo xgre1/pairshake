@@ -145,9 +145,12 @@ body.known #wSub{display:none}
 .desk-empty{display:none}
 
 /* Conversation */
-#emmaLine{font-family:var(--serif);font-size:30px;line-height:1.2;padding:36px 60px 0 28px;transition:opacity .35s}
+#emmaLine{font-family:var(--serif);font-size:30px;line-height:1.2;padding:36px 100px 0 28px;transition:opacity .35s}
 /* leaving the chat, and the bar you answer with: a mic to tap (send, skip) or hold (talk while held),
    the keyboard on its left, start-over on its right */
+/* Emma's voice on or off, next to the close button on the screens where she talks (off by default) */
+.sound{position:absolute;top:calc(var(--safeT) + 14px);right:56px;width:32px;height:32px;border-radius:50%;background:var(--fill2);color:var(--sec);display:grid;place-items:center;z-index:5;translate:0 var(--pull,0px)}
+.sound .s-on,body.sound-on .sound .s-off{display:none} body.sound-on .sound .s-on{display:inline} body.sound-on .sound{color:var(--fg)}
 .leave{position:absolute;top:calc(var(--safeT) + 14px);right:16px;width:32px;height:32px;border-radius:50%;background:var(--fill2);
   color:var(--sec);display:grid;place-items:center;z-index:3}
 .talkbar{display:flex;align-items:center;justify-content:center;gap:30px;padding:14px 16px 0;
@@ -266,7 +269,7 @@ body.ring3d #intro .hero>*{visibility:hidden}
    belong to the screen (top bar, back and close buttons, message box, bottom buttons) stay where they are. */
 .topbar,.leave{translate:0 var(--pull,0px)}
 .dock,.composer,body.known #wFoot,#tabbar{translate:0 var(--push,0px)}
-/* Tab bar (phones, once Emma knows you): Home, People, Chats, You. In the app it is iOS's own bar
+/* Tab bar (phones, once Emma knows you): Home, People, You, Settings. In the app it is iOS's own bar
    (WebShell.swift draws it and the page only leaves room); in a browser it is this one. */
 #tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;padding:6px 8px var(--safeB);
   background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
@@ -279,10 +282,9 @@ body.tabs{--tabH:49px} body.tabs.native-tabs{--tabH:60px}
 body.tabs .screen.on{padding-bottom:calc(var(--tabH) + var(--safeB) + 12px)}
 body.tabs.known #wFoot{bottom:calc(var(--tabH) + var(--safeB));padding-bottom:12px!important}
 body.tabs #peopleBox,body.tabs #forgetBtn,body.tabs #gearBtn{display:none!important}
-#aGear{color:var(--sec);display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--fill2)}
-#aHead{display:none} body.tabs #aHead{display:flex}
-body.tabs #about{padding-top:var(--safeT)} body.tabs #about .topbar{display:none}
-body.tabs #aFields .s-h:first-child{padding-top:6px}
+#aHead,#sHead{display:none} body.tabs #aHead,body.tabs #sHead{display:flex}
+body.tabs #about,body.tabs #settings{padding-top:var(--safeT)} body.tabs #about .topbar,body.tabs #settings .topbar{display:none}
+body.tabs #aFields .s-h:first-child,body.tabs #settings .sbody>.s-h:first-child{padding-top:6px}
 /* every tab starts the same way: its name, large, right under the status bar (the screen already pads for the notch) */
 .tab-h{font-size:34px;line-height:1.1;padding:6px 24px 14px;display:flex;align-items:center;justify-content:space-between}
 .tab-list{padding:0 20px} .tab-list .row + .row::before{left:70px}
@@ -492,6 +494,7 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Settings -->
 <section class="screen" id="settings">
+  <h1 class="serif tab-h" id="sHead">Settings</h1>
   <div class="topbar"><button class="chev" id="sBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Settings</div></div>
   <div class="sbody">
     <p class="s-h">Account</p>
@@ -529,22 +532,17 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="tab-list"><div class="group" id="tpList"></div></div>
   <p class="tab-empty" id="tpEmpty">Nobody yet. Ask Emma to find you someone on the first tab.</p>
 </section>
-<section class="screen" id="tabChats">
-  <h1 class="serif tab-h">Chats</h1>
-  <div class="tab-list"><div class="group" id="tcList"></div></div>
-  <p class="tab-empty" id="tcEmpty">No messages yet. Open someone under People and say hi.</p>
-</section>
 <nav id="tabbar">
   <button data-i="0"><svg viewBox="0 0 26 26"><path d="M4 11.5 13 4l9 7.5V21a1 1 0 0 1-1 1h-5v-6h-6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg>Home</button>
   <button data-i="1"><svg viewBox="0 0 26 26"><circle cx="9.5" cy="9" r="3.8" fill="currentColor"/><path d="M2 21c0-4 3.3-6.5 7.5-6.5S17 17 17 21z" fill="currentColor"/><circle cx="18.5" cy="10" r="3" fill="currentColor"/><path d="M18.9 21c0-2.300-.8-4.200-2.200-5.600.6-.2 1.200-.3 1.900-.3 3.200 0 5.400 2.300 5.400 5.900z" fill="currentColor"/></svg>People</button>
-  <button data-i="2"><svg viewBox="0 0 26 26"><path d="M13 4c5.500 0 10 3.700 10 8.300s-4.500 8.300-10 8.300c-1 0-2-.1-2.900-.4L5.500 22.500l1-3.900C4.400 17.100 3 14.800 3 12.300 3 7.700 7.500 4 13 4z" fill="currentColor"/></svg>Chats</button>
-  <button data-i="3"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="13" cy="10.500" r="3.400" fill="currentColor"/><path d="M6.600 19.600c1.200-2.600 3.600-4 6.400-4s5.200 1.400 6.400 4a9.900 9.900 0 0 1-12.800 0z" fill="currentColor"/></svg>You</button>
+  <button data-i="2"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="13" cy="10.500" r="3.400" fill="currentColor"/><path d="M6.600 19.600c1.200-2.600 3.600-4 6.400-4s5.200 1.400 6.400 4a9.900 9.900 0 0 1-12.800 0z" fill="currentColor"/></svg>You</button>
+  <button data-i="3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.800" fill="currentColor"/></svg>Settings</button>
 </nav>
 
 <!-- Everything Emma remembers about you: read it all, fix it by hand, or tell her again -->
 <section class="screen" id="about">
   <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
-  <h1 class="serif tab-h" id="aHead">You<button id="aGear" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.800" fill="currentColor"/></svg></button></h1>
+  <h1 class="serif tab-h" id="aHead">You</h1>
   <div class="sbody">
     <div id="aFields"></div>
     <p class="s-f" id="aSaved">Saved as you type.</p>
@@ -580,6 +578,7 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Conversation with Emma -->
 <section class="screen" id="interview">
+  <button class="sound" aria-label="Emma's voice on or off"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z" fill="currentColor"/><path class="s-on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="s-off" d="m16 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <button class="leave" id="leaveBtn" aria-label="Leave the chat"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <p id="emmaLine"></p>
   <div class="spacer"></div>
@@ -615,8 +614,9 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Your agent talking to everyone's agents -->
 <section class="screen" id="matching">
+  <button class="sound" aria-label="Emma's voice on or off"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z" fill="currentColor"/><path class="s-on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="s-off" d="m16 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <button class="leave" id="mCancel" aria-label="Stop looking"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-  <div style="padding:20px 60px 0 24px">
+  <div style="padding:20px 100px 0 24px">
     <h2 class="serif" id="mTitle" style="font-size:26px;line-height:1.2">Your agent is talking to everyone's agents.</h2>
     <p class="sub sec" id="mSub" style="margin-top:6px">Starting…</p>
   </div>
@@ -626,6 +626,7 @@ body:not(.in-app) .app-only{display:none!important}
 
 <!-- Introduction -->
 <section class="screen" id="intro">
+  <button class="sound" aria-label="Emma's voice on or off"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z" fill="currentColor"/><path class="s-on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="s-off" d="m16 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <button class="leave" id="introLeave" aria-label="Back to home"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="hero"><div class="pair" id="introPair"></div><div class="faces apart" id="faces"></div></div>
   <div class="intro-body reveal" id="introBody">
@@ -760,7 +761,7 @@ const APP = window.RoomieApp?.native ? window.RoomieApp : null;
 const Prefs = {                     // this device's settings
   get: (k, d) => { try { const v = localStorage.getItem("roomie.pref." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem("roomie.pref." + k, JSON.stringify(v)); } catch {} },
-  voice() { return this.get("voice", 1); }, buzz() { return this.get("buzz", true); },
+  voice() { return this.get("voice", 0); }, buzz() { return this.get("buzz", true); },     // Emma is silent until sound is turned on
 };
 const buzz = (pattern, kind) => !Prefs.buzz() ? null : APP ? APP.post({t: "haptic", k: kind}) : navigator.vibrate?.(pattern);
 document.body.classList.toggle("in-app", !!APP);
@@ -882,7 +883,8 @@ const Voice = {
     this.an = this.ctx.createAnalyser(); this.an.fftSize = 512;
     this.out = this.ctx.createGain(); this.out.gain.value = Prefs.voice(); this.an.connect(this.out); this.out.connect(this.ctx.destination);
     this.data = new Float32Array(this.an.fftSize);
-    this.loadFillers(); this.tick();
+    if (+Prefs.voice()) this.loadFillers();
+    this.tick();
   },
   async buffer(text) {
     const r = await fetch("/speak", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({text})});
@@ -893,6 +895,13 @@ const Voice = {
   async say(text, barge = false) {
     this.init();
     const gen = this.gen;                                 // (the chat was left meanwhile: say nothing)
+    if (!+Prefs.voice()) {                                // sound off (the default): her line is read, not heard, and no audio is fetched
+      const d = Math.min(4, .4 + words(text).length * .2);
+      window.Hands?.say(text, d);
+      await new Promise(res => { this.skipQuiet = res; setTimeout(res, d * 1000); });
+      this.skipQuiet = null;
+      return false;
+    }
     let buf;
     for (let i = 0; !buf && i < 2; i++) try { buf = await this.buffer(text); } catch {}   // one more try
     if (!buf) { APP?.post({t: "log", m: `say failed: ${text.slice(0, 50)}`}); return false; }
@@ -918,7 +927,17 @@ const Voice = {
     else { this.phase = "idle"; if (this.barge) this.stopRec(); this.heard = ""; }
     const r = this.onSpeak; this.onSpeak = null; r && r(byVoice || tapped);
   },
-  stopSpeaking() { if (this.phase === "speaking") this.endSpeaking(false, true); this.stopAudio(); this.fillerUntil = 0; window.Hands?.stop(); },
+  stopSpeaking() { if (this.phase === "speaking") this.endSpeaking(false, true); this.stopAudio(); this.fillerUntil = 0; this.skipQuiet?.(); window.Hands?.stop(); },
+  /** Sound on or off (the speaker button, or Settings). Turning it on is a tap, so iOS lets the audio start. */
+  setVolume(v) {
+    Prefs.set("voice", v);
+    this.init(); this.ctx.resume?.();
+    this.out.gain.value = v;
+    if (v && !this.fillers.length) this.loadFillers();
+    if (!v) this.stopAudio();
+    document.body.classList.toggle("sound-on", !!v);
+    $("#sVoice")?.querySelectorAll("button").forEach(x => x.classList.toggle("on", +x.dataset.v === v));
+  },
   listen() {
     if (this.pending != null) { const p = this.pending; this.pending = null; return Promise.resolve(p); }
     if (this.phase !== "listening") {
@@ -974,7 +993,7 @@ const Voice = {
   stopRec() { this.seg++; Ears.stop(); if (this.rec) { try { this.rec.abort(); } catch {} this.rec = null; } },
   async loadFillers() { for (const f of ["Mm-hm.", "Okay.", "Right."]) { try { this.fillers.push(await this.buffer(f)); } catch {} } },
   playFiller() {
-    if (this.phase !== "idle" || !this.fillers.length) return;
+    if (this.phase !== "idle" || !this.fillers.length || !+Prefs.voice()) return;
     const b = this.fillers[Math.floor(Math.random() * this.fillers.length)];
     this.play(b); this.fillerUntil = performance.now() + b.duration * 1000;
   },
@@ -1716,10 +1735,10 @@ function renderHome() {
 }
 async function goHome() { await loadMe(); show("welcome"); }
 /* Tabs: on a phone, once Emma knows you, the first page is split in four so nothing piles up: Home (Emma
-   and who you're looking for), People, Chats, You (what she remembers, settings). A computer has room for
+   and who you're looking for), People, You (what she remembers), Settings. A computer has room for
    it all on one page and keeps that. */
 const Tabs = {
-  ids: ["welcome", "tabPeople", "tabChats", "about"], last: 0,
+  ids: ["welcome", "tabPeople", "about", "settings"], last: 0,
   on() { const b = document.body.classList; return b.contains("known") && !b.contains("updating") && !isDesk() && this.ids.includes(document.body.dataset.screen); },
   sync() {
     const on = this.on(), i = this.ids.indexOf(document.body.dataset.screen);
@@ -1729,8 +1748,9 @@ const Tabs = {
     if (APP?.tabs) APP.post({t: "tabs", on, sel: Math.max(0, i)});
   },
   go(i) {
-    if (i === 1 || i === 2) this.lists();
-    if (i === 3) return About.open();
+    if (i === 1) this.lists();
+    if (i === 2) return About.open();
+    if (i === 3) return Settings.open();
     show(this.ids[i]);
   },
   async back() { await loadMe(); isDesk() ? show("welcome") : this.go(this.last); },     // where they came from
@@ -1741,15 +1761,17 @@ const Tabs = {
       $(box).innerHTML = items.join(""); $(box).style.display = items.length ? "" : "none"; $(empty).style.display = items.length ? "none" : "";
       $(box).querySelectorAll(".prow").forEach(b => b.onclick = () => openPerson(S.contacts[b.dataset.i]));
     };
-    fill("#tpList", "#tpEmpty", S.contacts.map((c, i) => row(c, i, c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
-    fill("#tcList", "#tcEmpty", S.contacts.map((c, i) => c.chat.length ? row(c, i, preview(c), "") : "").filter(Boolean));
+    // (the last message when you've written to each other, else what they do)
+    fill("#tpList", "#tpEmpty", S.contacts.map((c, i) => row(c, i, c.chat.length ? preview(c) : c.person.role || "", c.outcome ? `<span class="yes">Met</span>` : "")));
   },
 };
 document.addEventListener("screen", () => Tabs.sync());
 addEventListener("resize", () => Tabs.sync());
 $("#tabbar").querySelectorAll("button").forEach(b => b.onclick = () => { buzz(8); Tabs.go(+b.dataset.i); });
 if (APP) APP.onTab = i => Tabs.go(i);
-$("#aGear").onclick = async () => { await About.leave(); Settings.open(); };
+document.addEventListener("screen", () => {            // left Settings by the tab bar: what was typed is saved
+  if (document.body.dataset.screen !== "settings" && Settings.t) { clearTimeout(Settings.t); Settings.save(); }
+});
 $("#againBtn").onclick = async () => {
   Voice.init(); Voice.ctx.resume();
   try { await api("/again", {id: S.id}); } catch { return oops("Can't reach the PairShake server."); }
@@ -1841,6 +1863,7 @@ const Settings = {
   },
   saveSoon() { clearTimeout(this.t); $("#sSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
   async save() {
+    this.t = 0;
     const socials = {};
     $("#sSocials").querySelectorAll("input").forEach(i => { socials[i.dataset.k] = i.value.trim(); keep("h." + i.dataset.k, i.value.trim() || null); });
     const id = S.id || kept(ID_KEY);
@@ -1856,9 +1879,12 @@ $("#gearBtn").onclick = () => Settings.open();
 $("#sBack").onclick = () => { clearTimeout(Settings.t); if (Settings.t) Settings.save(); Tabs.back(); };
 $("#sName").oninput = () => Settings.saveSoon();
 $("#sVoice").querySelectorAll("button").forEach(b => b.onclick = () => {
-  Prefs.set("voice", +b.dataset.v); if (Voice.out) Voice.out.gain.value = +b.dataset.v;
-  $("#sVoice").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  if (+b.dataset.v) Prefs.set("voiceLevel", +b.dataset.v);
+  Voice.setVolume(+b.dataset.v);
 });
+// the speaker button on the screens where Emma talks: sound on (at the last loudness picked) or off
+document.querySelectorAll(".sound").forEach(b => b.onclick = () => Voice.setVolume(+Prefs.voice() ? 0 : Prefs.get("voiceLevel", 1)));
+document.body.classList.toggle("sound-on", !!+Prefs.voice());
 $("#sBuzz").onchange = e => { Prefs.set("buzz", e.target.checked); buzz(20, "light"); };
 $("#sServer").onclick = () => APP?.post({t: "server"});
 twoTaps($("#sForget"), "Forget me on this device", forgetDevice);
