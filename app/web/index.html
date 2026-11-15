@@ -777,10 +777,9 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.28,0.22"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
   <h1 class="serif" id="wTitle" style="font-size:36px;text-align:center">Introduce yourself.</h1>
   <p class="sec" id="wSub" style="text-align:center;padding:0 44px;margin-top:10px;text-wrap:balance">Your AI already knows you. Ask it.</p>
-  <!-- two ways into a room: your Luma event, or a room's QR code (create one, or scan to join) -->
+  <!-- the way into a room: find your Luma event -->
   <div class="rooms">
     <button class="rbtn" id="roomSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>Find your event<small>Search Luma</small></button>
-    <button class="rbtn" id="roomScan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM18 18h3v3h-3zM18 14h3M14 18v3" stroke-linecap="round"/></svg>Create or join<small>Scan a room's QR</small></button>
   </div>
   <!-- the Luma event they joined: back into its room -->
   <button class="ev-pill" id="evPill" hidden></button>
@@ -2341,7 +2340,6 @@ const Ev = {
 Ev.pill();
 $("#evPill").onclick = () => { buzz(8); S.event ? Ev.enter() : Ev.open(); };
 $("#roomSearch").onclick = () => { buzz(8); Ev.open("welcome"); };
-$("#roomScan").onclick = () => { buzz(8); Nets.scanOpen(); };         // straight to the camera; Create is on it too
 $("#evBack").onclick = () => Tabs.back();
 $("#erBack").onclick = () => Tabs.back();
 $("#evQ").oninput = () => { clearTimeout(Ev.t); Ev.t = setTimeout(() => Ev.search($("#evQ").value), 350); };
