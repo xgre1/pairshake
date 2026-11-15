@@ -1,5 +1,5 @@
 // Emma's two hands, in place of her orb. three.js draws the Handkit hand meshes (wrist to
-// fingertips, the forearm faded out) in her colours; worker.js plans what they sign for each line
+// fingertips, the forearm cut off) in white; worker.js plans what they sign for each line
 // she says and solves the frames.
 //
 //   Hands.mount(el)            put the canvas in el (on a computer: behind the page, full screen)

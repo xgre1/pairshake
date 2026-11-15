@@ -1,6 +1,6 @@
 # app
 
-The PairShake iPhone app, used by the people on stage. It shows the same web app as the audience, full screen, and adds what a browser can't do: finding the other person with Ultra Wideband and Bluetooth, haptics, and Core Location.
+The PairShake iPhone app. It shows the app's page full screen and adds what a page can't do: finding the other person with Ultra Wideband and Bluetooth, haptics, and Core Location.
 
 ```sh
 xcodegen                     # regenerate Roomie.xcodeproj from project.yml

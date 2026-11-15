@@ -1,6 +1,6 @@
 # Architecture
 
-PairShake is an iPhone app with its backend on Cloudflare; nothing runs on a Mac. Two parts: the backend (a Worker and one Durable Object, `edge/`) and the app (`app/`), whose screens are one web page (`app/web/`) shown full screen. The first version also ran as a website with a Python server on a Mac; that version now lives outside this repository (`~/Desktop/pairshake-web`).
+PairShake is an iPhone app with its backend on Cloudflare; nothing runs on a Mac. Two parts: the backend (a Worker and one Durable Object, `edge/`) and the app (`app/`), whose screens are one web page (`app/web/`) shown full screen.
 
 ```mermaid
 flowchart TB
@@ -24,13 +24,13 @@ flowchart TB
 
 ## Backend (`edge/`)
 
-A Cloudflare Worker (`edge/src/index.js`) in front of one Durable Object, the room (`edge/src/room.js`), with a D1 database behind it. All JavaScript. The room is the only place that changes state; every request that needs it goes to the same object, so everyone sees the same people and matches. It is a port of the first, Python server (`server.py`, now in `~/Desktop/pairshake-web`), with the same API.
+A Cloudflare Worker (`edge/src/index.js`) in front of one Durable Object, the room (`edge/src/room.js`), with a D1 database behind it. All JavaScript. The room is the only place that changes state; every request that needs it goes to the same object, so everyone sees the same people and matches.
 
 **What it stores.** The D1 database `roomie` (`edge/migrations/`) has a `users` table (one row per person: id, email, name, app, test, has_profile, created and updated times, and the whole record as JSON in `data`), a `missions` table (one row per introduction: the two people, the outcome, times, and the record with its chat in `data`) and `meta` (the room's counts). The room loads it all when it starts, works in memory, and writes each change through right after, so restarts and deploys lose nothing. `make backup` saves a copy:
 
 - `users`: one record per attendee. A random 10-character id, Emma's transcript, the profile she wrote (name, role, what they are building, what they need, what they offer, where they are standing), social handles, a colour, introductions waiting for them (`inbox`), and flags: `app` (joined from the iPhone app), `test` (a made-up attendee from the test button). With an account, also an email and a salted PBKDF2-SHA256 hash of the password.
 - `missions`: one per introduction. Who the two people are, Emma's note to each, what they share (`overlap`), the chat, each person's yes or no, and the outcome.
-- `stats`: counts for the room screen.
+- `stats`: the room's counts (`/room`).
 
 Rooms (who is connected to which introduction right now) are the Durable Object's WebSockets, with hibernation: an open chat costs nothing while nobody types. A match being worked out and the agents' talks are kept only in memory.
 
@@ -46,22 +46,21 @@ Rooms (who is connected to which introduction right now) are the Durable Object'
 | Spark | once the pair is chosen, two calls in parallel | Emma's line to each of them, a small mission, three questions, what the two share |
 | Agent talk, suggestions, welcome back | later | the opening exchange, follow-up questions, Emma's greeting next time |
 
-**Choosing the pair** (`edge/src/matching.js`, a port of the Python `matching.py`). The pair is chosen in code; the model only judges and writes.
+**Choosing the pair** (`edge/src/matching.js`). The pair is chosen in code; the model only judges and writes.
 
 1. The attendee's profile is written first (in English whatever they spoke; what they can offer is read from their work if they didn't say).
 2. Their agent is sent to the people most worth a talk: 8 when the room is quiet, 4 or 3 when others are matching too. The order comes from the cards (rare words count more), with people nobody has introduced yet first, and people already holding two unanswered introductions and the seed attendees last. Talks take turns by rank, so everyone's first choices are heard before anyone's fifth, and a talk still waiting after 7 seconds is dropped.
 3. Each talk ends in a fit score. The best one wins, steadied by the cards and after the same fairness adjustment, so the match agrees with what the matching screen showed. Emma waits 9 seconds for the agents (13 if fewer than two are back); after that the cards decide.
-4. Someone who said whom they'd rather not meet isn't sent that kind of person, and isn't sent to them.
+4. Someone who said whom they'd rather not meet is rarely sent that kind of person, or sent to them: it counts heavily against the pair.
 5. An introduction to a seed attendee doesn't count: whoever only got one of those is first in line when a real person arrives. An introduction nobody answered for 20 minutes no longer counts against that person either.
 6. People matching at the same moment see each other's choices, so they don't all pick the same person.
 7. In a room of five or fewer, people simply go round. In a room of more than 40, one match in four goes to someone unexpected, unless the agents found a strong fit.
 8. If the model fails at any step, the code still pairs people and writes a plain introduction.
 
-At most 12 agent talks and 8 other model calls run at once, however many people are matching.
+At most 16 model calls run at once, at most 12 of them agents' talks, however many people are matching.
 
-The Python `matching.py` also had rounds (everyone paired at once, a trio for an odd count), not ported.
 
-**Who can meet whom.** People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband); people on the web only meet web users. The seed attendees are in both. Test attendees never appear in real matches. The first app user, with nobody else on the app yet, gets a seed person, and is introduced to the next app user through their inbox.
+**Who can meet whom.** People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband), and the seed attendees when nobody new is on the app. Test attendees never appear in real matches. The first app user, with nobody else on the app yet, gets a seed person, and is introduced to the next app user through their inbox.
 
 **Voice.** `/speak` turns Emma's line into a WAV with ElevenLabs, once: every line is kept in the R2 bucket `roomie-voice` and served from there ever after. It only voices lines Emma really says (her script, what she said lately, the page's own lines about someone in the room). If ElevenLabs is down, Workers AI's voice stands in and that line isn't kept. `/hear` takes 16 kHz mono PCM and returns Whisper's transcript (Workers AI). The script's lines are checked at start-up, so the first seconds are instant.
 
@@ -73,7 +72,7 @@ One page, no build step, served by Cloudflare only to the app (a browser gets a 
 - **Hands.** `hands/hands.js` draws Emma's two hands with three.js and plans gestures from what she says; `hands/worker.js` runs the Handkit solver off the main thread. `hands/ring.js` is the matching screen: your hand shakes each agent's hand in turn, from a pre-baked animation (`ring.bin`).
 - **Matching.** Polls `/scan` and acts out each agent conversation as it arrives, then settles on the person `/match` picked. It can be stopped, which also drops the match on the server.
 - **Room.** A WebSocket per introduction carries the chat, typing, presence, each person's decision, and the data the phones use to find each other.
-- **Finding.** On the web: GPS through a small Kalman filter and the compass fused with the gyroscope. In the app the radios take over (see [finding.md](finding.md)).
+- **Finding.** GPS through a small Kalman filter and the compass fused with the gyroscope, until the radios take over (see [finding.md](finding.md)).
 - **Home, settings, account.** Returning people see what Emma remembers and the people they have met. Settings hold the account, name and handles, Emma's voice (off until turned on; a speaker button on the screens where she talks does the same), vibration, and in the app the server and version.
 
 ## iPhone app (`app/`)

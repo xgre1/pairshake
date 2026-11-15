@@ -30,7 +30,7 @@ final class Flow: ObservableObject {
 
     private func interview() async {
         guard await voice.prepare() else {
-            stage = .failed("Roomie needs the microphone and speech recognition. Turn them on in Settings.")
+            stage = .failed("PairShake needs the microphone and speech recognition. Turn them on in Settings.")
             return
         }
         stage = .interview
@@ -185,6 +185,6 @@ final class Flow: ObservableObject {
 
     private func fail() {
         mode = .idle
-        stage = .failed("Can't reach the Roomie server at \(API.baseString). Is it running on the Mac, on the same Wi-Fi?")
+        stage = .failed("Can't reach the PairShake server at \(API.baseString). Is it running on the Mac, on the same Wi-Fi?")
     }
 }

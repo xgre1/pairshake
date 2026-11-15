@@ -1,7 +1,7 @@
 -- PairShake's database. Each row keeps its whole record as JSON in `data` (what the room works with), plus the
 -- columns worth querying on their own.
 
--- Everyone who talked to Emma (or signed up), demo test attendees included (test = 1).
+-- Everyone who talked to Emma (or signed up), made-up attendees from the test button included (test = 1).
 CREATE TABLE users (
   id          TEXT PRIMARY KEY,           -- random, 10 hex characters; whoever has it is this user
   email       TEXT UNIQUE,                -- only with an account
@@ -27,7 +27,7 @@ CREATE TABLE missions (
 CREATE INDEX missions_a ON missions(a);
 CREATE INDEX missions_b ON missions(b);
 
--- Small values for the whole room (the counts on the room screen).
+-- Small values for the whole room (the room's counts, returned by /room).
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL

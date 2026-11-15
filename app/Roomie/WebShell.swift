@@ -186,9 +186,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         becomeFirstResponder()
     }
 
-    /// The page itself is never cached (the server says no-store); the hands' models and scripts (~8 MB)
-    /// stay cached between launches and are re-checked by the usual HTTP rules.
-    /// Find the server (the Mac on this Wi-Fi first, then the tunnel), then load the page.
+    /// Find the server (an address typed in by hand first, then PairShake's Cloudflare address), then load the page.
     private func reconnect() {
         Server.pick { [weak self] s in
             self?.note("server \(s)")

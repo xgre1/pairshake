@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Renders Roomie/AppIcon.icon the way iOS shows it, with Icon Composer's ictool, into one contact sheet:
-#   Default, Dark, TintedDark, ClearLight at 180 px (home screen, 60 pt @3x), then Default at 58 and 40 px
+#   Default, Dark, TintedDark, ClearLight at 360 px (twice the home screen's 60 pt @3x), then Default at 58 and 40 px
 #   (Settings and Spotlight, the smallest places it shows up).
 # Usage: tools/icon_review.sh [out.png]     (default /tmp/Roomie-icon.png)
 set -euo pipefail

@@ -1,4 +1,4 @@
-/* Roomie matching: who meets whom, and what gets the two of them talking.
+/* Matching: who meets whom, and what gets the two of them talking.
 
    A match is a pair plus a spark. The pair is chosen here in code: who is free, who has met whom, who has
    had no introduction yet. How strongly two people pull comes from their agents' talks when there are any
@@ -11,7 +11,7 @@
      const p = await pick(room, myId, llm, fits)    // fits: {id: 0-100} from the agents' talks
      const s = await spark(room, [a, b], recipe, llm, talk)
 
-   `llm` is any `async (prompt) => object`. A port of server/matching.py. */
+   `llm` is any `async (prompt) => object`. */
 
 export const RECIPES = {
   useful: "one of them needs what the other can give",
@@ -38,7 +38,7 @@ building built get gets got give gives use uses using work works working someone
 good great real really right now yet still every each other others own way lot much many new first agent agents ai
 hackathon athens`.split(/\s+/));
 
-/** Random numbers; seeded (for tests) or not. */
+/** Random numbers, optionally seeded so a run can be repeated. */
 export function makeRng(seed) {
   let s = seed == null ? null : seed >>> 0;
   const random = s == null ? Math.random : () => {

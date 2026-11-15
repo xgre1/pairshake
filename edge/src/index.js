@@ -1,4 +1,4 @@
-/* PairShake's backend, for the iPhone app: https://roomie.binjto.workers.dev. Nothing runs on the Mac.
+/* PairShake's backend, for the iPhone app: https://roomie.binjto.workers.dev.
 
    - The app's page (app/web: index.html and Emma's hands) is static and served from Cloudflare's edge, only to
      the app. The hands' models are checked against the copy in the app's bundle (ETag), so it rarely downloads them.

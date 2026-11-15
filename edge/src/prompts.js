@@ -1,5 +1,5 @@
-/* Everything Emma says and every prompt she is given, plus the demo attendees.
-   Generated from server/server.py's constants; {name} placeholders are filled by fill() in matching.js. */
+/* Emma's scripted lines, the interview, agent and chat prompts, and the demo attendees (the matching
+   prompts are in matching.js). {name} placeholders are filled by fill() in matching.js. */
 
 export const OPENER = `Hey, I'm Emma. What's your name, and what are you working on?`;
 

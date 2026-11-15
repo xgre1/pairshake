@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Where the PairShake web app lives. The app shows the same page the audience opens in their browser,
-/// so it has to be an https address (the microphone only works on secure pages): the tunnel link,
-/// or the Mac on this Wi-Fi if it serves https.
+/// Where the PairShake web app lives: PairShake's Cloudflare address, or an address typed in by hand (shake the phone).
 enum Server {
     static let fallback = "https://roomie.binjto.workers.dev"     // Cloudflare: fixed address, see edge/
-    private static let key = "server.manual"      // only an address typed in by hand; older saved ones are ignored
+    private static let key = "server.manual"      // only an address typed in by hand
 
     static var address: String {
         get { UserDefaults.standard.string(forKey: key) ?? fallback }
@@ -64,7 +62,7 @@ enum Server {
     }
 }
 
-/// Opens when the page can't load, or when you shake the phone.
+/// Opens when you shake the phone, or from Settings > Server.
 struct ServerSheet: View {
     @State var address: String
     let problem: String?
