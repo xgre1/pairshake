@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>PairShake</title>
+  <defs>
+    <linearGradient id="them" gradientUnits="userSpaceOnUse" x1="344" y1="512" x2="732" y2="512">
+      <stop offset="0.45" stop-color="#FFE7D0"/>
+      <stop offset="0.85" stop-color="#FFB173"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="#1C1C1F"/>
+  <circle cx="344" cy="512" r="168" fill="#FFFFFF"/>
+  <g fill="url(#them)">
+    <circle cx="732" cy="512" r="116"/>
+    <path d="M494.5 586.7 C531.1 513.0 603.4 523.8 632.9 572.4 L632.9 451.6 C603.4 500.2 531.1 511.0 494.5 437.3 Z"/>
+  </g>
+</svg>

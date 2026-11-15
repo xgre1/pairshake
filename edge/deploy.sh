@@ -1,16 +1,24 @@
 #!/bin/sh
-# Copy the hands' heavy models from server/web/hands, note the ETag server.py (aiohttp) gives each, deploy.
+# Copy the app's page and Emma's hands from app/web (not the hands' authoring tools), note each model's ETag
+# (mtime in nanoseconds and size, in hex: the same the app's build step writes into its bundle), then deploy.
 set -e
 cd "$(dirname "$0")"
-mkdir -p public/hands
-python3 - <<'PY'
-import json, os, shutil
-src, out = "../server/web/hands", {}
-for f in ("hand_r.glb", "hand_l.glb", "hand_r_lo.glb", "handkit_wasm_bg.wasm", "ring.bin"):
-    p = os.path.join(src, f)
-    st = os.stat(p)
-    shutil.copyfile(p, os.path.join("public/hands", f))
-    out["/hands/" + f] = '"%x-%x"' % (st.st_mtime_ns, st.st_size)
-json.dump(out, open("src/etags.json", "w"), indent=1)
-PY
+rm -rf public
+mkdir -p public
+cp ../app/web/index.html public/
+rsync -a --exclude tools ../app/web/hands/ public/hands/
+etag() {
+  t=$(stat -f %Fm "$1"); s=${t%.*}; f=$(printf '%-9s' "${t#*.}" | tr ' ' 0)
+  printf '"\\"%x-%x\\""' $((s * 1000000000 + 10#$f)) "$(stat -f %z "$1")"
+}
+{
+  printf '{\n'
+  sep=""
+  for f in hand_r.glb hand_l.glb hand_r_lo.glb handkit_wasm_bg.wasm ring.bin; do
+    printf '%s "/hands/%s": %s' "$sep" "$f" "$(etag ../app/web/hands/$f)"
+    sep=",
+"
+  done
+  printf '\n}\n'
+} > src/etags.json
 npx --no-install wrangler deploy

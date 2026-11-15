@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Roomie</string>
+	<string>PairShake</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -32,7 +32,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Helps point you toward your person more precisely.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Roomie talks to the Roomie server on this network.</string>
+	<string>PairShake talks to the PairShake server on this network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Shows you and your person which way to walk when Ultra Wideband can't reach.</string>
 	<key>NSMicrophoneUsageDescription</key>

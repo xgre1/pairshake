@@ -1,19 +1,55 @@
 # edge
 
-The Cloudflare Worker that gives Roomie its public address: **https://roomie.binjto.workers.dev**.
+PairShake's backend for the iPhone app, all on Cloudflare: **https://roomie.binjto.workers.dev**. Nothing runs on the Mac.
 
 ```sh
-./tunnel.sh      # keep the Mac connected to Cloudflare (or `make tunnel`)
-./deploy.sh      # deploy the Worker (or `make edge`)
+./deploy.sh      # copy the app's page from ../app/web and deploy (or `make edge`)
 ```
 
 | File | What it is |
 | --- | --- |
-| `src/index.js` | The Worker. The hands' heavy models come from Cloudflare's edge (checked against the Mac with `If-None-Match`); everything else, including WebSockets, goes to `server.py` through the VPC binding `ORIGIN`. |
-| `wrangler.jsonc` | Worker config: the `workers.dev` route, the VPC service binding, and the static assets. |
-| `deploy.sh` | Copies the models from `../server/web/hands` into `public/`, records the ETag the server gives each in `src/etags.json`, and deploys. |
-| `tunnel.sh` | Runs `cloudflared` for the named tunnel `roomie` over HTTP/2. Reads the token from `~/.cloudflared/roomie.token`. |
+| `src/index.js` | The Worker. Serves the app's page from static assets (to the app only; a browser gets a short note), checks the hands' models against the app's bundled copies by ETag, runs Emma's ears (`/hear`, Whisper on Workers AI), answers `/speak` straight from R2 when the line was voiced before, and sends everything else to the room. |
+| `src/room.js` | The room: one Durable Object working with every person, introduction and chat (kept in D1), the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of the first, Python server (now in `~/Desktop/pairshake-web`), same API ([docs/api.md](../docs/api.md)). |
+| `src/matching.js` | Who meets whom, and the spark. A port of the Python `matching.py`. |
+| `src/llm.js` | Gemini: flash-lite for the chat and the quick jobs, flash for the spark and the agents' talk. |
+| `src/voice.js` | Emma's voice (ElevenLabs, kept in R2 for good; Workers AI's voice if ElevenLabs is down) and ears. |
+| `src/prompts.js` | Every prompt and line Emma says, and the demo attendees. |
+| `migrations/` | The D1 schema: `users`, `missions`, `meta`. Apply a new one with `npx wrangler d1 migrations apply roomie --remote`. |
+| `wrangler.jsonc` | Bindings: `ROOM` (Durable Object), `DB` (D1 database `roomie`), `VOICE` (R2 bucket `roomie-voice`), `AI`, `LIMIT` (rate limit), `ASSETS`. |
 
-The path from the Worker to the Mac: VPC service `roomie-origin` → named tunnel `roomie` → `127.0.0.1:8780`. No public hostname and no open port on the Mac.
+## Secrets
 
-Secrets stay out of this folder: the tunnel token lives in `~/.cloudflared/`, and `wrangler` uses its own login.
+Set once with `npx wrangler secret put <NAME>`; they are never in the repository.
+
+| Name | What |
+| --- | --- |
+| `GEMINI_API_KEY` | The model. A local copy is in `.dev.vars` (ignored by git). |
+| `ELEVENLABS_API_KEY` | Emma's voice (from `~/.elevenlabsrc`). |
+| `ADMIN_TOKEN` | For `/admin/export` and `/admin/import`. A local copy is in `.dev.vars`. |
+
+## Backups
+
+```sh
+make backup      # saves the whole room to backups/room-<date>.json
+```
+
+To restore one, or to move data in: `curl -X POST https://roomie.binjto.workers.dev/admin/import -H "authorization: Bearer $TOKEN" --data-binary @room.json` (it replaces everything).
+
+## Looking at the data
+
+```sh
+npx wrangler d1 execute roomie --remote --command "SELECT id, name, email, app, created_at FROM users ORDER BY created_at DESC LIMIT 20"
+```
+
+Or Storage & Databases → D1 → roomie in the Cloudflare dashboard. Change data through the app or `/admin/import`, not by hand: the room keeps it in memory and would write its own copy back.
+
+## Logs
+
+`npx wrangler tail roomie`, or Workers → roomie → Logs in the Cloudflare dashboard.
+
+## Limits to know
+
+- The free Workers plan allows 10 ms of CPU per request. Roomie's requests mostly wait on the model, which doesn't count, but a very full room may need the $5 paid plan.
+- Workers AI (the ears) has a free daily allowance of 10,000 neurons, about 200 minutes of speech.
+- `/speak` only voices lines Emma really says, so nobody can spend the ElevenLabs allowance on their own text.
+- Calls that cost money (`/hear`, `/speak`, the model) are limited to 300 a minute per address and path. A venue's Wi-Fi is usually one address, so this is generous on purpose.

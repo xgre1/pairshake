@@ -1,14 +1,25 @@
-// Roomie at the edge: a fixed https address (roomie.binjto.workers.dev) for the iPhone app and the audience.
-// Deploy with ./deploy.sh (it copies the hands' models in first).
+// PairShake's backend for the iPhone app, all on Cloudflare: https://roomie.binjto.workers.dev. Deploy with ./deploy.sh (it copies app/web in first).
+// Secrets (set with `wrangler secret put`): GEMINI_API_KEY, ELEVENLABS_API_KEY, ADMIN_TOKEN.
 {
   "name": "roomie",
   "account_id": "662aad26c7f15dc72bb81dfbd929e7d4",
   "main": "src/index.js",
   "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
-  // the Mac running server.py, reached through the named tunnel "roomie" (no public hostname needed)
-  "vpc_services": [{ "binding": "ORIGIN", "service_id": "01a1dc83-4ed0-73f2-be5a-9e738f414cc8", "remote": true }],
-  // the hands' heavy models, served from Cloudflare's edge; the Worker decides when to use them
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true }
+  "observability": { "enabled": true },
+  // the app's page and Emma's hands (copied from ../app/web by deploy.sh); the Worker goes first so the API is never a file
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  // the room: every person, introduction and chat (room.js)
+  "durable_objects": { "bindings": [{ "name": "ROOM", "class_name": "Roomie" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Roomie"] }],
+  // the database: users, introductions and their chats (D1, SQL). The room loads it at start and writes every change through.
+  "d1_databases": [{ "binding": "DB", "database_name": "roomie", "database_id": "2596fa8d-18e2-4d67-9f83-811b3efadb1a", "migrations_dir": "migrations" }],
+  // every line Emma has said, in her voice, kept for good
+  "r2_buckets": [{ "binding": "VOICE", "bucket_name": "roomie-voice" }],
+  // Emma's ears (Whisper) and her stand-in voice when ElevenLabs is down
+  "ai": { "binding": "AI" },
+  // what costs money per call, per address and path
+  "ratelimits": [{ "name": "LIMIT", "namespace_id": "8780", "simple": { "limit": 300, "period": 60 } }]
 }

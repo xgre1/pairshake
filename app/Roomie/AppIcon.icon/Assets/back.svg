@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="344.0" y1="512.0" x2="732.0" y2="512.0">
+    <stop offset="0.45" stop-color="#FFE7D0"/><stop offset="0.85" stop-color="#FFB173"/></linearGradient></defs>
+  <g fill="url(#g)">
+    <circle cx="732.0" cy="512.0" r="116"/>
+    <path d="M494.5 586.7 C531.1 513.0 603.4 523.8 632.9 572.4 L632.9 451.6 C603.4 500.2 531.1 511.0 494.5 437.3 Z"/>
+  </g>
+</svg>

@@ -1,38 +1,94 @@
+/* PairShake's backend, for the iPhone app: https://roomie.binjto.workers.dev. Nothing runs on the Mac.
+
+   - The app's page (app/web: index.html and Emma's hands) is static and served from Cloudflare's edge, only to
+     the app. The hands' models are checked against the copy in the app's bundle (ETag), so it rarely downloads them.
+   - Emma's ears (/hear) run here, on Workers AI. Her voice (/speak) comes straight from R2 when the line was
+     ever voiced before; a new line goes to the room, which checks that Emma really says it.
+   - Everything else (the API and the rooms' WebSockets) goes to the one Durable Object that is the room
+     (room.js), so every attendee sees the same people, matches and chats. */
+import { Roomie } from "./room.js";
+import { hear, voiceKey } from "./voice.js";
 import ETAGS from "./etags.json";
 
-/* Roomie's front door on Cloudflare.
-   - The hands' heavy models (~7 MB) are deployed to Cloudflare's edge with this Worker, so phones get them
-     from the nearest data centre instead of through the tunnel to the Mac. Each request still asks the Mac,
-     with a tiny If-None-Match request, whether its copy changed (a re-baked model wins at once); if the Mac
-     can't be reached, the edge copy is used.
-   - Everything else (the page, Emma's voice and ears, the API, the room's WebSocket) goes to server.py on the
-     Mac through the named tunnel. */
-const ORIGIN = "http://localhost:8780";
+export { Roomie };
+
+const API = new Set(["/start", "/turn", "/quick", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile",
+  "/inbox", "/talk", "/ws", "/scan", "/me", "/suggest", "/room"]);
+// what costs money per call (the model, the voice, the ears): limited per address, generously (a venue's Wi-Fi is one address)
+const COSTLY = new Set(["/hear", "/speak", "/start", "/turn", "/quick", "/again", "/suggest", "/account"]);
+const MAX_HEAR = 16000 * 2 * 90;      // 90 s of 16 kHz int16
+
+const room = env => env.ROOM.get(env.ROOM.idFromName("room"));
+const json = (d, status = 200) => Response.json(d, { status, headers: { "cache-control": "no-store" } });
 
 export default {
   async fetch(req, env) {
-    const url = new URL(req.url);
-    const target = ORIGIN + url.pathname + url.search;
-    const tag = req.method === "GET" && ETAGS[url.pathname];
-    if (tag) return model(req, env, url, target, tag);
+    const url = new URL(req.url), path = url.pathname;
     try {
-      return await env.ORIGIN.fetch(new Request(target, req));
+      if (COSTLY.has(path) && env.LIMIT) {
+        const { success } = await env.LIMIT.limit({ key: `${req.headers.get("cf-connecting-ip") || "?"}:${path}` });
+        if (!success) return json({ error: "Slow down a little and try again." }, 429);
+      }
+      if (path === "/hear" && req.method === "POST") return await ears(req, env);
+      if (path === "/speak" && req.method === "POST") return await voice(req, env);
+      if (path.startsWith("/admin/")) {
+        const token = (req.headers.get("authorization") || "").replace(/^Bearer /, "");
+        if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) return json({ error: "Not allowed." }, 403);
+        return room(env).fetch(req);
+      }
+      if (path === "/health") return json({ ok: true });
+      if (API.has(path)) return room(env).fetch(req);
+      if (path === "/" || path === "/index.html") {
+        if (!(req.headers.get("user-agent") || "").includes("RoomieApp")) return appOnly();
+        const r = await env.ASSETS.fetch(req);
+        const out = new Response(r.body, r);
+        out.headers.set("cache-control", "no-store");      // never cached: a deploy shows at once
+        return out;
+      }
+      const tag = req.method === "GET" && ETAGS[path];
+      if (tag) {                                           // a model the app may already have in its bundle
+        const headers = { etag: tag, "cache-control": "no-cache" };
+        if (req.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers });
+        const r = await env.ASSETS.fetch(new Request(url.origin + path));
+        const out = new Response(r.body, r);
+        for (const [k, v] of Object.entries(headers)) out.headers.set(k, v);
+        return out;
+      }
+      return env.ASSETS.fetch(req);
     } catch (e) {
-      return new Response("Roomie's server isn't reachable right now.", { status: 502 });
+      console.log("edge error", path, e && e.stack || String(e));
+      return json({ error: "Something went wrong. Try again." }, 500);
     }
   },
 };
 
-async function model(req, env, url, target, deployed) {
-  let current = deployed, fresh = null;
+/** PairShake lives in the iPhone app; a browser gets a short note instead of the page. */
+function appOnly() {
+  return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PairShake</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;font:17px -apple-system,system-ui,sans-serif;background:#000;color:#fff;text-align:center">
+<div><h1 style="font-size:28px;margin:0 0 8px">PairShake</h1><p style="margin:0;opacity:.6">PairShake is an iPhone app.</p></div>`,
+    { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+
+/** 16 kHz mono int16 PCM in, the words out. An empty body says whether the ears are there (they are). */
+async function ears(req, env) {
+  const pcm = await req.arrayBuffer();
+  if (pcm.byteLength < 3200) return json({ text: "" });        // under 0.1 s: nothing said
+  if (pcm.byteLength > MAX_HEAR + 2) return json({ error: "Too long." }, 413);
   try {
-    const r = await env.ORIGIN.fetch(target, { headers: { "if-none-match": deployed } });
-    if (r.status === 200) { fresh = r; current = r.headers.get("etag") || deployed; }
-  } catch {}                                            // the Mac is away: the edge copy still works
-  const headers = { etag: current, "cache-control": "no-cache" };
-  if (req.headers.get("if-none-match") === current) return new Response(null, { status: 304, headers });
-  const src = fresh || await env.ASSETS.fetch(new Request(url.origin + url.pathname));
-  const out = new Response(src.body, src);
-  for (const [k, v] of Object.entries(headers)) out.headers.set(k, v);
-  return out;
+    return json({ text: await hear(env, pcm.slice(0, pcm.byteLength & ~1)) });
+  } catch (e) {
+    console.log("hear error:", String(e));
+    return json({ error: "Couldn't hear that." }, 502);       // the page then uses the browser's own recogniser
+  }
+}
+
+async function voice(req, env) {
+  const body = await req.text();
+  let text = "";
+  try { text = String(JSON.parse(body).text ?? "").trim().slice(0, 600); } catch {}
+  if (!text) return json({ error: "Nothing to say." }, 400);
+  const hit = await env.VOICE.get(await voiceKey(text));
+  if (hit) return new Response(hit.body, { headers: { "content-type": "audio/wav", "cache-control": "public, max-age=31536000, immutable" } });
+  return room(env).fetch(new Request(req.url, { method: "POST", headers: req.headers, body }));
 }

@@ -161,7 +161,9 @@ export const Ring = {
   targetRect() {
     if (this.target === 'right') { const x = Math.round(innerWidth * 0.44); return { x, y: 0, w: innerWidth - x, h: innerHeight }; }
     const r = this.target?.getBoundingClientRect?.();
-    return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : this.rect;
+    // over an element the layer is part of the page (document coordinates), so it scrolls and rubber-bands
+    // with it natively; chasing the element from script every frame lagged a touch behind and stuttered
+    return r ? { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height } : this.rect;
   },
   place(now) {
     let r = this.targetRect();
@@ -173,6 +175,7 @@ export const Ring = {
     const q = this.rect;
     if (Math.abs(q.x - r.x) + Math.abs(q.y - r.y) + Math.abs(q.w - r.w) + Math.abs(q.h - r.h) < 0.5) return;
     Object.assign(q, r);
+    this.stage.style.position = this.target === 'right' ? 'fixed' : 'absolute';
     Object.assign(this.stage.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
   },
 

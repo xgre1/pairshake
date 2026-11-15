@@ -16,7 +16,7 @@ targets:
     info:
       path: Roomie/Info.plist
       properties:
-        CFBundleDisplayName: Roomie
+        CFBundleDisplayName: PairShake
         CFBundleShortVersionString: "0.1"
         CFBundleVersion: "1"
         UILaunchScreen:
@@ -24,7 +24,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSMicrophoneUsageDescription: Emma listens while you answer her questions.
         NSSpeechRecognitionUsageDescription: Your answers become text so Emma can find your person.
-        NSLocalNetworkUsageDescription: Roomie talks to the Roomie server on this network.
+        NSLocalNetworkUsageDescription: PairShake talks to the PairShake server on this network.
         NSBluetoothAlwaysUsageDescription: Finds your person's phone nearby, even when the Wi-Fi is bad.
         NSNearbyInteractionUsageDescription: Points you toward your person when you both agree to meet.
         NSCameraUsageDescription: Helps point you toward your person more precisely.
@@ -38,26 +38,24 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           set -e
-          SRC="$PROJECT_DIR/../server/web/hands"
+          SRC="$PROJECT_DIR/web/hands"
           DST="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/web"
           mkdir -p "$DST/hands" "$DST/vendor"
           rsync -a --delete "$PROJECT_DIR/Vendor/" "$DST/vendor/"
-          # each file with the ETag the Roomie server (aiohttp) gives it, so the app can tell when the server's copy changed
-          /usr/bin/python3 - "$SRC" "$DST" <<'EOF'
-          import json, os, shutil, sys
-          src, dst = sys.argv[1], sys.argv[2]
-          out = {}
-          for f in ("hand_r.glb", "hand_l.glb", "hand_r_lo.glb", "handkit_wasm_bg.wasm", "ring.bin"):
-              p = os.path.join(src, f)
-              if os.path.exists(p):
-                  st = os.stat(p)
-                  shutil.copyfile(p, os.path.join(dst, "hands", f))
-                  out["/hands/" + f] = '"%x-%x"' % (st.st_mtime_ns, st.st_size)
-          json.dump(out, open(os.path.join(dst, "manifest.json"), "w"), indent=1)
-          EOF
+          # each model with its ETag (mtime in nanoseconds and size, in hex: the same edge/deploy.sh gives Cloudflare),
+          # so the app can tell when Cloudflare's copy changed
+          etag() { t=$(stat -f %Fm "$1"); s=${t%.*}; f=$(printf '%-9s' "${t#*.}" | tr ' ' 0); printf '"\\"%x-%x\\""' $((s * 1000000000 + 10#$f)) "$(stat -f %z "$1")"; }
+          sep=""; printf '{\n' > "$DST/manifest.json"
+          for f in hand_r.glb hand_l.glb hand_r_lo.glb handkit_wasm_bg.wasm ring.bin; do
+            [ -f "$SRC/$f" ] || continue
+            cp "$SRC/$f" "$DST/hands/$f"
+            printf '%s "/hands/%s": %s' "$sep" "$f" "$(etag "$SRC/$f")" >> "$DST/manifest.json"; sep=", "
+          done
+          printf '\n}\n' >> "$DST/manifest.json"
     settings:
       base:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         PRODUCT_BUNDLE_IDENTIFIER: com.jtobin.roomie
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon      # Roomie/AppIcon.icon (Icon Composer; art from tools/icon_art.py)
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO

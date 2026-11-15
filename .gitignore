@@ -11,13 +11,12 @@ node_modules/
 .DS_Store
 __pycache__/
 
-# Local runtime state, logs and diagnostics
-server/room.json
-server/*.log
-server/*.jsonl
 
 # API keys
 .env
+.dev.vars
 
-# Self-signed TLS key for local testing
-server/certs/
+# Room backups (personal data)
+backups/
+
+edge/src/etags.json

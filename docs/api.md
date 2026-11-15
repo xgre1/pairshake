@@ -1,6 +1,6 @@
 # API
 
-All endpoints are served by `server/server.py` and reached through `https://roomie.binjto.workers.dev` (or `http://localhost:8780` on the Mac). Bodies are JSON unless noted. A user is identified by the `id` the server hands out; there is no other session token.
+All endpoints are served by Cloudflare at `https://roomie.binjto.workers.dev` (`edge/`). Bodies are JSON unless noted. A user is identified by the `id` the server hands out; there is no other session token.
 
 ## Talking to Emma
 
@@ -9,8 +9,8 @@ All endpoints are served by `server/server.py` and reached through `https://room
 | POST | `/start` | `{id?}` | `{id, say, code}`. A new attendee, or a returning one Emma greets with what she remembers. |
 | POST | `/turn` | `{id, text, interrupted?}` | `{say, done}`. Emma's next line; `done` means she has heard enough and matching has begun. |
 | POST | `/quick` | `{id?, text, spot?}` | `{id, code, say}`. Skips the voice chat: `text` is a description of the attendee (for example from ChatGPT). |
-| POST | `/hear` | raw 16 kHz mono int16 PCM | `{text}`. Parakeet's transcript. An empty body answers 200 if speech recognition is available. |
-| POST | `/speak` | `{text}` | `audio/wav` in Emma's voice. |
+| POST | `/hear` | raw 16 kHz mono int16 PCM | `{text}`. Whisper's transcript (Workers AI). An empty body answers 200 if speech recognition is available. |
+| POST | `/speak` | `{text}` | `audio/wav` in Emma's voice (`audio/mpeg` while ElevenLabs is down). 403 for text Emma doesn't say. |
 
 ## Matching
 
@@ -43,7 +43,11 @@ A `mission` is `{id, intro, overlap, person, outcome}`. `overlap` holds `rare` (
 | POST | `/account` | `{action: "delete", id}` | `{ok}`. Removes the user. |
 | POST | `/profile` | `{id, name?, socials?}` | `{me, socials, name, email}`. |
 
-Errors come back as `{error}` with a sentence that can be shown to the person.
+Errors come back as `{error}` with a sentence that can be shown to the person. 429 means too many calls from one address in a minute.
+
+## Admin
+
+`GET /admin/export` and `POST /admin/import` (the whole room as `{users, missions, stats}`), with `authorization: Bearer <ADMIN_TOKEN>`.
 
 ## The room's WebSocket
 

@@ -6,9 +6,9 @@ import Network
 /// microphone still works), served by this small server on the phone itself:
 /// - The hands' heavy files (~7 MB of models, the hand solver, the matching ring) and three.js ship inside
 ///   the app, so the first launch doesn't download them. Each bundled model is still checked against the
-///   Roomie server's copy with one tiny request (a 304 when it's the same); if the server has a newer one,
+///   PairShake server's copy with one tiny request (a 304 when it's the same); if the server has a newer one,
 ///   that one is used. If the server can't be reached in time, the bundled copy is used.
-/// - Everything else (the page, Emma's voice, the API, the chat socket) is passed through to the Roomie server.
+/// - Everything else (the page, Emma's voice, the API, the chat socket) is passed through to the PairShake server.
 final class LocalServer: NSObject, URLSessionDelegate {
     static let port: UInt16 = 47_213
     var onReady: ((Bool) -> Void)?
