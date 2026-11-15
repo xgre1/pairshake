@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Where the Roomie web app lives. The app shows the same page the audience opens in their browser,
+/// Where the PairShake web app lives. The app shows the same page the audience opens in their browser,
 /// so it has to be an https address (the microphone only works on secure pages): the tunnel link,
 /// or the Mac on this Wi-Fi if it serves https.
 enum Server {
@@ -18,7 +18,7 @@ enum Server {
     static var url: URL { URL(string: active) ?? URL(string: fallback)! }
 
     /// The server this launch talks to: an address set by hand (shake the phone) if it answers,
-    /// otherwise Roomie's fixed Cloudflare address.
+    /// otherwise PairShake's fixed Cloudflare address.
     private(set) static var active = fallback
 
     private static var candidates: [String] {
@@ -93,7 +93,7 @@ struct ServerSheet: View {
                     Text("Use the same link the audience opens. Shake the phone any time to come back here.")
                 }
             }
-            .navigationTitle("Roomie server")
+            .navigationTitle("PairShake server")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }

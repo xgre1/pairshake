@@ -1,6 +1,6 @@
 # Finding each other
 
-When both people say yes, Roomie shows an arrow and a distance until they meet. How it does that depends on what the two phones can do.
+When both people say yes, PairShake shows an arrow and a distance until they meet. How it does that depends on what the two phones can do.
 
 | Both on | Distance | Direction |
 | --- | --- | --- |

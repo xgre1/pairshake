@@ -1,4 +1,4 @@
-"""Roomie server: Emma interviews each attendee by voice, finds the one person in the room they
+"""PairShake server: Emma interviews each attendee by voice, finds the one person in the room they
 should meet, and gives both of them an icebreaker mission instead of a DM.
 
 Runs on the Mac with Emma's Python environment and speaks in Emma's voice (ElevenLabs, with the
@@ -36,7 +36,7 @@ MODEL = os.environ.get("ROOMIE_MODEL", "haiku")
 # The chat is only there to get to an introduction: Emma asks at most two things after her opener.
 MAX_TURNS = 3
 STATE_FILE = os.path.join(HERE, "room.json")
-# Roomie's voice: Emma's own designed voice (ROOMIE_VOICE picks another ElevenLabs voice; "Annika",
+# PairShake's voice: Emma's own designed voice (ROOMIE_VOICE picks another ElevenLabs voice; "Annika",
 # j08RBkJwvXYv5AZ961JE, was tried on 2026-11-15 and he went back to this one).
 VOICE_ID = os.environ.get("ROOMIE_VOICE", "OSxQoMnSFe6QtcNVSptL")
 
@@ -1038,7 +1038,7 @@ def test_user(app):
     users[uid] = {"id": uid, "name": name, "transcript": [], "socials": {}, "code": f"{random.randint(1000, 9999)}",
                   "color": random.choice(PALETTE), "match": None, "inbox": [], "turns": 0, "app": app, "test": True,
                   "profile": {"name": name, "role": role, "building": building, "needs": needs, "offers": offers,
-                              "spot": "Holding the other test phone", "line": f"{name.split()[0]} is testing Roomie."}}
+                              "spot": "Holding the other test phone", "line": f"{name.split()[0]} is testing PairShake."}}
     return users[uid]
 
 
@@ -1051,7 +1051,7 @@ def test_mission(a, b):
         "intro_a": f"A test match: {b['name'].split()[0]} is on the other phone. Say yes to meet, then follow the arrow.",
         "intro_b": f"A test match: {a['name'].split()[0]} is on the other phone. Say yes to meet, then follow the arrow.",
         "overlap": clean_overlap({
-            "rare": [{"text": "You're both testing Roomie right now", "opener": "Which phone are you on?"},
+            "rare": [{"text": "You're both testing PairShake right now", "opener": "Which phone are you on?"},
                      {"text": "Both your phones can find each other by Ultra Wideband", "opener": "Ready to find each other?"}],
             "you_only": [pa["building"], pa["offers"]], "them_only": [pb["building"], pb["offers"]],
             "give": pa["offers"], "get": pb["offers"],
@@ -1431,7 +1431,7 @@ async def on_start(app):
         def _load(self):                            # no "Ready." test line at start: every restart would pay for it
             return 0.0                              # (if ElevenLabs is down, the first line falls back to Kokoro)
     voice = await asyncio.to_thread(RoomieVoice)
-    voice.cfg["voice_id"] = VOICE_ID                # Roomie's voice, not the desktop Emma's
+    voice.cfg["voice_id"] = VOICE_ID                # PairShake's voice, not the desktop Emma's
     await warm.fill()                               # Emma's first answer doesn't wait for `claude` to start
     print(f"voice ready ({voice.engine}, {voice.load_ms:.0f} ms, voice {VOICE_ID})", flush=True)
     lines = [OPENER, THINKING]

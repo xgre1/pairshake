@@ -1,7 +1,7 @@
-"""Renders stills of Emma's hands (server/web/hands/tools/icon_hands.html, served by the Roomie server) for
+"""Renders stills of Emma's hands (server/web/hands/tools/icon_hands.html, served by the PairShake server) for
 icon concepts, as transparent 1024 px PNGs.
 
-    python3 tools/icon_hands.py <out_dir> [concept ...]      (the Roomie server must be running on :8780)
+    python3 tools/icon_hands.py <out_dir> [concept ...]      (the PairShake server must be running on :8780)
 """
 import asyncio, base64, json, os, sys
 from playwright.async_api import async_playwright

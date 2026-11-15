@@ -1,6 +1,6 @@
 import ETAGS from "./etags.json";
 
-/* Roomie's front door on Cloudflare.
+/* PairShake's front door on Cloudflare.
    - The hands' heavy models (~7 MB) are deployed to Cloudflare's edge with this Worker, so phones get them
      from the nearest data centre instead of through the tunnel to the Mac. Each request still asks the Mac,
      with a tiny If-None-Match request, whether its copy changed (a re-baked model wins at once); if the Mac
@@ -18,7 +18,7 @@ export default {
     try {
       return await env.ORIGIN.fetch(new Request(target, req));
     } catch (e) {
-      return new Response("Roomie's server isn't reachable right now.", { status: 502 });
+      return new Response("PairShake's server isn't reachable right now.", { status: 502 });
     }
   },
 };

@@ -1,6 +1,6 @@
 # Architecture
 
-Roomie has four parts: a Python server on a Mac, a single-page web app, an iPhone app, and a Cloudflare Worker in front of all of it.
+PairShake has four parts: a Python server on a Mac, a single-page web app, an iPhone app, and a Cloudflare Worker in front of all of it.
 
 ```mermaid
 flowchart TB

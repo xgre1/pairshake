@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// The whole app is the Roomie web page (the same one the audience opens), shown full screen.
+/// The whole app is the PairShake web page (the same one the audience opens), shown full screen.
 /// The phone adds what a browser can't do:
 /// - Finding your person with the phones' own radios (Ultra Wideband + Bluetooth, see Finder),
 ///   wired into the page's own finding screen.
@@ -111,7 +111,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         let spin = UIActivityIndicatorView(style: .medium)
         spin.startAnimating()
         let title = UILabel()
-        title.text = "Connecting to Roomie…"
+        title.text = "Connecting to PairShake…"
         title.font = .preferredFont(forTextStyle: .headline)
         let hint = UILabel()
         hint.text = "Shake the phone to change the server."
@@ -308,7 +308,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
         return .allow
     }
 
-    /// Links to someone's X or LinkedIn open in their app or Safari, never inside Roomie.
+    /// Links to someone's X or LinkedIn open in their app or Safari, never inside PairShake.
     func webView(_ w: WKWebView, decidePolicyFor a: WKNavigationAction) async -> WKNavigationActionPolicy {
         guard let url = a.request.url, a.targetFrame?.isMainFrame ?? true else { return .allow }
         let scheme = url.scheme ?? ""

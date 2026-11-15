@@ -1,4 +1,4 @@
-"""Draws Roomie's icon layers (Roomie/AppIcon.icon/Assets/*.svg, 1024 x 1024).
+"""Draws PairShake's icon layers (Roomie/AppIcon.icon/Assets/*.svg, 1024 x 1024).
 
 The idea: two drops about to merge, the way the matching screen draws you meeting your person. You (the
 bigger drop, white) and them (the smaller, warm) are joined by a liquid neck: the same metaball connector

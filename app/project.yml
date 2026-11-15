@@ -16,7 +16,7 @@ targets:
     info:
       path: Roomie/Info.plist
       properties:
-        CFBundleDisplayName: Roomie
+        CFBundleDisplayName: PairShake
         CFBundleShortVersionString: "0.1"
         CFBundleVersion: "1"
         UILaunchScreen:
@@ -24,7 +24,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSMicrophoneUsageDescription: Emma listens while you answer her questions.
         NSSpeechRecognitionUsageDescription: Your answers become text so Emma can find your person.
-        NSLocalNetworkUsageDescription: Roomie talks to the Roomie server on this network.
+        NSLocalNetworkUsageDescription: PairShake talks to the PairShake server on this network.
         NSBluetoothAlwaysUsageDescription: Finds your person's phone nearby, even when the Wi-Fi is bad.
         NSNearbyInteractionUsageDescription: Points you toward your person when you both agree to meet.
         NSCameraUsageDescription: Helps point you toward your person more precisely.
@@ -42,7 +42,7 @@ targets:
           DST="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/web"
           mkdir -p "$DST/hands" "$DST/vendor"
           rsync -a --delete "$PROJECT_DIR/Vendor/" "$DST/vendor/"
-          # each file with the ETag the Roomie server (aiohttp) gives it, so the app can tell when the server's copy changed
+          # each file with the ETag the PairShake server (aiohttp) gives it, so the app can tell when the server's copy changed
           /usr/bin/python3 - "$SRC" "$DST" <<'EOF'
           import json, os, shutil, sys
           src, dst = sys.argv[1], sys.argv[2]

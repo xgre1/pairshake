@@ -1,4 +1,4 @@
-# Running Roomie
+# Running PairShake
 
 ## What you need
 
@@ -56,7 +56,7 @@ First time on a phone:
 1. Connect it by cable and tap **Trust** on the phone.
 2. Turn on **Settings → Privacy & Security → Developer Mode** and restart when asked.
 3. After installing, open **Settings → General → VPN & Device Management**, tap the developer certificate and **Trust** it.
-4. Open Roomie and allow the microphone, Bluetooth, Nearby Interaction, camera and location.
+4. Open PairShake and allow the microphone, Bluetooth, Nearby Interaction, camera and location.
 
 After that, phones on the same Wi-Fi as the Mac can be updated without a cable. With a free Apple developer account the app stops opening after 7 days; install it again.
 
@@ -64,7 +64,7 @@ Only native changes need a reinstall. The page, Emma and matching come from the 
 
 ## Testing finding between two phones
 
-1. Open Roomie on two iPhones with the app.
+1. Open PairShake on two iPhones with the app.
 2. On both, tap **Test: find another phone** on the first page.
 3. The phones are introduced to each other as made-up attendees who have both said yes, and go straight to the finding screen.
 
@@ -79,8 +79,8 @@ xcrun devicectl device copy from --device <device id> --domain-type appDataConta
 
 | Symptom | Cause and fix |
 | --- | --- |
-| The app says "Connecting to Roomie…" | The server or the tunnel is down. Start both. The app retries every 2 seconds. Shake the phone to change the server address. |
-| The Worker answers "Roomie's server isn't reachable" | Same: `make server` and `make tunnel`. |
+| The app says "Connecting to PairShake…" | The server or the tunnel is down. Start both. The app retries every 2 seconds. Shake the phone to change the server address. |
+| The Worker answers "PairShake's server isn't reachable" | Same: `make server` and `make tunnel`. |
 | The server stops with `No module named 'soundfile'` | It was started with the system Python. Use `make server`. |
 | On the web in Safari, a top bar sits halfway down after typing | An iOS 26 WebKit bug (the page isn't panned back after the keyboard closes, WebKit bug 297779). The app avoids it by shrinking the page above the keyboard; the web page nudges the scroll after the keyboard closes. |
 | The arrow doesn't turn | See [finding.md](finding.md). Hold the phone up and follow the hint on screen. |

@@ -1,6 +1,6 @@
 # edge
 
-The Cloudflare Worker that gives Roomie its public address: **https://roomie.binjto.workers.dev**.
+The Cloudflare Worker that gives PairShake its public address: **https://roomie.binjto.workers.dev**.
 
 ```sh
 ./tunnel.sh      # keep the Mac connected to Cloudflare (or `make tunnel`)

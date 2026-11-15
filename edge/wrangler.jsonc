@@ -1,4 +1,4 @@
-// Roomie at the edge: a fixed https address (roomie.binjto.workers.dev) for the iPhone app and the audience.
+// PairShake at the edge: a fixed https address (roomie.binjto.workers.dev) for the iPhone app and the audience.
 // Deploy with ./deploy.sh (it copies the hands' models in first).
 {
   "name": "roomie",

@@ -1,6 +1,6 @@
 # server
 
-The Roomie server and the web app it serves.
+The PairShake server and the web app it serves.
 
 ```sh
 ~/Desktop/emma/.venv/bin/python -u server.py      # or `make server` from the repository root

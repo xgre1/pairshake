@@ -1,6 +1,6 @@
-# Roomie
+# PairShake
 
-Roomie is a host for a crowded room. You tell Emma, by voice, what you are building and who you need. Your agent then asks every other attendee's agent whether the two of you should meet, and Emma introduces you to the one person who fits best. You get the things you have in common to start the conversation, and when you both say yes, your phones point you to each other.
+PairShake is a host for a crowded room. You tell Emma, by voice, what you are building and who you need. Your agent then asks every other attendee's agent whether the two of you should meet, and Emma introduces you to the one person who fits best. You get the things you have in common to start the conversation, and when you both say yes, your phones point you to each other.
 
 Built for the Gen AI Summit Hackathon in Athens, 2026.
 
@@ -33,7 +33,7 @@ flowchart LR
 | [`server/`](server/) | The Python server: Emma's interview, matching, rooms, accounts. It also serves the web app. |
 | [`server/web/`](server/web/) | The web app (a single page) and Emma's hands (three.js and Handkit). |
 | [`app/`](app/) | The iPhone app: the web app full screen, with finding by Ultra Wideband and Bluetooth. |
-| [`edge/`](edge/) | The Cloudflare Worker that gives Roomie its public https address. |
+| [`edge/`](edge/) | The Cloudflare Worker that gives PairShake its public https address. |
 | [`docs/`](docs/) | Architecture, API, finding, and how to run everything. |
 | [`prototypes/`](prototypes/) | An early standalone demo of the matching screen. |
 
@@ -42,7 +42,7 @@ flowchart LR
 You need a Mac with Emma's engine and Python environment in `~/Desktop/emma`, `cloudflared`, Xcode and XcodeGen.
 
 ```sh
-make server      # Roomie on http://localhost:8780
+make server      # PairShake on http://localhost:8780
 make tunnel      # connect the Mac to Cloudflare
 ```
 
