@@ -19,6 +19,14 @@
   --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
   --round: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif;
   --r:20px; --r-s:14px;     /* corners: cards, groups, bubbles and fields; small chips and notes */
+  /* Glass, for every button: a clear one (light caught at the top edge, the page blurred behind it) and a
+     prominent one tinted with the text colour, for the one thing a screen wants you to do. */
+  --glass:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.2)),rgba(120,120,128,.17);
+  --glass-rim:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.4),inset 0 0 0 .5px rgba(0,0,0,.06);
+  --glass-drop:0 1px 2px rgba(0,0,0,.05),0 6px 16px rgba(0,0,0,.08);
+  --glass-pro:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0) 58%),rgba(0,0,0,.8);
+  --glass-pro-rim:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -1px 0 rgba(255,255,255,.08),inset 0 0 0 .5px rgba(255,255,255,.16);
+  --glass-pro-drop:0 1px 2px rgba(0,0,0,.2),0 10px 24px rgba(0,0,0,.2);
   --gut:20px;                /* the page's left and right margin, the same on every screen */
   --safeB: env(safe-area-inset-bottom); --safeT: env(safe-area-inset-top);
   --spring: cubic-bezier(.3,1.25,.5,1); --smooth: cubic-bezier(.25,.1,.25,1);
@@ -27,7 +35,14 @@
   :root{ --bg:#000; --bg2:#1c1c1e; --gbg:#000; --gcell:#1c1c1e;
          --fg:#fff; --sec:rgba(235,235,245,.6); --ter:rgba(235,235,245,.3);
          --fill2:rgba(118,118,128,.24); --sep:rgba(84,84,88,.6);
-         --mat:rgba(37,37,37,.72); --bar:rgba(22,22,22,.94); --green:#30D158; --orange:#FF9F0A; }
+         --mat:rgba(37,37,37,.72); --bar:rgba(22,22,22,.94); --green:#30D158; --orange:#FF9F0A; 
+         --glass:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.04)),rgba(120,120,128,.24);
+         --glass-rim:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 0 .5px rgba(255,255,255,.12);
+         --glass-drop:0 1px 2px rgba(0,0,0,.4),0 8px 20px rgba(0,0,0,.35);
+         --glass-pro:linear-gradient(180deg,#fff,rgba(255,255,255,.8)),rgba(255,255,255,.86);
+         --glass-pro-rim:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.5);
+         --glass-pro-drop:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(255,255,255,.1);
+  }
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--fg);font:17px/1.29 var(--sans);letter-spacing:-.022em;-webkit-font-smoothing:antialiased}
@@ -73,6 +88,15 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .pill[disabled]{opacity:.4;cursor:default}
 .xbtn{width:30px;height:30px;border-radius:50%;background:var(--fill2);display:grid;place-items:center;color:var(--sec);flex:none}
 .xbtn svg,.chev svg{display:block}
+/* every button is glass (see --glass above; `body` only so these win over each button's own rule further down);
+   a state that recolours one (recording, cancelling) still wins */
+body :is(.leave,.sound,.xbtn,.tb-side,.mc-more,.chip,.opener,.primary.soft,.gbtn){background:var(--glass);box-shadow:var(--glass-rim),var(--glass-drop);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
+body :is(.primary:not(.soft),.pill,.send,.tb-mic){background:var(--glass-pro);box-shadow:var(--glass-pro-rim),var(--glass-pro-drop);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%)}
+.primary.soft{color:var(--fg)}
+.leave:active,.sound:active,.xbtn:active,.tb-side:active,.chip:active,.opener:active,.gbtn:active{transform:scale(.94)}
+.leave,.sound,.xbtn,.tb-side,.chip,.opener,.gbtn{transition:transform .15s,opacity .2s}
 
 /* Emma's orb: her four colours swirling (MeshGradient in app/Legacy) */
 .orb{--s:200px;--k:1;width:var(--s);height:var(--s);border-radius:50%;position:relative;overflow:hidden;flex:none;
@@ -294,9 +318,27 @@ body.tabs{--tabH:49px} body.tabs.native-tabs{--tabH:60px}
 body.tabs .screen.on{padding-bottom:calc(var(--tabH) + var(--safeB) + 12px)}
 body.tabs.known #wFoot{bottom:calc(var(--tabH) + var(--safeB))} body.tabs #wFoot{padding-bottom:12px!important}
 body.tabs #peopleBox,body.tabs #forgetBtn,body.tabs #gearBtn{display:none!important}
-#aHead,#sHead{display:none} body.tabs #aHead,body.tabs #sHead{display:flex}
+#sHead{display:none} body.tabs #sHead{display:flex}
 body.tabs #about,body.tabs #settings{padding-top:var(--safeT)} body.tabs #about .topbar,body.tabs #settings .topbar{display:none}
 body.tabs #aFields .s-h:first-child{padding-top:6px}
+/* You: your card the way others see it (face, name, the one sentence, the odd details), what Emma is looking
+   for on your behalf, then the rest. Edit turns it into the form. */
+.gbtn{padding:7px 15px;border-radius:999px;font:600 15px/1.2 var(--sans);letter-spacing:-.015em;color:var(--fg)}
+.you-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 22px 24px}
+.you-hero .av{box-shadow:0 10px 28px rgba(0,0,0,.12)}
+.you-hero h2{font-size:30px;line-height:1.1;margin-top:16px}
+.you-hero .role{color:var(--sec);margin-top:6px}
+.you-line{font-size:19px;line-height:1.4;margin-top:18px;text-wrap:balance;opacity:.9}
+.you-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:18px}
+.you-tags span{font-size:13px;padding:5px 11px;border-radius:999px;background:var(--fill2);color:var(--sec);letter-spacing:-.006em}
+.you-stats{display:flex;margin-top:12px}
+.you-stats div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:13px 0 12px;position:relative}
+.you-stats div + div::before{content:"";position:absolute;left:0;top:14px;bottom:14px;border-left:.5px solid var(--sep)}
+.you-stats b{font:600 22px/1.1 var(--round)} .you-stats span{font-size:12px;color:var(--sec);letter-spacing:0}
+.you-need{padding:16px 16px 17px;font-size:22px;line-height:1.25}
+.sbody .row.you-fact{flex-direction:column;align-items:stretch;gap:2px;padding:11px 16px 12px}
+.you-fact .k{font-size:13px;color:var(--sec);letter-spacing:-.006em}
+#aView .primary{margin-top:30px} #aView .s-f{text-align:center}
 /* every tab starts the same way: its name, large, right under the status bar (the screen already pads for the notch) */
 .tab-h{font-size:34px;line-height:1.1;padding:6px var(--gut) 10px;display:flex;align-items:center;justify-content:space-between}
 .tab-list{padding:0 var(--gut)} .tab-list .row + .row::before{left:70px}
@@ -464,6 +506,8 @@ html:has(body[data-screen="settings"]),html:has(body[data-screen="about"]),html:
 .seg button{padding:5px 12px;border-radius:7px;font-size:13px;color:var(--fg)} .seg button.on{background:var(--bg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 body:not(.in-app) .app-only{display:none!important}
 .gear{z-index:4}
+/* Apple's own hammer (SF Symbols "hammer.fill", semibold), as a mask so it takes the button's colour */
+.sf-hammer{width:19px;height:19px;background:currentColor;-webkit-mask:url(data:image/png;base64,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) center/contain no-repeat;mask:url(data:image/png;base64,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) center/contain no-repeat}
 #acctScrim .sheet{height:auto;min-height:400px}
 #acctScrim .list{margin:0;background:var(--bg2)} #acctScrim .list .row + .row::before{left:16px}
 .acct-err{color:#FF3B30;min-height:18px}
@@ -501,7 +545,7 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- Welcome -->
 <section class="screen" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
-  <button class="leave" id="devBtn" aria-label="Test tools"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M14.200 9.800 4.800 19.200" stroke-width="2.800"/><path d="M12 5.500 18.500 12" stroke-width="5.600" stroke-linecap="butt"/><path d="M12 5.500 18.500 12" stroke-width="5.600" stroke-dasharray="0 9.200"/></svg></button>
+  <button class="leave" id="devBtn" aria-label="Test tools"><span class="sf-hammer"></span></button>
   <button class="leave" id="updBack" aria-label="Back"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <div class="spacer"></div>
   <div class="orb-wrap hands-stage" id="welcomeHands" data-fit="0.36,0.29"><div class="orb" style="--s:210px" data-mode="idle"></div></div>
@@ -574,14 +618,13 @@ body:not(.in-app) .app-only{display:none!important}
 <!-- Everything Emma remembers about you: read it all, fix it by hand, or tell her again -->
 <section class="screen" id="about">
   <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
-  <h1 class="serif tab-h" id="aHead">You</h1>
-  <p class="tab-empty" id="aEmpty">Emma doesn't know you yet. Talk to her on the first tab, and what she remembers shows up here.</p>
+  <h1 class="serif tab-h" id="aHead">You<button class="gbtn" id="aEdit">Edit</button></h1>
+  <p class="tab-empty" id="aEmpty" style="padding-bottom:8px">Emma doesn't know you yet. Fill this in yourself, or tell her on the first tab.</p>
+  <div class="sbody" id="aView"></div>
   <div class="sbody" id="aBody">
     <div id="aFields"></div>
     <p class="s-f" id="aSaved">Saved as you type.</p>
-    <p class="s-h">Start over</p>
-    <div class="group"><button class="row s-act" id="aRetell">Tell Emma again</button></div>
-    <p class="s-f">With ChatGPT or by voice. What you don't mention stays as it is.</p>
+    <button class="primary" id="aCreate" style="margin-top:18px" disabled>Save<small>Emma uses it to find you someone</small></button>
   </div>
 </section>
 
@@ -725,8 +768,8 @@ body:not(.in-app) .app-only{display:none!important}
   <div class="sheet" style="height:auto;gap:12px">
     <h3 class="serif" style="font-size:30px;line-height:1.15">Test tools</h3>
     <p class="sec" style="margin-bottom:4px">Shortcuts for trying things out.</p>
-    <button class="primary app-only" id="testBtn" style="background:var(--fill2);color:var(--fg)">Find another phone<small>Pairs with another test phone and points to it</small></button>
-    <button class="primary" id="devSkip" style="background:var(--fill2);color:var(--fg)">Skip the talk<small>Straight to matching as a made-up attendee</small></button>
+    <button class="primary soft app-only" id="testBtn">Find another phone<small>Pairs with another test phone and points to it</small></button>
+    <button class="primary soft" id="devSkip">Skip the talk<small>Straight to matching as a made-up attendee</small></button>
     <button class="plainbtn" id="devClose" style="margin-top:2px">Close</button>
   </div>
 </div>
@@ -1843,27 +1886,77 @@ $("#updBack").onclick = () => goHome();
 /* The whole of what Emma remembers, on its own page: each part can be fixed by hand (saved as you type),
    or told again from scratch. The first page only shows what she's looking for, in up to three lines. */
 const About = {
-  FIELDS: [["needs", "Looking for"], ["building", "Working on"], ["offers", "You can offer"], ["role", "What you do"],
+  FIELDS: [["name", "Name"], ["needs", "Looking for"], ["building", "Working on"], ["offers", "You can offer"], ["role", "What you do"],
            ["line", "In one sentence"], ["spot", "Where to find you"]],
-  open() {
-    const me = S.me;
-    $("#aEmpty").style.display = me ? "none" : ""; $("#aBody").style.display = me ? "" : "none";
-    if (!me) return show("about");
-    $("#aFields").innerHTML = this.FIELDS.map(([k, label]) =>
-      `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="400" placeholder="Not said yet">${esc(S.me[k] || "")}</textarea></div>`).join("");
-    $("#aSaved").textContent = "Saved as you type.";
+  // what to write, for someone filling it in before Emma knows them
+  HINTS: {name: "Your name", needs: "A designer, a cofounder, testers…",     // (one line each: a hint can't grow the box)
+          building: "What you're working on right now", offers: "What you could help others with",
+          role: "Your job or what you study", line: "Who you are, in one line", spot: "Back left, green jumper"},
+  editing: false, fresh: false,
+  open(edit = false) {
+    const me = S.me, fresh = !me;               // fresh: nothing yet, so the page is a form to fill in
+    this.editing = fresh || edit; this.fresh = fresh;
+    $("#aEmpty").style.display = fresh ? "" : "none";
+    $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.editing ? "Done" : "Edit";
+    $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
+    if (me && !this.editing) this.view();
+    if (this.editing) {
+      const v = me || {name: S.name || ""};
+      $("#aFields").innerHTML = this.FIELDS.map(([k, label]) =>
+        `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="${k === "name" ? 80 : 400}" placeholder="${fresh ? this.HINTS[k] : "Not said yet"}">${esc(v[k] || "")}</textarea></div>`).join("");
+      $("#aSaved").textContent = "Saved as you type."; $("#aSaved").style.display = fresh ? "none" : "";
+      $("#aCreate").style.display = fresh ? "" : "none";
+    }
     show("about");
-    $("#aFields").querySelectorAll("textarea").forEach(t => { this.fit(t); t.oninput = () => { this.fit(t); this.saveSoon(); }; });
+    if (this.editing) $("#aFields").querySelectorAll("textarea").forEach(t => {
+      this.fit(t); t.oninput = () => { this.fit(t); this.fresh ? this.ready() : this.saveSoon(); };
+    });
+    if (fresh) this.ready();
+  },
+  fields() { const o = {}; $("#aFields").querySelectorAll("textarea").forEach(t => o[t.dataset.k] = t.value.trim()); return o; },
+  // Save needs a name and at least what they're working on or looking for
+  ready() { const f = this.fields(); $("#aCreate").disabled = !(f.name && (f.needs || f.building || f.offers || f.role)); },
+  async create() {
+    const about = this.fields(), name = about.name; delete about.name;
+    $("#aCreate").disabled = true;
+    try {
+      const r = await api("/profile", {id: S.id || kept(ID_KEY), about, name});      // (S.id is only set once there's a profile)
+      if (!r.me) throw new Error("not saved");
+      await loadMe();                            // now Emma knows them: home, People and this page follow
+      S.me ||= r.me; this.open();
+    } catch { oops("Couldn't save. Check the connection."); this.ready(); }
+  },
+  view() {
+    const me = S.me, c = S.contacts || [], so = S.socials || {};
+    const sent = c.reduce((n, x) => n + x.chat.filter(m => m.from === x.you).length, 0);
+    const facts = [["Working on", me.building], ["You can offer", me.offers], ["Where to find you", me.spot]].filter(([, v]) => v);
+    const handles = SOCIALS.filter(([k]) => so[k]);
+    const tint = {x: "#000", instagram: "#E1306C", linkedin: "#0A66C2", github: "#24292F"};
+    $("#aView").innerHTML =
+      `<div class="group you-hero">${av(me, 88)}<h2 class="serif">${esc(me.name)}</h2>` +
+        (me.role ? `<p class="role">${esc(me.role)}</p>` : "") +
+        (me.line ? `<p class="serif you-line">${esc(me.line)}</p>` : "") +
+        (me.hooks?.length ? `<div class="you-tags">${me.hooks.map(h => `<span>${esc(h)}</span>`).join("")}</div>` : "") + `</div>` +
+      `<div class="group you-stats"><div><b>${c.length}</b><span>Introduced</span></div><div><b>${c.filter(x => x.outcome).length}</b><span>Met</span></div><div><b>${sent}</b><span>Messages sent</span></div></div>` +
+      `<p class="s-h">Emma is looking for</p><div class="group you-need serif">${esc((me.needs || "Someone worth meeting").replace(/[.\s]+$/, ""))}</div>` +
+      (facts.length ? `<p class="s-h">About you</p><div class="group">${facts.map(([k, v]) => `<div class="row you-fact"><span class="k">${k}</span><span>${esc(v)}</span></div>`).join("")}</div>` : "") +
+      `<p class="s-h">Where people can follow you</p><div class="group">` +
+        (handles.length ? handles.map(([k, label, g]) => `<div class="row"><span class="tile" style="background:${tint[k]}">${g}</span><span class="s-l">${label}</span><span class="s-v">@${esc(so[k])}</span></div>`).join("")
+                        : `<button class="row" id="aHandles"><span class="s-l">Add your handles</span><span class="s-chev">${CHEV}</span></button>`) + `</div>` +
+      `<button class="primary soft" id="aRetell">Tell Emma again<small>With ChatGPT or by voice</small></button>` +
+      `<p class="s-f">What you don't mention stays as it is.</p>`;
+    $("#aRetell").onclick = () => retell();
+    if ($("#aHandles")) $("#aHandles").onclick = () => Tabs.go(3);
   },
   fit(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; },
   saveSoon() { clearTimeout(this.t); $("#aSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
   async save() {
     this.t = 0;
-    const about = {};
-    $("#aFields").querySelectorAll("textarea").forEach(t => about[t.dataset.k] = t.value.trim());
-    if (!S.me) return;
+    const about = this.fields();
+    if (!S.me || !this.editing) return;
+    const name = about.name; delete about.name;
     try {
-      const r = await api("/profile", {id: S.id, about});
+      const r = await api("/profile", {id: S.id, about, name});
       if (r.me) S.me = r.me;
       $("#aSaved").textContent = "Saved. Emma uses it for your next introduction.";
     } catch { $("#aSaved").textContent = "Couldn't save. Check the connection."; }
@@ -1873,7 +1966,8 @@ const About = {
 $("#memCard").onclick = () => About.open();
 $("#aBack").onclick = async () => { await About.leave(); goHome(); };
 document.addEventListener("screen", () => { if (document.body.dataset.screen !== "about") About.leave(); });   // (leaving by the tab bar)
-$("#aRetell").onclick = async () => { await About.leave(); retell(); };
+$("#aEdit").onclick = async () => { const edit = !About.editing; await About.leave(); About.open(edit); };
+$("#aCreate").onclick = () => About.create();
 $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("pairshake.outcomes", null);
   location.reload();

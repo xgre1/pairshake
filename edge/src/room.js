@@ -721,12 +721,20 @@ export class PairShake extends DurableObject {
       u.socials = {};
       for (const [k, v] of Object.entries(d.socials)) if (["x", "instagram", "linkedin", "github"].includes(k) && str(v)) u.socials[k] = str(v).replace(/^@+/, "").slice(0, 100);
     }
+    if (isObj(d.about) && !u.profile) {      // written by hand on the You page, without talking to Emma first
+      const p = {};
+      for (const k of ["needs", "building", "offers", "role", "line", "spot"]) if (str(d.about[k])) p[k] = str(d.about[k]).slice(0, 400);
+      if (!(p.needs || p.building || p.offers || p.role)) throw new HttpError(400, "Say what you're working on or looking for.");
+      u.profile = { name: str(d.name).slice(0, 80) || u.name || "", hooks: [], ...p };
+      u.via = "form";
+    }
     if (isObj(d.about) && u.profile) {       // what Emma remembers, fixed by hand
       for (const k of ["needs", "building", "offers", "role", "line", "spot"]) if (k in d.about) u.profile[k] = str(d.about[k]).slice(0, 400);
       delete u.back;                         // her welcome-back line was about the old one
     }
     const name = str(d.name).slice(0, 80);
     if (name) { u.name = name; if (u.profile) u.profile.name = name; }
+    if (isObj(d.about) && u.profile) u.memory = { ...u.profile };    // the next match starts from what's written here
     this.save();
     return { me: u.profile ? this.person(u.id) : null, socials: u.socials, name: u.name, email: u.email || null };
   }
