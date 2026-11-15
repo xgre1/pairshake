@@ -27,7 +27,7 @@ export const PROVIDERS = {
     extra: { prompt: "select_account" },
   },
 };
-const RETURN_OK = /^(https:\/\/pairshake\.binjto\.workers\.dev|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+const RETURN_OK = /^(https:\/\/pairshake\.binjto\.workers\.dev|https:\/\/pairshake\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
 const STATE_MAX_AGE = 10 * 60 * 1000;
 
 const enc = s => new TextEncoder().encode(s);

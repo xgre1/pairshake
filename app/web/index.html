@@ -3794,6 +3794,12 @@ const Meet = {
     if (!this.m || this.mine) return;
     this.mine = true; $("#meetGo").disabled = true; $("#meetState").textContent = "Waiting for them…";
     buzz(20, "light"); this.send({t: "decide", yes: true});
+    // on the web the arrow needs the compass and location, and iPhone Safari only asks for the compass on a
+    // tap: this is the last tap before the finding opens, so ask now (and start the GPS warming up)
+    if (!APP) {
+      try { DeviceOrientationEvent?.requestPermission?.().catch(() => {}); } catch {}
+      startFind(this.m.person);
+    }
   },
   result(yes) {
     if (!this.m || this.found) return;
@@ -3833,6 +3839,7 @@ const Meet = {
     clearTimeout(this.timer);
     if (this.ws) { this.ws.onopen = this.ws.onclose = this.ws.onmessage = null; try { this.ws.close(); } catch {} if (Room.ws === this.ws) Room.ws = null; this.ws = null; }
     if (this.found) { stopFind(true); Find.secret = false; }
+    else if (this.mine && !APP && !Find.open) stopFind(true);       // the web's GPS, started at Let's go
     this.m = null; this.mine = this.found = this.met = false;
   },
 };
@@ -3970,6 +3977,8 @@ if (APP) APP.onLogin = (id, err) => signedIn(id, err);
     if (q.get("li")) { S.id = q.get("li"); keep(ID_KEY, S.id); }
     if (q.get("li_error")) setTimeout(() => signedIn("", q.get("li_error")), 300);
   }
+  // on the web a network's share link (/join/<code>) lands here as ?join=<code>: joined once signed in
+  if (q.has("join")) { keep("pairshake.join", q.get("join")); history.replaceState(null, "", location.pathname); }
 }
 if (demo) { S.signed = true; show("welcome"); }
 // someone Emma already knows opens on their home page (the stage demo always starts fresh)

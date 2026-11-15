@@ -1,0 +1,9 @@
+# PairShake on the web (Cloudflare Pages): https://pairshake.pages.dev. Deploy with ./deploy.sh.
+name = "pairshake"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-03-01"
+
+# the app's backend Worker (edge/): API, WebSocket, sign-in
+[[services]]
+binding = "API"
+service = "pairshake"

@@ -24,3 +24,7 @@ edge/src/etags.json
 # Cloudflare token for edge/wrangler.sh, and the local-only wrangler config
 .env.cloudflare
 edge/wrangler.local.jsonc
+
+# Cloudflare Pages (web/): the copied page
+web/dist/
+web/.wrangler/
