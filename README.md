@@ -13,6 +13,10 @@
 
 You tell Emma, by voice, what you're building and who you need. Your agent asks the other attendees' agents whether the two of you should meet. Emma introduces you to one person, with something to ask them and a short mission to do together. When you both say yes, your phones point you to each other.
 
+<p align="center">
+  <img src="docs/screens.png" width="100%" alt="Three screens of the app: the introduction, what you share, and the arrow that leads you to the other person">
+</p>
+
 ## How it works
 
 1. **Talk to Emma.** Hold the mic and answer a few questions.
