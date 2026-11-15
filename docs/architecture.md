@@ -66,7 +66,7 @@ Rooms (who is connected to which introduction right now) are the Durable Object'
 At most 16 model calls run at once, at most 12 of them agents' talks, however many people are matching.
 
 
-**Who can meet whom.** People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband). Test attendees never start or appear in real matches.
+**Who can meet whom.** Finding happens inside an event: you join one Luma event at a time (any time, even a week before), and Find opens when the event starts and closes 6 hours after it ends. Emma only introduces you to people who joined the same event. Without an event, Find takes you to choose one. People on the iPhone app only meet other app users (so their phones can find each other by Ultra Wideband). Test attendees never start or appear in real matches.
 
 **Voice.** `/speak` turns Emma's line into a WAV with ElevenLabs, once: every line is kept in the R2 bucket `pairshake-voice` and served from there ever after. It only voices lines Emma really says (her script, what she said lately, the page's own lines about someone in the room). If ElevenLabs is down, Workers AI's voice stands in and that line isn't kept. `/hear` takes 16 kHz mono PCM and returns Whisper's transcript (Workers AI). The script's lines are checked at start-up, so the first seconds are instant.
 

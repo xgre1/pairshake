@@ -40,9 +40,9 @@ export function clean(ev, extra = {}) {
   };
 }
 
-/** A Luma link or slug pasted into the search box ("lu.ma/abc123", "luma.com/abc123"), else null. */
+/** A Luma link pasted into the search box, alone or with text around it ("lu.ma/abc123", "luma.com/abc123"), else null. */
 function slugOf(q) {
-  const m = q.match(/^(?:https?:\/\/)?(?:www\.)?(?:lu\.ma|luma\.com)\/(?:event\/)?([\w-]{3,80})\/?(?:[?#].*)?$/i);
+  const m = q.match(/(?:^|[^\w.\/])(?:https?:\/\/)?(?:www\.)?(?:lu\.ma|luma\.com)\/(?:event\/)?([\w-]{3,80})(?![\w-])/i);
   return m ? m[1] : null;
 }
 

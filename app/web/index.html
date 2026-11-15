@@ -1696,11 +1696,8 @@ $("#introduceBtn").onclick = () => {
   const socials = {};
   document.querySelectorAll("#handleGroup input").forEach(i => { socials[i.dataset.k] = i.value.trim(); try { localStorage.setItem("h." + i.dataset.k, i.value.trim()); } catch {} });
   Voice.stopSpeaking();
-  // in a room (your Luma event, or a network you're live in): your card is written, then back to the room to wait;
-  // finding starts only when you tap it there
-  const room = S.event ? "event" : Nets.cur?.you_live ? "live" : "";
-  if (!room) return findMatch(socials);
-  settleInRoom(socials, room);
+  // your card is written, then on to your event to find people there when you tap it (no event yet: choose yours)
+  settleInRoom(socials, S.event ? "event" : "");
 };
 async function settleInRoom(socials, room) {
   const b = $("#introduceBtn"), was = b.innerHTML;
@@ -1708,7 +1705,7 @@ async function settleInRoom(socials, room) {
   try { await api("/match", {id: S.id, socials, wait: true}); await loadMe(); }
   catch { oops("Couldn't save that. Try again."); return; }
   finally { b.disabled = false; b.innerHTML = was; }
-  room === "event" ? Ev.enter() : Nets.live(Nets.cur);
+  room === "event" ? Ev.enter() : Ev.open("welcome");
 }
 
 /* ---------------------------------------------------------------- 3. agents talking */
@@ -1752,7 +1749,8 @@ function findMatch(socials) {
   }).catch(e => {
     if (run !== S.mrun) return;
     matchBack(from);
-    oops(e.status === 422 ? "Nobody new to meet here yet. Wait for someone to join, then try again." : "Matching failed. Try again.");
+    oops(e.status === 422 ? "Nobody new to meet here yet. Wait for someone to join, then try again."
+      : e.status === 403 ? "Finding isn't open for your event right now." : "Matching failed. Try again.");
   });
 }
 function matchBack(from) {
@@ -2273,9 +2271,14 @@ if (APP) APP.onTab = i => Tabs.go(i);
 document.addEventListener("screen", () => {            // left Settings by the tab bar: what was typed is saved
   if (document.body.dataset.screen !== "settings" && Settings.t) { clearTimeout(Settings.t); Settings.save(); }
 });
+let againBusy = false;
 $("#againBtn").onclick = async () => {
+  if (!S.event) return Ev.open("welcome");             // finding is in your event: choose it first
+  if (Ev.closed(S.event)) return Ev.enter();          // not started yet, or over: its page says so
+  if (againBusy) return; againBusy = true;            // (a second tap while the first is on its way)
   Voice.init(); Voice.ctx.resume();
-  try { await api("/again", {id: S.id}); } catch { return oops("Can't reach the PairShake server."); }
+  try { await api("/again", {id: S.id}); } catch (e) { return e.status === 403 ? Ev.enter() : oops("Can't reach the PairShake server."); }
+  finally { againBusy = false; }
   findMatch(S.socials);
 };
 /* Events: each Luma event is its own room. Choose yours (Luma's events near you, a search, or a pasted link),
@@ -2377,6 +2380,11 @@ const Ev = {
     show("event"); this.watch(); this.refresh();
   },
   enter() { S.event ? this.view(S.event) : this.open(); },
+  // finding opens when the event starts and closes 6 hours after it ends (joining works any time)
+  closed(e) {
+    const t = Date.now(), start = Date.parse(e?.start || ""), end = Date.parse(e?.end || "");
+    return t < start ? "soon" : t > end + 6 * 3600 * 1000 ? "over" : "";
+  },
   async refresh() {
     if (!this.cur) return;
     try { this.room(await api("/event?" + new URLSearchParams({id: S.id || "", event: this.cur.id}))); } catch {}
@@ -2428,9 +2436,11 @@ const Ev = {
       $("#erFind").innerHTML = `Join this event<small>${S.event ? `You'll leave ${esc(S.event.name)}` : "Then start finding people here"}</small>`;
       return;
     }
-    const known = !!S.me;
-    $("#erFind").disabled = known && !fresh;
+    const known = !!S.me, shut = this.closed(e);
+    $("#erFind").disabled = known && (!!shut || !fresh);
     $("#erFind").innerHTML = !known ? `Introduce yourself<small>Then you can start finding people here</small>`
+      : shut === "soon" ? `Finding opens when it starts<small>${esc(this.when(e))}</small>`
+      : shut === "over" ? `This event has ended<small>Finding is closed</small>`
       : fresh ? `Start finding<small>Among the ${fresh} ${fresh === 1 ? "person" : "people"} here${online ? `, ${online} online now` : ""}</small>`
       : `Start finding<small>${others ? "Nobody new to meet yet" : "Waiting for people to join"}</small>`;
   },

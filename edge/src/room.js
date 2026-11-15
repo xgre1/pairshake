@@ -166,26 +166,33 @@ export class PairShake extends DurableObject {
     };
     for (const [id, u] of Object.entries(this.users)) {
       const s = changed("u:" + id, u);
-      if (s) puts.push(db.prepare(`INSERT INTO users (id, email, name, app, test, has_profile, created_at, updated_at, data)
+      if (s) puts.push({ k: "u:" + id, q: db.prepare(`INSERT INTO users (id, email, name, app, test, has_profile, created_at, updated_at, data)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8) ON CONFLICT(id) DO UPDATE SET email = ?2, name = ?3, app = ?4, test = ?5,
-        has_profile = ?6, updated_at = ?7, data = ?8`).bind(id, u.email || null, u.name || null, u.app ? 1 : 0, u.test ? 1 : 0, u.profile ? 1 : 0, t, s));
+        has_profile = ?6, updated_at = ?7, data = ?8`).bind(id, u.email || null, u.name || null, u.app ? 1 : 0, u.test ? 1 : 0, u.profile ? 1 : 0, t, s) });
     }
     for (const [id, m] of Object.entries(this.missions)) {
       const s = changed("m:" + id, m);
-      if (s) puts.push(db.prepare(`INSERT INTO missions (id, a, b, outcome, created_at, updated_at, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+      if (s) puts.push({ k: "m:" + id, q: db.prepare(`INSERT INTO missions (id, a, b, outcome, created_at, updated_at, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
         ON CONFLICT(id) DO UPDATE SET a = ?2, b = ?3, outcome = ?4, updated_at = ?6, data = ?7`)
-        .bind(id, m.a, m.b, m.outcome == null ? null : m.outcome ? 1 : 0, m.created || t, t, s));
+        .bind(id, m.a, m.b, m.outcome == null ? null : m.outcome ? 1 : 0, m.created || t, t, s) });
     }
     const s = changed("meta:stats", this.stats);
-    if (s) puts.push(db.prepare("INSERT INTO meta (key, value) VALUES ('stats', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(s));
+    if (s) puts.push({ k: "meta:stats", q: db.prepare("INSERT INTO meta (key, value) VALUES ('stats', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(s) });
     const n = changed("meta:networks", this.networks);
-    if (n) puts.push(db.prepare("INSERT INTO meta (key, value) VALUES ('networks', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(n));
+    if (n) puts.push({ k: "meta:networks", q: db.prepare("INSERT INTO meta (key, value) VALUES ('networks', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1").bind(n) });
     const gone = [...this.written.keys()].filter(k => !live.has(k) && !k.startsWith("meta:"));
-    for (const k of gone) dels.push(db.prepare(`DELETE FROM ${k[0] === "u" ? "users" : "missions"} WHERE id = ?1`).bind(k.slice(2)));
-    const all = [...dels, ...puts];             // deletes first: a deleted account's email may be signed up again
-    for (let i = 0; i < all.length; i += 100) await db.batch(all.slice(i, i + 100));
-    for (const [k, v] of done) this.written.set(k, v);
-    for (const k of gone) this.written.delete(k);
+    for (const k of gone) dels.push({ k, q: db.prepare(`DELETE FROM ${k[0] === "u" ? "users" : "missions"} WHERE id = ?1`).bind(k.slice(2)) });
+    const all = [...dels, ...puts], failed = new Set();     // deletes first: a deleted account's email may be signed up again
+    for (let i = 0; i < all.length; i += 100) {
+      const chunk = all.slice(i, i + 100);
+      try { await db.batch(chunk.map(x => x.q)); }
+      catch {            // one bad row (too big, say) doesn't hold back the rest: each alone, and what fails is tried again later
+        for (const x of chunk) try { await db.batch([x.q]); } catch (e) { failed.add(x.k); console.log("db error:", x.k, String(e).slice(0, 200)); }
+      }
+    }
+    for (const [k, v] of done) if (!failed.has(k)) this.written.set(k, v);
+    for (const k of gone) if (!failed.has(k)) this.written.delete(k);
+    if (failed.size) throw new Error(`${failed.size} not written`);
   }
 
   // ---- people ---------------------------------------------------------------------------------------------
@@ -209,24 +216,28 @@ export class PairShake extends DurableObject {
     return self ? { ...card, hidden: u.hidden || [] } : hideFrom(card, u.hidden);
   }
 
-  /** Who an attendee can meet. The iPhone app and the web page are separate rooms (so phones can find each
-      other by Ultra Wideband), and so is each event: someone who joined an event only meets people in it (and
-      people in no event only each other). Emma's demo attendees are in all of them. */
+  /** Who an attendee can meet: the people who joined the same event (one event at a time), with a card, not paused
+      and not test attendees. The iPhone app and the web page are separate rooms (so phones can find each other by
+      Ultra Wideband). Without an event there's nobody to meet. */
   candidates(exclude, app = false, seeds = true) {
-    // live in a network: its room is the people live in it right now (real people only, from the app or the web)
-    if (this.users[exclude]?.test) return [];        // a test attendee never starts a real introduction
-    const net = this.users[exclude]?.live?.network;
-    if (net && this.networks[net] && this.networks[net].expires > now()) {
-      return this.networks[net].members.filter(id => id !== exclude && this.users[id]?.live?.network === net &&
-        this.users[id].profile && !this.users[id].test && !this.users[id].paused).map(id => this.person(id));
-    }
-    // real people only for now: Emma's made-up attendees are never offered (seeds is kept for the callers)
+    const me = this.users[exclude], ev = me?.event?.id;
+    if (!ev || me.test) return [];
     const out = [];
-    const ev = this.users[exclude]?.event?.id || null;
     for (const [uid, u] of Object.entries(this.users)) {
-      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused && (u.event?.id || null) === ev) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
+      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused && u.event?.id === ev) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
     }
     return out;
+  }
+
+  /** Why Find is closed for them now, or null when it's open: it opens when their event starts and closes 6 hours
+      after it ends (joining works any time). */
+  findClosed(u) {
+    const e = u.event;
+    if (!e) return "Choose your event first.";
+    const t = Date.now(), start = Date.parse(e.start || ""), end = Date.parse(e.end || "");
+    if (t < start) return `Finding opens when ${e.name} starts.`;
+    if (t > end + 6 * 3600 * 1000) return `${e.name} has ended.`;
+    return null;
   }
 
   // ---- events (Luma) ------------------------------------------------------------------------------------------
@@ -404,7 +415,7 @@ export class PairShake extends DurableObject {
     if (out.done) {
       say = P.THINKING;
       u.transcript[u.transcript.length - 1] = ["emma", say];
-      this.beginMatch(u);         // think while Emma talks
+      this.stopMatch(u);          // (finding starts only when they tap it, in their event)
     }
     this.said.add(say);
     this.save();
@@ -598,8 +609,7 @@ export class PairShake extends DurableObject {
     if (spot) transcript.push(["emma", "And where are you in the room?"], ["you", spot]);
     Object.assign(u, { transcript, turns: 0, known: {}, via: "chatgpt" });
     this.writePersona(u, text);   // the structured persona, in the background (the match doesn't wait for it)
-    this.stopMatch(u);            // (one still being worked out from before is dropped)
-    this.beginMatch(u);           // think while they add their handles
+    this.stopMatch(u);            // (finding starts only when they tap it, in their event)
     this.save();
     return { id: u.id, code: u.code, say: P.THINKING };
   }
@@ -626,6 +636,8 @@ export class PairShake extends DurableObject {
     u.socials = u.socials || {};        // handles sent here are added; an empty box doesn't erase one saved before
     for (const [k, v] of Object.entries(isObj(d.socials) ? d.socials : {})) if (str(v)) u.socials[k.slice(0, 20)] = str(v).replace(/^@+/, "").slice(0, 100);
     if (d.wait) return this.settle(u);
+    const closed = this.findClosed(u);
+    if (closed) throw new HttpError(403, closed);
     const gen = this.gen.get(u.id) || 0, stopped = () => (this.gen.get(u.id) || 0) !== gen;
     // a second /match while one is being worked out waits for the same one; a result is used once
     const take = async task => { try { return await task; } finally { if (this.pending.get(u.id) === task) this.pending.delete(u.id); } };
@@ -894,6 +906,8 @@ export class PairShake extends DurableObject {
   again(d) {
     const u = this.user(d.id);
     if (!u || !u.profile) notFound();
+    const closed = this.findClosed(u);
+    if (closed) throw new HttpError(403, closed);
     this.stopMatch(u);            // (a second tap starts over: the first one introduces nobody)
     this.beginMatch(u);
     return { ok: true };
