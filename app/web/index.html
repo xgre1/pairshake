@@ -169,7 +169,9 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:#000}
 /* live (looking in a network): Emma's hands thinking, one line on what your agent is doing, and X. Nothing else. */
 #live{color:var(--fg);background:var(--bg)}
 body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)}
-#live .lv-bg,#live .lv-state,#live .lv-name,#live .lv-radar,#live .lv-foot{display:none!important}
+#live .lv-bg,#live .lv-state,#live .lv-name,#live .lv-radar,#live #lvLeave{display:none!important}
+#live .lv-foot{padding:0 0 calc(16px + var(--safeB))} #live .lv-row{margin:0}
+#live .lv-foot #lvShare{background:var(--glass);color:var(--fg);box-shadow:var(--glass-rim),var(--glass-drop)}   /* only Invite people, under the line */
 #lvHands{margin-top:-16vh}   /* (her hands sit low in their frame: lifted, so the two of them and the line are in the middle) */
 #live .lv-sub{font-size:19px;line-height:1.4;opacity:.8;text-wrap:balance;padding:0 12px;margin-top:4px;min-height:54px}
 .netlive.off .nl-radar span{animation:none} .netlive.off .nl-radar i{background:rgba(255,255,255,.6);box-shadow:none}
@@ -1119,7 +1121,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <div class="spacer"></div>
   <div class="lv-foot">
     <button class="primary" id="lvFind" disabled>Start finding<small id="lvFindSub">Waiting for people to join</small></button>
-    <div class="lv-row"><button class="plainbtn" id="lvShare">Invite people</button><button class="plainbtn" id="lvLeave">Leave</button></div>
+    <div class="lv-row"><button class="primary soft" id="lvShare">Invite people</button><button class="plainbtn" id="lvLeave">Leave</button></div>
   </div>
 </section>
 
