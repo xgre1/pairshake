@@ -12,6 +12,8 @@ import * as M from "./matching.js";
 import * as P from "./prompts.js";
 import { ask, QUICK, MAIN } from "./llm.js";
 import { speak } from "./voice.js";
+import { readTraits, DIMENSIONS, vector } from "./traits.js";
+import SEED_TRAITS from "./seed_traits.json";
 
 const MAX_TURNS = 3;          // the chat is only there to get to an introduction: at most two questions after the opener
 // Testing: Emma follows one fixed script, so every line is voiced once and then always comes from
@@ -82,6 +84,7 @@ export class PairShake extends DurableObject {
     this.stats = { spoke: 0, intros: 0, met: 0 };
     this.written = new Map(); // "u:<id>", "m:<id>", "meta:stats" -> the JSON last written to D1
     this.pending = new Map(); // user id -> the match being worked out
+    this.enriching = new Set(); // user ids whose persona and traits are being written
     this.scans = new Map();   // user id -> {talks, total, sent, closed, muse}: one agent-to-agent talk per attendee
     this.claims = [];         // pairs just chosen whose introduction isn't made yet
     this.talkTasks = new Map();
@@ -93,6 +96,7 @@ export class PairShake extends DurableObject {
     this.agentsTurns = new Turns(12);
     this.flushing = Promise.resolve();
     ctx.blockConcurrencyWhile(() => this.load());
+    ctx.waitUntil(this.backfillTraits());     // people with a profile from before the traits existed get them now
     // the whole script, voiced (or found in R2) ahead of the first person, so the first seconds are instant
     const lines = [P.OPENER, P.THINKING, ...(SCRIPT ? [...Object.values(P.ASK), P.SCRIPT_BACK, ...Object.values(P.SCRIPT_MUSE), ...P.SCRIPT_FALLBACK] : []), ...NUDGES, ...FILLERS];
     ctx.waitUntil(Promise.all(lines.map(l => speak(env, l).catch(e => console.log("voice warm-up:", String(e))))));
@@ -325,8 +329,56 @@ export class PairShake extends DurableObject {
 
   /** No talking: the attendee asked ChatGPT, which already knows them, to answer Emma's questions and pasted its
       answer here. It stands in for the voice chat, and the matching starts at once. */
+  /** No AI of their own: our agent asks the profile's questions (prompts.js ONBOARD). The page keeps the chat
+      and sends it whole each turn; when done, it gets the same PAIRSHAKE PROFILE text the AIs write, for /quick. */
+  async onboard(d) {
+    const u = this.user(d.id) || notFound();
+    const turns = (Array.isArray(d.chat) ? d.chat : []).slice(-40)
+      .map(c => `${c && c.from === "agent" ? "Agent" : "Person"}: ${str(c && c.text).slice(0, 1200)}`).join("\n");
+    const mine = (Array.isArray(d.chat) ? d.chat : []).filter(c => c && c.from !== "agent").length;
+    const wrapUp = d.finish || mine >= 14;      // they asked to stop, or it has gone on long enough
+    const name = u.name ? `Their name (from how they signed in): ${u.name}\n\n` : "";
+    let out;
+    try {
+      const chat = (turns || "(empty)") + (wrapUp ? "\n(Finish now: set done to true and write the profile from what they said.)" : "");
+      out = await ask(this.env, M.fill(P.ONBOARD, { chat, name }), { timeout: 30 });
+    } catch (e) {
+      console.log("onboard error:", String(e).slice(0, 200));
+      throw new HttpError(502, "Couldn't think of the next question. Try again.");
+    }
+    const done = !!out.done && str(out.profile).length > 80;
+    return { say: str(out.say).slice(0, 600) || "Thanks, that's everything I need.", done, profile: done ? str(out.profile).slice(0, 6000) : "" };
+  }
+
+  /** What someone told us, as text for the persona and traits: their AI's write-up or their chat with Emma,
+      else the profile they typed. */
+  sourceText(u) {
+    const chat = (u.transcript || []).some(([r]) => r !== "emma") ? this.convo(u) : "";
+    return chat || JSON.stringify(u.profile || {});
+  }
+
+  /** Traits for everyone who has a profile but none yet (one person at a time, so the model isn't flooded). */
+  async backfillTraits() {
+    const todo = Object.values(this.users).filter(u => u.profile && !u.traits && !u.test).slice(0, 60);
+    if (todo.length) console.log(`traits backfill: ${todo.length} people`);
+    for (const u of todo) await this.writePersona(u, this.sourceText(u));
+  }
+
+  /** For matching: anyone's traits, demo attendees included. {v: {key: 0-1}, c: {key: 0-1}, type, summary,
+      vector: [44 values in DIMENSIONS order], confidence: [44]}, or null while they're still being read. */
+  traitsOf(pid) {
+    const t = SEED_TRAITS[pid] || this.users[pid]?.traits;
+    return t ? { ...t, ...vector(t) } : null;
+  }
+
   /** The structured persona (prompts.js PERSONA) from what their AI wrote and how they signed in. */
   async writePersona(u, text) {
+    if (this.enriching.has(u.id)) return;
+    this.enriching.add(u.id);
+    try { await this.enrich(u, text); } finally { this.enriching.delete(u.id); }
+  }
+
+  async enrich(u, text) {
     const signin = JSON.stringify({ name: u.name || "", via: u.linkedin ? "LinkedIn" : u.google ? "Google" : u.email ? "email" : "",
       email: u.linkedin?.email || u.google?.email || u.email || "" });
     try {
@@ -341,6 +393,11 @@ export class PairShake extends DurableObject {
       }
       this.save();
     } catch (e) { console.log("persona error:", String(e).slice(0, 200)); }
+    try {                         // then the 44 numbers (traits.js): what matching can work with
+      u.traits = { ...(await readTraits(this.env, text, u.persona)), at: now() };
+      this.save();
+      console.log(`traits ${u.id}: ${u.traits.type}, ${u.traits.readings} readings`);
+    } catch (e) { console.log("traits error:", String(e).slice(0, 200)); }
   }
 
   async quick(d, app) {
@@ -385,6 +442,7 @@ export class PairShake extends DurableObject {
     if (u.cancelled) { delete u.cancelled; return json({ cancelled: true }, 409); }    // they stopped looking meanwhile
     u.profile = r.me || u.profile || {};
     u.name = u.profile.name || u.name;
+    if (!u.traits) this.writePersona(u, this.sourceText(u));     // (after a voice chat; the pasted kind started already)
     const them = this.person(r.match_id) || room[0];
     const mid = hexId(8);
     this.missions[mid] = {
@@ -560,7 +618,9 @@ export class PairShake extends DurableObject {
     return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
              photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email),
              via: u.linkedin ? "LinkedIn" : u.google ? "Google" : "", login: u.linkedin?.email || u.google?.email || u.email || "",
-             persona: u.persona || null, paused: !!u.paused };
+             paused: !!u.paused,
+             traits: u.traits ? { v: u.traits.v, c: u.traits.c, type: u.traits.type, summary: u.traits.summary } : null,
+             dims: u.traits ? DIMENSIONS : undefined };
   }
 
   missionFor(mid, viewer) {
@@ -749,6 +809,7 @@ export class PairShake extends DurableObject {
       if (!(p.needs || p.building || p.offers || p.role)) throw new HttpError(400, "Say what you're working on or looking for.");
       u.profile = { name: str(d.name).slice(0, 80) || u.name || "", hooks: [], ...p };
       u.via = "form";
+      this.writePersona(u, this.sourceText(u));
     }
     if (isObj(d.about) && u.profile) {       // what Emma remembers, fixed by hand
       for (const k of ["needs", "building", "offers", "role", "line", "spot"]) if (k in d.about) u.profile[k] = str(d.about[k]).slice(0, 400);
@@ -992,6 +1053,7 @@ export class PairShake extends DurableObject {
           case "/start": return json(await this.start(d, app));
           case "/turn": return json(await this.turn(d));
           case "/quick": return json(await this.quick(d, app));
+          case "/onboard": return json(await this.onboard(d));
           case "/match": { const r = await this.match(d); return r instanceof Response ? r : json(r); }
           case "/match/cancel": return json(this.cancel(d));
           case "/again": return json(this.again(d));

@@ -13,10 +13,10 @@ import * as Auth from "./auth.js";
 
 export { PairShake };
 
-const API = new Set(["/start", "/turn", "/quick", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
+const API = new Set(["/start", "/turn", "/quick", "/onboard", "/match", "/match/cancel", "/again", "/test/match", "/account", "/profile", "/feedback",
   "/inbox", "/talk", "/ws", "/scan", "/me", "/suggest", "/room"]);
 // what costs money per call (the model, the voice, the ears): limited per address, generously (a venue's Wi-Fi is one address)
-const COSTLY = new Set(["/hear", "/speak", "/start", "/turn", "/quick", "/again", "/suggest", "/account", "/feedback"]);
+const COSTLY = new Set(["/hear", "/speak", "/start", "/turn", "/quick", "/onboard", "/again", "/suggest", "/account", "/feedback"]);
 const MAX_HEAR = 16000 * 2 * 90;      // 90 s of 16 kHz int16
 
 const room = env => env.ROOM.get(env.ROOM.idFromName("room"));

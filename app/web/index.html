@@ -80,10 +80,22 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 #gate{justify-content:center}
 /* the three AIs, each in its own colours, logo first */
 .ais{display:flex;flex-direction:column;gap:12px}
+/* Settings: the summary and the traits */
+.tr-sum{font-size:19px;line-height:1.4;padding:14px 16px}
+.tr-type{font:600 13px/1 var(--sans);background:var(--fg);color:var(--bg);border-radius:6px;padding:4px 7px;margin-left:6px;vertical-align:2px}
+.tr-g{padding-top:16px!important;font-weight:600;color:var(--fg)!important}
+.tr-row{gap:10px;min-height:40px}
+.tr-k{flex:0 0 46%;font-size:15px}
+.tr-bar{flex:1;height:6px;border-radius:3px;background:var(--fill2);overflow:hidden}
+.tr-bar i{display:block;height:100%;background:var(--fg);border-radius:3px}
+.tr-v{flex:none;width:36px;text-align:right;font-size:13px;color:var(--sec);font-variant-numeric:tabular-nums}
 .ai{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:64px;border-radius:999px;
   font:600 19px/1 var(--sans);letter-spacing:-.01em;transition:transform .12s}
 .ai:active{transform:scale(.98)}
 .ai .ai-logo{width:28px;height:28px;flex:none}
+.ai.ai-ours{height:52px;background:none;color:var(--sec);font-weight:500;font-size:16px}
+#onb{height:100dvh} #onb .chat{padding-top:14px} #onbDone{padding:6px 0 2px}
+.sound{display:none!important}
 .ai[data-ai="chatgpt"]{background:#000;color:#fff}
 .ai[data-ai="claude"]{background:#F0EEE6;color:#141413}
 .ai[data-ai="gemini"]{background:#fff;color:#1F1F1F;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
@@ -595,6 +607,14 @@ body:not(.in-app) .app-only{display:none!important}
   <div style="padding:0 var(--gut) calc(16px + var(--safeB))"><button class="primary li" id="liBtn"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="4" fill="#fff"/><path fill="#0A66C2" d="M7.1 9.4H4.6V19h2.5V9.4zM5.85 5.2a1.45 1.45 0 1 0 0 2.9 1.45 1.45 0 0 0 0-2.9zM19.4 13.7c0-2.6-.6-4.5-3.6-4.5-1.45 0-2.4.8-2.8 1.55h-.04V9.4h-2.4V19h2.5v-4.75c0-1.25.24-2.47 1.8-2.47 1.53 0 1.55 1.43 1.55 2.55V19h2.5l.03-5.3z"/></svg>Continue with LinkedIn</button><button class="primary g" id="gBtn"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continue with Google</button></div>
 </section>
 
+<!-- No AI of your own: our agent asks what the copied prompt asks theirs -->
+<section class="screen" id="onb">
+  <div class="topbar"><button class="chev" id="onbBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Getting to know you</div></div>
+  <div class="chat" id="onbChat"></div>
+  <button class="plainbtn foot" id="onbDone">That's enough, write my profile</button>
+  <form class="composer" id="onbForm"><input class="field" id="onbInput" placeholder="Your answer" autocomplete="off" enterkeyhint="send"><button class="send" id="onbSend" aria-label="Send" disabled><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
+</section>
+
 <!-- Welcome -->
 <section class="screen" id="welcome">
   <button class="leave gear" id="gearBtn" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-dasharray="3.1 2.87"/><circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></button>
@@ -618,7 +638,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><div class="ais new-only"><button class="ai" data-ai="chatgpt"><svg class="ai-logo openai" aria-hidden="true" fill="currentColor" fill-rule="evenodd" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"></path></svg><span>Ask ChatGPT</span></button><button class="ai" data-ai="claude"><svg class="ai-logo claude" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z" fill="#D97757" fill-rule="nonzero"></path></svg><span>Ask Claude</span></button><button class="ai" data-ai="gemini"><svg class="ai-logo gemini" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="#3186FF"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-0-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-1-_R_0_)"></path><path d="M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z" fill="url(#ps-lobe-icons-gemini-2-_R_0_)"></path><defs><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-0-_R_0_" x1="7" x2="11" y1="15.5" y2="12"><stop stop-color="#08B962"></stop><stop offset="1" stop-color="#08B962" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-1-_R_0_" x1="8" x2="11.5" y1="5.5" y2="11"><stop stop-color="#F94543"></stop><stop offset="1" stop-color="#F94543" stop-opacity="0"></stop></linearGradient><linearGradient gradientUnits="userSpaceOnUse" id="ps-lobe-icons-gemini-2-_R_0_" x1="3.5" x2="17.5" y1="13.5" y2="12"><stop stop-color="#FABC12"></stop><stop offset=".46" stop-color="#FABC12" stop-opacity="0"></stop></linearGradient></defs></svg><span>Ask Gemini</span></button><button class="ai ai-ours" id="onbBtn"><span>No AI? Answer a few questions</span></button></div><button class="primary" id="againBtn">Find someone new<small>From what your AI told us</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -1867,7 +1887,7 @@ async function loadMe() {
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
     const d = await r.json();
-    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused;
+    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || ""; S.signed = !!d.signed; S.via = d.via || ""; S.login = d.login || ""; S.paused = !!d.paused; S.traits = d.traits || null; S.dims = d.dims || null;
     document.body.classList.toggle("linked", !!d.linkedin);
     if (S.signed && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
       $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}.`;
@@ -1974,7 +1994,7 @@ const About = {
     $("#aEmpty").style.display = "none"; $("#aStart").style.display = fresh ? "" : "none";
     $("#aEdit").style.display = me ? "" : "none"; $("#aEdit").textContent = this.editing ? "Done" : "Edit";
     $("#aView").style.display = me && !this.editing ? "" : "none"; $("#aBody").style.display = this.editing ? "" : "none";
-    if (me && !this.editing) this.view();
+    if (me && !this.editing) { this.view(); $("#aView").insertAdjacentHTML("beforeend", Traits.html(me)); }   // summary and, for the demo, the numbers
     if (fresh) $("#aMe").innerHTML = `${av({name: S.name || "?", color: "#B9A7FF", photo: S.photo}, 52)}` +
       `<div><div class="n">${esc(S.name || "You")}</div><div class="e">Emma doesn't know you yet</div></div>`;
     if (this.editing) {
@@ -2067,6 +2087,70 @@ const twoTaps = (btn, label, act) => {          // dangerous rows ask once more 
     setTimeout(() => { delete btn.dataset.armed; btn.textContent = label; }, 4000);
   };
 };
+/* What PairShake read about you: a short summary, and (for the demo) the 44 numbers matching works with,
+   each 0 to 1, grouped, with a 16personalities-style type drawn from the Big Five. Faint bars are guesses. */
+const Traits = {
+  GROUPS: [["personality", "Personality"], ["values", "Values"], ["interests", "Interests"], ["work", "How you work"],
+           ["networking", "How you network"], ["career", "Career"]],
+  label: k => k.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()),
+  html(me) {
+    const t = S.traits;
+    const summary = t?.summary || me?.line || "";
+    if (!me && !t) return "";
+    let out = summary ? `<div class="group"><p class="tr-sum serif">${esc(summary)}</p></div>` : "";
+    if (!t) return out + `<p class="s-f">Working out your traits\u2026 They show up here in a minute.</p>`;
+    out += `<p class="s-h">How PairShake reads you <span class="tr-type">${esc(t.type)}</span></p>`;
+    for (const [g, name] of this.GROUPS) {
+      const rows = (S.dims || []).filter(d => d[1] === g).map(([k, , lo, hi]) => {
+        const v = t.v?.[k] ?? 0.5, c = t.c?.[k] ?? 0;
+        return `<div class="row tr-row" title="${esc(lo ? lo + " \u2194 " + hi : hi)}"><span class="tr-k">${esc(this.label(k))}</span>` +
+          `<span class="tr-bar"><i style="width:${Math.round(v * 100)}%;opacity:${(0.25 + 0.75 * c).toFixed(2)}"></i></span><span class="tr-v">${v.toFixed(2)}</span></div>`;
+      }).join("");
+      if (rows) out += `<p class="s-f tr-g">${name}</p><div class="group">${rows}</div>`;
+    }
+    return out;
+  },
+};
+
+/* No AI of their own: our agent asks the profile's questions one or two at a time (edge: /onboard), then
+   writes the same PAIRSHAKE PROFILE the AIs write, and it goes in exactly like a pasted answer. */
+const Onb = {
+  chat: [], busy: false,
+  async open() { this.chat = []; this.render(); show("onb"); Tabs.sync(); await this.turn(); },
+  render(typing) {
+    $("#onbChat").innerHTML = this.chat.map(c => `<div class="b ${c.from === "agent" ? "them" : "me"}">${esc(c.text)}</div>`).join("") +
+      (typing ? `<div class="b them" style="opacity:.6">\u00b7\u00b7\u00b7</div>` : "");
+    const el = $("#onbChat"); el.scrollTop = el.scrollHeight;
+    $("#onbDone").style.visibility = this.chat.some(c => c.from === "me") ? "visible" : "hidden";
+  },
+  async turn(finish) {
+    this.busy = true; this.render(true);
+    try {
+      const r = await api("/onboard", {id: S.id || kept(ID_KEY), chat: this.chat, finish: !!finish});
+      this.chat.push({from: "agent", text: r.say}); this.render();
+      if (r.done && r.profile) { $("#onbInput").disabled = true; await this.submit(r.profile); }
+    } catch { this.render(); oops("Can't reach the PairShake server."); }
+    finally { this.busy = false; }
+  },
+  async submit(text) {
+    try {
+      const r = await fetch("/quick", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({id: S.id || kept(ID_KEY), text})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return oops(d.error || "Something went wrong. Try again.");
+      S.id = d.id; keep(ID_KEY, d.id); buzz(30, "light");
+      $("#onbInput").disabled = false; showSocials();
+    } catch { oops("Can't reach the PairShake server."); }
+  },
+};
+$("#onbBtn").onclick = () => Onb.open();
+$("#onbBack").onclick = () => { show("welcome"); Tabs.sync(); };
+$("#onbInput").oninput = e => $("#onbSend").disabled = !e.target.value.trim();
+$("#onbForm").onsubmit = e => {
+  e.preventDefault(); const t = $("#onbInput").value.trim(); if (!t || Onb.busy) return;
+  Onb.chat.push({from: "me", text: t}); $("#onbInput").value = ""; $("#onbSend").disabled = true; Onb.turn();
+};
+$("#onbDone").onclick = () => { if (!Onb.busy) Onb.turn(true); };
+
 const Settings = {
   open() { this.render(); show("settings"); },
   render() {
