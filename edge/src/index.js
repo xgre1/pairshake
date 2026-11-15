@@ -1,12 +1,14 @@
-/* Roomie on Cloudflare: https://roomie.binjto.workers.dev. Nothing runs on the Mac.
+/* PairShake's backend, for the iPhone app: https://roomie.binjto.workers.dev. Nothing runs on the Mac.
 
-   - The web app (index.html and Emma's hands) is static and served from Cloudflare's edge.
+   - The app's page (app/web: index.html and Emma's hands) is static and served from Cloudflare's edge, only to
+     the app. The hands' models are checked against the copy in the app's bundle (ETag), so it rarely downloads them.
    - Emma's ears (/hear) run here, on Workers AI. Her voice (/speak) comes straight from R2 when the line was
      ever voiced before; a new line goes to the room, which checks that Emma really says it.
    - Everything else (the API and the rooms' WebSockets) goes to the one Durable Object that is the room
      (room.js), so every attendee sees the same people, matches and chats. */
 import { Roomie } from "./room.js";
 import { hear, voiceKey } from "./voice.js";
+import ETAGS from "./etags.json";
 
 export { Roomie };
 
@@ -36,19 +38,37 @@ export default {
       }
       if (path === "/health") return json({ ok: true });
       if (API.has(path)) return room(env).fetch(req);
-      const r = await env.ASSETS.fetch(req);
-      if (path === "/" || path === "/index.html") {      // the app itself is never cached: a deploy shows at once
+      if (path === "/" || path === "/index.html") {
+        if (!(req.headers.get("user-agent") || "").includes("RoomieApp")) return appOnly();
+        const r = await env.ASSETS.fetch(req);
         const out = new Response(r.body, r);
-        out.headers.set("cache-control", "no-store");
+        out.headers.set("cache-control", "no-store");      // never cached: a deploy shows at once
         return out;
       }
-      return r;
+      const tag = req.method === "GET" && ETAGS[path];
+      if (tag) {                                           // a model the app may already have in its bundle
+        const headers = { etag: tag, "cache-control": "no-cache" };
+        if (req.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers });
+        const r = await env.ASSETS.fetch(new Request(url.origin + path));
+        const out = new Response(r.body, r);
+        for (const [k, v] of Object.entries(headers)) out.headers.set(k, v);
+        return out;
+      }
+      return env.ASSETS.fetch(req);
     } catch (e) {
       console.log("edge error", path, e && e.stack || String(e));
       return json({ error: "Something went wrong. Try again." }, 500);
     }
   },
 };
+
+/** PairShake lives in the iPhone app; a browser gets a short note instead of the page. */
+function appOnly() {
+  return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PairShake</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;font:17px -apple-system,system-ui,sans-serif;background:#000;color:#fff;text-align:center">
+<div><h1 style="font-size:28px;margin:0 0 8px">PairShake</h1><p style="margin:0;opacity:.6">PairShake is an iPhone app.</p></div>`,
+    { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
 
 /** 16 kHz mono int16 PCM in, the words out. An empty body says whether the ears are there (they are). */
 async function ears(req, env) {

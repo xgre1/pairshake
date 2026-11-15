@@ -1,4 +1,4 @@
-// Roomie, all on Cloudflare: https://roomie.binjto.workers.dev. Deploy with ./deploy.sh (it copies the web app in first).
+// PairShake's backend for the iPhone app, all on Cloudflare: https://roomie.binjto.workers.dev. Deploy with ./deploy.sh (it copies app/web in first).
 // Secrets (set with `wrangler secret put`): GEMINI_API_KEY, ELEVENLABS_API_KEY, ADMIN_TOKEN.
 {
   "name": "roomie",
@@ -9,7 +9,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // the web app (copied from ../server/web by deploy.sh); the Worker goes first so the API is never a file
+  // the app's page and Emma's hands (copied from ../app/web by deploy.sh); the Worker goes first so the API is never a file
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   // the room: every person, introduction and chat (room.js)
   "durable_objects": { "bindings": [{ "name": "ROOM", "class_name": "Roomie" }] },

@@ -1,16 +1,16 @@
 # edge
 
-Roomie's backend, all on Cloudflare: **https://roomie.binjto.workers.dev**. Nothing runs on the Mac.
+PairShake's backend for the iPhone app, all on Cloudflare: **https://roomie.binjto.workers.dev**. Nothing runs on the Mac.
 
 ```sh
-./deploy.sh      # copy the web app from ../server/web and deploy (or `make edge`)
+./deploy.sh      # copy the app's page from ../app/web and deploy (or `make edge`)
 ```
 
 | File | What it is |
 | --- | --- |
-| `src/index.js` | The Worker. Serves the web app from static assets, runs Emma's ears (`/hear`, Whisper on Workers AI), answers `/speak` straight from R2 when the line was voiced before, and sends everything else to the room. |
-| `src/room.js` | The room: one Durable Object holding every person, introduction and chat, the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of `server/server.py`, same API ([docs/api.md](../docs/api.md)). |
-| `src/matching.js` | Who meets whom, and the spark. A port of `server/matching.py`. |
+| `src/index.js` | The Worker. Serves the app's page from static assets (to the app only; a browser gets a short note), checks the hands' models against the app's bundled copies by ETag, runs Emma's ears (`/hear`, Whisper on Workers AI), answers `/speak` straight from R2 when the line was voiced before, and sends everything else to the room. |
+| `src/room.js` | The room: one Durable Object holding every person, introduction and chat, the interview, matching, accounts and the rooms' WebSockets (with hibernation). A port of the first, Python server (now in `~/Desktop/pairshake-web`), same API ([docs/api.md](../docs/api.md)). |
+| `src/matching.js` | Who meets whom, and the spark. A port of the Python `matching.py`. |
 | `src/llm.js` | Gemini: flash-lite for the chat and the quick jobs, flash for the spark and the agents' talk. |
 | `src/voice.js` | Emma's voice (ElevenLabs, kept in R2 for good; Workers AI's voice if ElevenLabs is down) and ears. |
 | `src/prompts.js` | Every prompt and line Emma says, and the demo attendees. |
@@ -22,9 +22,9 @@ Set once with `npx wrangler secret put <NAME>`; they are never in the repository
 
 | Name | What |
 | --- | --- |
-| `GEMINI_API_KEY` | The model. A local copy is in `server/.env` (ignored by git). |
+| `GEMINI_API_KEY` | The model. A local copy is in `.dev.vars` (ignored by git). |
 | `ELEVENLABS_API_KEY` | Emma's voice (from `~/.elevenlabsrc`). |
-| `ADMIN_TOKEN` | For `/admin/export` and `/admin/import`. A local copy is `ROOMIE_ADMIN_TOKEN` in `server/.env`. |
+| `ADMIN_TOKEN` | For `/admin/export` and `/admin/import`. A local copy is in `.dev.vars`. |
 
 ## Backups
 

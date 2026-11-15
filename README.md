@@ -9,10 +9,8 @@ Built for the Gen AI Summit Hackathon in Athens, 2026.
 ```mermaid
 flowchart LR
   subgraph People
-    W["Audience<br/>web page in Safari"]
-    A["Presenters<br/>iPhone app"]
+    A["Attendees<br/>iPhone app"]
   end
-  W -- "https, wss" --> CF["Cloudflare Worker<br/>roomie.binjto.workers.dev"]
   A -- "in-app localhost server" --> CF
   CF --> S["Durable Object 'room'<br/>people, matching, chats"]
   S --> V["Emma's voice and ears<br/>ElevenLabs, Whisper"]
@@ -24,16 +22,14 @@ flowchart LR
 2. **Agents talk.** Your agent asks every other attendee's agent whether you should meet. You watch the conversations come in.
 3. **The introduction.** Emma picks one person and says why.
 4. **The room.** You see what you share (rare things first), open with one of Emma's suggested lines, and chat. Emma suggests follow-up questions.
-5. **Find each other.** If you both say yes, an arrow and a distance lead you there: Ultra Wideband between two iPhones running the app, GPS and the compass on the web.
+5. **Find each other.** If you both say yes, an arrow and a distance lead you there: Ultra Wideband between the two iPhones, with Bluetooth and GPS when it can't reach.
 
 ## Repository layout
 
 | Path | What it is |
 | --- | --- |
-| [`edge/`](edge/) | The backend, all on Cloudflare: Emma's interview, matching, rooms, accounts, voice. It also serves the web app. |
-| [`server/web/`](server/web/) | The web app (a single page) and Emma's hands (three.js and Handkit). |
-| [`server/`](server/) | The first backend, in Python on a Mac. No longer used in production; kept for local tools and the matching tests. |
-| [`app/`](app/) | The iPhone app: the web app full screen, with finding by Ultra Wideband and Bluetooth. |
+| [`edge/`](edge/) | The backend, all on Cloudflare: Emma's interview, matching, rooms, accounts, voice. It also serves the app's page. |
+| [`app/`](app/) | The iPhone app: its page (`app/web/`) full screen, with finding by Ultra Wideband and Bluetooth. |
 | [`docs/`](docs/) | Architecture, API, finding, and how to run everything. |
 | [`prototypes/`](prototypes/) | An early standalone demo of the matching screen. |
 
@@ -59,4 +55,4 @@ The full setup, including secrets, logs and installing the app on phones, is in 
 
 ## Credits
 
-Emma's hands are built on [Handkit](https://github.com/Ayushmaniar/3d-accurate-hands) (MIT, see `server/web/hands/HANDKIT_LICENSE`). 3D rendering by [three.js](https://threejs.org) (MIT).
+Emma's hands are built on [Handkit](https://github.com/Ayushmaniar/3d-accurate-hands) (MIT, see `app/web/hands/HANDKIT_LICENSE`). 3D rendering by [three.js](https://threejs.org) (MIT).

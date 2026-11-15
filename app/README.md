@@ -9,7 +9,8 @@ open Roomie.xcodeproj
 
 | File | What it is |
 | --- | --- |
-| `project.yml` | XcodeGen project: iOS 18, iPhone only, portrait, permissions. A build step copies the hands' models from `../server/web/hands` into the app with their server ETags. |
+| `web/` | The app's screens: one page (`index.html`) and Emma's hands (three.js and Handkit). Cloudflare serves it to the app (`make edge` deploys it). |
+| `project.yml` | XcodeGen project: iOS 18, iPhone only, portrait, permissions. A build step copies the hands' models from `web/hands` into the app with their ETags. |
 | `Roomie/RoomieApp.swift` | App entry point. |
 | `Roomie/WebShell.swift` | The WKWebView and the `window.RoomieApp` bridge: GPS from Core Location, haptics, permissions, keyboard handling, retrying when the server is away, and the diagnostics log. |
 | `Roomie/LocalServer.swift` | A server on `localhost:47213` inside the app. It serves the page (localhost counts as secure, so the microphone works), ships the models and three.js, and passes everything else, including the room's WebSocket, to PairShake. |

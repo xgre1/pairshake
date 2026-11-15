@@ -25,7 +25,7 @@ The page draws the reading: `RoomieApp.onFix({d, a, mode, coach})` arrives about
 
 ## On the web: GPS, compass, gyroscope
 
-In `server/web/index.html` (`Find`):
+In `app/web/index.html` (`Find`):
 
 - **Position.** Each GPS fix is blended with the last estimate by how accurate it claims to be (a small Kalman filter). A single fix far outside the expected error is held back until a second one agrees.
 - **Pointing.** The gyroscope gives smooth, fast turning; the compass only slowly corrects its drift, and a sudden compass jump (a laptop, a steel beam) is ignored unless it lasts 2.5 seconds. While you walk, your direction of travel corrects it too.
@@ -39,14 +39,4 @@ In `server/web/index.html` (`Find`):
 
 ## Sound ranging experiment
 
-`server/sonar.py` with `server/web/sonar.html` and `server/web/sonar-audio.html` is a separate test of measuring distance with sound between two browsers, many pairs in one hall: each room gets its own beep band and note pair, and pairs on the same band take turns. It runs over HTTPS with the self-signed certificate in `server/certs/`:
-
-```sh
-make sonar      # https://<mac-ip>:8443/?room=test
-```
-
-`server/probe_report.py` measures how accurate the test page was: it compares every distance the testers typed in with what the screen showed, and every "I'm facing them now" tap with where the arrow pointed, split by what drove the reading (sound, walking, GPS).
-
-```sh
-cd server && python3 probe_report.py --room test --since 20:00
-```
+The sound-ranging experiment (`sonar.py`, `sonar.html`, `probe_report.py`) moved out with the web version, to `~/Desktop/pairshake-web`.

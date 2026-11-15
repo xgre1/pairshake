@@ -8,10 +8,10 @@
 ## 1. Deploying
 
 ```sh
-make edge                   # edge/deploy.sh: copies server/web into edge/public and deploys
+make edge                   # edge/deploy.sh: copies app/web into edge/public and deploys
 ```
 
-Public address: **https://roomie.binjto.workers.dev**. Share this with the audience. The page is never cached, so a deploy shows at once; data is kept across deploys.
+Address: **https://roomie.binjto.workers.dev**, for the app only (a browser sees a note that PairShake is an iPhone app). The page is never cached, so after a deploy the app shows it the next time it opens; data is kept across deploys.
 
 The keys are Worker secrets (see [edge/README.md](../edge/README.md)). They only need setting again if they change.
 
@@ -23,11 +23,7 @@ make backup                 # the whole room, saved to backups/
 curl https://roomie.binjto.workers.dev/room      # numbers for the room
 ```
 
-## 3. The old Mac server
-
-`make server` still starts `server/server.py` on port 8780 (with Emma's Python environment). Production doesn't use it; it is only there for local tools such as `app/tools/icon_hands.py`, which render pages from `localhost:8780`.
-
-## 4. The iPhone app
+## 3. The iPhone app
 
 ```sh
 make app                    # cd app && xcodegen
