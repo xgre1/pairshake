@@ -671,6 +671,11 @@ body[data-screen="events"],#events,#events .topbar,body[data-screen="event"],#ev
 html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){background:var(--gbg)}
 .ev-search{padding:0 var(--gut) 4px;position:sticky;top:calc(54px + var(--safeT));z-index:3;background:var(--gbg)}
 .ev-search .field{width:100%;background:var(--gcell);-webkit-appearance:none;appearance:none;font:inherit;color:var(--fg)}
+.ev-link{display:flex;gap:8px;align-items:center;margin-top:8px}
+.ev-link .field{flex:1;width:auto}
+.ev-link .pill{flex:none;padding:9px 16px}
+.ev-err{font-size:13px;color:var(--sec);padding:6px 16px 0;min-height:0}
+.ev-err:empty{display:none}
 .evrow .ev-img{width:52px;height:52px;border-radius:12px;flex:none;background:var(--fill2) center/cover}
 .evrow .who{flex:1;min-width:0}
 .evrow .who .semi{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
@@ -779,7 +784,10 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 <!-- Choose your event: Luma's events near you, a search, or a pasted Luma link -->
 <section class="screen" id="events">
   <div class="topbar"><button class="chev" id="evBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Choose your event</div></div>
-  <div class="ev-search"><input class="field" id="evQ" type="search" placeholder="Search Luma, or paste an event link" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  <div class="ev-search"><input class="field" id="evQ" type="search" placeholder="Search Luma" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <!-- an event Luma's search doesn't show: its link finds it -->
+    <form class="ev-link" id="evLinkForm"><input class="field" id="evLink" type="url" placeholder="Paste link from Luma" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="pill" id="evPaste" type="button">Paste</button></form>
+    <p class="ev-err" id="evLinkErr"></p></div>
   <div class="sbody">
     <p class="s-h" id="evHead">Near you</p>
     <div class="group" id="evList"></div>
@@ -2229,6 +2237,24 @@ $("#evBack").onclick = () => Tabs.back();
 $("#erBack").onclick = () => Tabs.back();
 $("#evQ").oninput = () => { clearTimeout(Ev.t); Ev.t = setTimeout(() => Ev.search($("#evQ").value), 350); };
 $("#evQ").onkeydown = e => { if (e.key === "Enter") { clearTimeout(Ev.t); Ev.search($("#evQ").value); $("#evQ").blur(); } };
+// the link box: Paste reads the clipboard (else they paste by hand); a Luma link finds just that event
+Ev.byLink = async link => {
+  link = String(link || "").trim(); $("#evLinkErr").textContent = "";
+  if (!link) return;
+  if (!/(lu\.ma|luma\.com)\/[\w-]{3,}/i.test(link)) { $("#evLinkErr").textContent = "That isn't a Luma link. It looks like luma.com/abc123."; return; }
+  $("#evQ").value = ""; await Ev.search(link);
+  if (!Ev.list.length) $("#evLinkErr").textContent = "Luma doesn't have that event. Check the link.";
+  else { $("#evHead").textContent = "From your link"; $("#evLink").blur(); }
+};
+$("#evPaste").onclick = async () => {
+  try {
+    const t = (await navigator.clipboard.readText())?.trim();
+    if (t) { $("#evLink").value = t; return Ev.byLink(t); }
+  } catch {}
+  $("#evLink").focus(); $("#evLinkErr").textContent = "Press and hold in the box, then tap Paste.";
+};
+$("#evLinkForm").onsubmit = e => { e.preventDefault(); Ev.byLink($("#evLink").value); };
+$("#evLink").onpaste = () => setTimeout(() => Ev.byLink($("#evLink").value), 0);
 $("#erChange").onclick = () => Ev.open("event");
 $("#erLuma").onclick = () => window.open("https://lu.ma/" + encodeURIComponent(S.event.url), "_blank");
 $("#erLeave").onclick = async () => {
