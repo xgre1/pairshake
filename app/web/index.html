@@ -757,7 +757,11 @@ body :is(.ev-pill){background:none;box-shadow:none}   /* no backing plate: the h
 #events .chev,#event .chev{display:block}
 body[data-screen="events"],#events,#events .topbar,body[data-screen="event"],#event,#event .topbar{background:var(--gbg)}
 html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){background:var(--gbg)}
-.ev-search{padding:0 var(--gut) 4px;position:sticky;top:calc(54px + var(--safeT));z-index:3;background:var(--gbg)}
+.ev-search{padding:0 var(--gut) 4px;position:sticky;top:calc(47px + var(--safeT));z-index:3;background:var(--gbg)}
+/* the title bar is 48px under the notch (10 + the 28px back button + 10): the search sticks right under it (1px over,
+   so no line of the list shows between them). Both get their own layer, or Safari can draw a glass button or an
+   animation from the list scrolling under them on top of them. */
+#events .topbar,.ev-search{will-change:transform;isolation:isolate}
 .ev-search .field{width:100%;background:var(--gcell);-webkit-appearance:none;appearance:none;font:inherit;color:var(--fg)}
 .ev-link{display:flex;gap:8px;align-items:center;margin-top:8px}
 .ev-link .field{flex:1;width:auto}
@@ -780,7 +784,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 .ev-feat .ef-now i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.4s infinite}
 .ev-feat .ef-name{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.2;margin-top:4px}
 .ev-feat .ef-sub{display:block;font-size:14px;color:var(--sec);margin-top:3px}
-.ev-feat .pill{flex:none}
+body .ev-feat .pill{flex:none;-webkit-backdrop-filter:none;backdrop-filter:none}   /* (no glass inside a list that scrolls under the search) */
 .evrow.soon{cursor:default;color:inherit} .evrow.soon .ev-img,.evrow.soon .who{opacity:.5}
 .ev-soon{flex:none;font-size:13px;font-weight:500;color:var(--sec);background:var(--fill2);padding:5px 10px;border-radius:999px;white-space:nowrap}
 #evList .row + .row::before,#erPeople .row + .row::before{left:82px} #erPeople .row + .row::before{left:70px}
