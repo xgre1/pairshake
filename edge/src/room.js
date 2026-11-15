@@ -1108,8 +1108,9 @@ export class PairShake extends DurableObject {
   profile(d) {
     const u = this.user(d.id) || notFound();
     if (Array.isArray(d.hidden)) {          // the You page: what stays off their card
-      const h = HIDEABLE.filter(k => d.hidden.includes(k));
-      if (h.length) u.hidden = h; else delete u.hidden;
+      const h = HIDEABLE.filter(k => d.hidden.includes(k)), pr = u.profile || {};
+      const left = HIDEABLE.some(k => !h.includes(k) && (Array.isArray(pr[k]) ? pr[k].length : pr[k]));   // all off = nothing to match on: ignored
+      if (left) { if (h.length) u.hidden = h; else delete u.hidden; }
     }
     if (typeof d.paused === "boolean") { if (d.paused) u.paused = true; else delete u.paused; }   // Settings > Pause introductions
     if (isObj(d.socials)) {
