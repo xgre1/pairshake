@@ -1027,6 +1027,15 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 
 <!-- Account: create one or sign in -->
 <!-- Settings > Send feedback -->
+<!-- Joining an event while in another: leave that one first -->
+<div class="scrim" id="evSwitch">
+  <div class="sheet" style="height:auto;padding-bottom:calc(20px + var(--safeB))">
+    <h3 class="serif" style="font-size:28px;line-height:1.15" id="evSwTitle"></h3>
+    <p class="sec" style="margin-top:-6px" id="evSwText"></p>
+    <button class="primary" id="evSwGo">Leave and join</button>
+    <button class="plainbtn" id="evSwNo">Cancel</button>
+  </div>
+</div>
 <div class="scrim" id="fbScrim">
   <div class="sheet">
     <h3 class="serif" style="font-size:30px;line-height:1.15">Send feedback</h3>
@@ -2309,40 +2318,66 @@ const Ev = {
     box.style.display = this.list.length ? "" : "none";
     $("#evEmpty").hidden = !!this.list.length;
     $("#evEmpty").textContent = this.error || (this.q ? `Nothing on Luma for “${this.q}”. Try another word, or paste the event's link.` : "No events near you on Luma right now. Search for yours.");
-    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => this.join(this.list[b.dataset.i]));
+    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => { buzz(8); this.view(this.list[b.dataset.i]); });
   },
-  async join(e) {
-    buzz(8);
-    try { const r = await api("/event", {id: S.id, event: e}); S.event = r.event; this.room(r); }
-    catch { return oops("Couldn't join that event. Try again."); }
-    this.pill(); show("event"); this.watch();
-  },
-  // the event's room
-  async enter() {
-    if (!S.event) return this.open();
-    this.room({event: S.event, people: this.people || [], count: this.count || 1});
+  // an event's page: who's there, and Join. The same page, once joined, is its room (Start finding, Leave).
+  cur: null,
+  joined() { return !!this.cur && S.event?.id === this.cur.id; },
+  view(e) {
+    this.cur = e; this.people = []; this.count = 0;
+    this.room({people: [], count: 0, online: 0});
     show("event"); this.watch(); this.refresh();
   },
+  enter() { S.event ? this.view(S.event) : this.open(); },
   async refresh() {
-    try { const r = await api("/event?id=" + encodeURIComponent(S.id)); if (!r.event) { S.event = null; this.pill(); return Tabs.back(); } S.event = r.event; this.room(r); } catch {}
+    if (!this.cur) return;
+    try { this.room(await api("/event?" + new URLSearchParams({id: S.id || "", event: this.cur.id}))); } catch {}
   },
   watch() {                                                           // others join while you look: every 8 seconds
     clearInterval(this.poll);
     this.poll = setInterval(() => document.body.dataset.screen === "event" ? this.refresh() : clearInterval(this.poll), 8000);
   },
+  // Join: already in another event, a sheet asks first (leave that one, join this one)
+  ask() {
+    const e = this.cur; if (!e) return;
+    if (!S.event || S.event.id === e.id) return this.join();
+    $("#evSwTitle").textContent = `Leave ${S.event.name}?`;
+    $("#evSwText").textContent = `You can be in one event at a time. You'll leave ${S.event.name} and join ${e.name}.`;
+    $("#evSwitch").classList.add("on"); Tabs.sync();
+  },
+  async join() {
+    $("#evSwitch").classList.remove("on"); Tabs.sync();
+    const e = this.cur; if (!e) return;
+    $("#erFind").disabled = true;
+    try { const r = await api("/event", {id: S.id, event: e}); S.event = r.event; this.cur = r.event; buzz([40, 30, 40], "success"); this.pill(); this.room(r); }
+    catch { oops("Couldn't join that event. Try again."); this.room({people: this.people, count: this.count, online: 0}); }
+  },
+  async leave() {
+    try { await api("/event", {id: S.id, leave: true}); } catch { return oops("Can't reach PairShake. Try again."); }
+    S.event = null; this.pill(); this.refresh(); this.room({people: this.people, count: Math.max(0, this.count - 1), online: 0});
+  },
   room(r) {
-    const e = r.event; if (!e) return;
-    this.people = r.people || []; this.count = r.count || 1;
+    const e = this.cur; if (!e) return;
+    const joined = this.joined();
+    this.people = (r.people || []).filter(p => p.id !== S.id); this.count = r.count || 0;
     $("#erCover").style.cssText = this.img(e); $("#erName").textContent = e.name; $("#erWhen").textContent = this.sub(e);
     // the room: how many joined, who has it open right now; finding starts only when they tap it
     const others = this.people.length, online = this.people.filter(p => p.online).length;
     const met = new Set((S.contacts || []).map(c => c.person?.id)), fresh = this.people.filter(p => p.ready && !met.has(p.id)).length;
-    $("#erHead").innerHTML = others ? `${others + 1} people joined <span class="er-on">${online ? `<i></i>${online} online now` : ""}</span>` : "Who's here";
+    const total = others + (joined ? 1 : 0);
+    $("#erHead").innerHTML = total ? `${total} ${total === 1 ? "person" : "people"} joined <span class="er-on">${online ? `<i></i>${online} online now` : ""}</span>` : "Who's here";
     $("#erPeople").innerHTML = this.people.map(p => `<div class="row">${av(p, 40)}<div class="who" style="flex:1;min-width:0"><div class="semi">${esc(p.name)}</div>` +
       `<div class="foot sec" style="margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.role || p.building || "Just joined")}</div></div>` +
       (p.online ? `<span class="er-dot" aria-label="Online"></span>` : "") + `</div>`).join("");
     $("#erPeople").style.display = others ? "" : "none"; $("#erEmpty").style.display = others ? "none" : "";
     $("#erLuma").style.display = e.url ? "" : "none";
+    $("#erChange").style.display = $("#erLeave").style.display = joined ? "" : "none";
+    $("#erEmpty").textContent = joined ? "Nobody else yet. When others join this event, they show up here." : "Nobody from PairShake has joined yet. Be the first.";
+    if (!joined) {                                                    // not in it yet: Join
+      $("#erFind").disabled = false;
+      $("#erFind").innerHTML = `Join this event<small>${S.event ? `You'll leave ${esc(S.event.name)}` : "Then start finding people here"}</small>`;
+      return;
+    }
     const known = !!S.me;
     $("#erFind").disabled = known && !fresh;
     $("#erFind").innerHTML = !known ? `Introduce yourself<small>Then you can start finding people here</small>`
@@ -2375,12 +2410,12 @@ $("#evPaste").onclick = async () => {
 $("#evLinkForm").onsubmit = e => { e.preventDefault(); Ev.byLink($("#evLink").value); };
 $("#evLink").onpaste = () => setTimeout(() => Ev.byLink($("#evLink").value), 0);
 $("#erChange").onclick = () => Ev.open("event");
-$("#erLuma").onclick = () => window.open("https://lu.ma/" + encodeURIComponent(S.event.url), "_blank");
-$("#erLeave").onclick = async () => {
-  try { await api("/event", {id: S.id, leave: true}); } catch { return oops("Can't reach the PairShake server."); }
-  S.event = null; Ev.pill(); clearInterval(Ev.poll); Ev.render(); Tabs.back();
-};
-$("#erFind").onclick = () => S.me ? $("#againBtn").onclick() : Tabs.back();
+$("#erLuma").onclick = () => Ev.cur?.url && window.open("https://lu.ma/" + encodeURIComponent(Ev.cur.url), "_blank");
+$("#erLeave").onclick = () => { buzz(20, "light"); Ev.leave(); };   // stays on this page, now with Join
+$("#erFind").onclick = () => !Ev.joined() ? Ev.ask() : S.me ? $("#againBtn").onclick() : Tabs.back();
+$("#evSwGo").onclick = () => Ev.join();
+$("#evSwNo").onclick = () => { $("#evSwitch").classList.remove("on"); Tabs.sync(); };
+$("#evSwitch").onclick = e => { if (e.target.id === "evSwitch") $("#evSwNo").onclick(); };
 /* Update: back to the first page, to tell Emma again with ChatGPT or by voice. What she remembers stays
    until the new answer replaces it (what isn't mentioned stays as it was); the X goes back home. */
 const retell = () => {
