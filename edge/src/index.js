@@ -9,6 +9,7 @@
 import { Roomie } from "./room.js";
 import { hear, voiceKey } from "./voice.js";
 import ETAGS from "./etags.json";
+import * as Auth from "./auth.js";
 
 export { Roomie };
 
@@ -37,6 +38,10 @@ export default {
         return room(env).fetch(req);
       }
       if (path === "/health") return json({ ok: true });
+      {                                   // Sign in with LinkedIn or Google (auth.js)
+        const m = path.match(/^\/auth\/(linkedin|google)(\/callback)?$/);
+        if (m) return m[2] ? await Auth.callback(m[1], req, env, room(env)) : await Auth.start(m[1], req, env);
+      }
       if (API.has(path)) return room(env).fetch(req);
       if (path === "/" || path === "/index.html") {
         if (!(req.headers.get("user-agent") || "").includes("RoomieApp")) return appOnly();

@@ -1,3 +1,4 @@
+import AuthenticationServices
 import AVFoundation
 import CoreLocation
 import SwiftUI
@@ -14,6 +15,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     private var web: WKWebView!
     private let tabs = UITabBar()                      // iOS's own tab bar, shown when the page asks ("tabs")
     private var finder: Finder?
+    private var signIn: ASWebAuthenticationSession?     // LinkedIn's sign-in sheet while it is open
     private var findRoom: String?
     private var pushTimer: Timer?
     private var lastFix = ""
@@ -150,6 +152,9 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
     }
 
     private func keyboardMoved(_ n: Notification) {
+        // the keyboard of the LinkedIn/Google sign-in sheet isn't ours: closing the sheet with it up never says it
+        // went away, and the page would stay squeezed to nothing (a white screen)
+        guard signIn == nil else { return }
         guard let end = n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
         let local = view.convert(end, from: nil)
         let cover = max(0, view.bounds.maxY - local.minY)
@@ -248,11 +253,33 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
             askForServer(problem: nil)
         case "log":
             note(d["m"] as? String ?? "")
+        case "linkedin":                                    // Continue with LinkedIn: Apple's sign-in sheet, not the page
+            if let s = d["url"] as? String, let url = URL(string: s) { signInWithLinkedIn(url) }
         case "haptic":
             haptic(d["k"] as? String ?? "light")
         default:
             break
         }
+    }
+
+    /// LinkedIn in Apple's sign-in sheet (it shares Safari's LinkedIn session, so usually one tap). The server
+    /// ends the sign-in by sending the sheet to pairshake://linkedin?id=... (or ?error=...), handed to the page.
+    private func signInWithLinkedIn(_ url: URL) {
+        let s = ASWebAuthenticationSession(url: url, callbackURLScheme: "pairshake") { [weak self] back, error in
+            DispatchQueue.main.async {
+                self?.signIn = nil
+                if let me = self, me.keyboard != 0 { me.keyboard = 0; me.view.setNeedsLayout(); me.view.layoutIfNeeded() }
+                let q = back.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems } ?? []
+                let id = q.first { $0.name == "id" }?.value ?? ""
+                let err = q.first { $0.name == "error" }?.value ?? (error == nil ? "" : "cancelled")
+                let safe = { (v: String) in v.filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" } }
+                self?.js("window.RoomieApp && RoomieApp.onLogin && RoomieApp.onLogin('\(safe(id))', '\(safe(err))')")
+            }
+        }
+        s.presentationContextProvider = self
+        s.prefersEphemeralWebBrowserSession = false
+        signIn = s
+        s.start()
     }
 
     /// A token can arrive before the finding starts (the other person said yes first).
@@ -389,7 +416,7 @@ final class WebShell: UIViewController, WKNavigationDelegate, WKUIDelegate, WKSc
       const post = m => { try { webkit.messageHandlers.roomie.postMessage(m); } catch (e) {} };
       const watchers = new Map(); let next = 1, last = null;
       window.RoomieApp = {
-        native: true, tabs: true, post, onTab: null, onFix: null, onToken: null,
+        native: true, tabs: true, linkedin: true, post, onTab: null, onFix: null, onToken: null, onLogin: null,
         geo(c) { last = c; const p = {coords: c, timestamp: Date.now()}; for (const w of [...watchers.values()]) { try { w(p); } catch (e) {} } },
       };
       const geo = {
@@ -438,6 +465,12 @@ private final class WeakHandler: NSObject, WKScriptMessageHandler {
 
 /// GPS for the page's finding screen (it falls back to this when the two phones can't range by radio,
 /// e.g. when your person is on the web page).
+extension WebShell: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        view.window ?? ASPresentationAnchor()
+    }
+}
+
 final class Locator: NSObject, CLLocationManagerDelegate {
     var onFix: ((String) -> Void)?
     private let manager = CLLocationManager()

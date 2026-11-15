@@ -21,4 +21,4 @@ etag() {
   done
   printf '\n}\n'
 } > src/etags.json
-npx --no-install wrangler deploy
+./wrangler.sh deploy        # with ../.env.cloudflare's token when it exists, else the machine's login

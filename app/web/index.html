@@ -58,6 +58,10 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 .primary:has(small){padding:12px 20px}
 .primary:active{transform:scale(.97);opacity:.85}
 .primary small{font-weight:400;font-size:13px;opacity:.6;letter-spacing:-.006em}
+/* Continue with LinkedIn: LinkedIn's own blue, its mark on the left */
+.primary.li{flex-direction:row;gap:10px;background:#0A66C2;color:#fff;margin-bottom:10px}
+.primary.li svg{flex:none}
+body.linked #liBtn{display:none}
 .primary[disabled]{opacity:.35;cursor:default}
 .plainbtn{display:block;width:100%;padding:10px;color:var(--sec);text-align:center}
 .plainbtn:active{opacity:.5}
@@ -506,7 +510,7 @@ body:not(.in-app) .app-only{display:none!important}
     <button class="plainbtn foot" id="forgetBtn" style="color:var(--ter)"></button>
   </div>
   <div class="spacer"></div>
-  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button></div>
+  <div id="wFoot" style="padding:0 var(--gut) calc(12px + var(--safeB))"><button class="primary li new-only" id="liBtn"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="4" fill="#fff"/><path fill="#0A66C2" d="M7.1 9.4H4.6V19h2.5V9.4zM5.85 5.2a1.45 1.45 0 1 0 0 2.9 1.45 1.45 0 0 0 0-2.9zM19.4 13.7c0-2.6-.6-4.5-3.6-4.5-1.45 0-2.4.8-2.8 1.55h-.04V9.4h-2.4V19h2.5v-4.75c0-1.25.24-2.47 1.8-2.47 1.53 0 1.55 1.43 1.55 2.55V19h2.5l.03-5.3z"/></svg>Continue with LinkedIn</button><button class="primary new-only" id="gptBtn">Let ChatGPT introduce you<small>It already knows what you're up to</small></button><button class="primary new-only" id="startBtn" style="background:var(--fill2);color:var(--fg);margin-top:10px">Tell Emma yourself<small>By voice</small></button><button class="primary" id="againBtn">Find someone new<small>Emma uses what she remembers</small></button></div>
 </section>
 
 <!-- Settings -->
@@ -781,7 +785,9 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const first = p => (p?.name || "").split(" ")[0];
 const initials = p => (p?.name || "?").split(" ").slice(0, 2).map(w => w[0]).join("");
 const words = s => (s || "").toLowerCase().split(/[^a-z]+/).filter(Boolean);
-const av = (p, size) => `<div class="av" style="width:${size}px;height:${size}px;font-size:${size*.36}px;background:${esc(p?.color||"#B9A7FF")}">${esc(initials(p))}</div>`;
+// a LinkedIn photo when there is one (https only, and nothing that could leave the url(...)), else initials on a colour
+const photoUrl = p => /^https:\/\/[^\s"'()\\]+$/.test(p?.photo || "") ? p.photo : "";
+const av = (p, size) => `<div class="av" style="width:${size}px;height:${size}px;font-size:${size*.36}px;background:${esc(p?.color||"#B9A7FF")}${photoUrl(p) ? ` center/cover url(${esc(photoUrl(p))})` : ""}">${photoUrl(p) ? "" : esc(initials(p))}</div>`;
 const isDesk = () => matchMedia("(min-width: 900px)").matches;
 const demo = new URLSearchParams(location.search).has("demo");
 // Inside the PairShake iPhone app (the people on stage use it): real haptics, and finding by radio
@@ -1740,7 +1746,12 @@ async function loadMe() {
     if (r.status === 404) { keep(ID_KEY, null); return false; }     // the server doesn't know this id any more
     if (!r.ok) return false;
     const d = await r.json();
-    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {};
+    S.email = d.email || null; S.name = d.name || null; S.socials = d.socials || {}; S.photo = d.photo || "";
+    document.body.classList.toggle("linked", !!d.linkedin);
+    if (d.linkedin && !d.me && S.name) {                             // signed in with LinkedIn, no profile yet
+      $("#wTitle").textContent = `Hi ${S.name.split(" ")[0]}, I'm Emma.`;
+      $("#wSub").textContent = "Now tell me what you're working on, and I'll find the one person here you should meet.";
+    }
     if (!d.me) return false;                                         // never finished the chat with Emma
     S.id = id; S.me = d.me; S.socials = d.socials || {}; S.contacts = d.contacts || [];
     S.contacts.forEach(c => S.seen.add(c.id));                       // no banner for people you already have
@@ -2452,6 +2463,30 @@ if (APP) {
     };
     [0, 150, 450, 900].forEach(t => setTimeout(fix, t));
   });
+}
+/* Continue with LinkedIn (edge/src/linkedin.js): a real name and face, the same person on any device. On the
+   web the page goes to LinkedIn and comes back with ?li=<id>; in the app Apple's sign-in sheet opens and the
+   app hands the id to RoomieApp.onLogin. */
+function linkedIn() {
+  const id = encodeURIComponent(S.id || kept(ID_KEY) || "");
+  if (APP?.linkedin) APP.post({t: "linkedin", url: `${APP.server || location.origin}/auth/linkedin?ret=app&id=${id}`});
+  else location.href = `/auth/linkedin?ret=${encodeURIComponent(location.origin)}&id=${id}`;
+}
+async function signedIn(id, err) {
+  if (err) return oops(err === "cancelled" ? "LinkedIn sign-in was cancelled." : "Couldn't sign in with LinkedIn. Try again.");
+  if (!id) return;
+  S.id = id; keep(ID_KEY, id); buzz(30, "success");
+  if (await loadMe()) show("welcome");                               // someone with a profile: their home
+}
+$("#liBtn").onclick = linkedIn;
+if (APP) APP.onLogin = (id, err) => signedIn(id, err);
+{
+  const q = new URLSearchParams(location.search);
+  if (q.has("li") || q.has("li_error")) {
+    history.replaceState(null, "", location.pathname);
+    if (q.get("li")) { S.id = q.get("li"); keep(ID_KEY, S.id); }
+    if (q.get("li_error")) setTimeout(() => signedIn("", q.get("li_error")), 300);
+  }
 }
 if (!demo) loadMe().catch(() => {}).finally(() => {
   Tabs.sync();

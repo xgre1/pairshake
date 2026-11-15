@@ -20,3 +20,7 @@ __pycache__/
 backups/
 
 edge/src/etags.json
+
+# Cloudflare token for edge/wrangler.sh, and the local-only wrangler config
+.env.cloudflare
+edge/wrangler.local.jsonc

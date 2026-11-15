@@ -186,7 +186,7 @@ export class Roomie extends DurableObject {
     return {
       id: pid, name: u.name || p.name || "Someone", role: p.role || "", color: u.color, building: p.building || "",
       needs: p.needs || "", offers: p.offers || "", spot: p.spot || "", line: p.line || "", hooks: p.hooks || [],
-      socials: u.socials || {},
+      socials: u.socials || {}, photo: u.photo || "",
     };
   }
 
@@ -538,7 +538,8 @@ export class Roomie extends DurableObject {
       contacts.push({ ...mf, you: m.a === u.id ? "a" : "b", chat: chat.slice(-30), at: Math.max(m.created || 0, ...chat.map(c => c.at || 0)) });
     }
     contacts.sort((x, y) => y.at - x.at);
-    return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name };
+    return { me: u.profile ? this.person(u.id) : null, socials: u.socials || {}, contacts, email: u.email || null, name: u.name,
+             photo: u.photo || "", linkedin: !!u.linkedin, google: !!u.google, signed: !!(u.linkedin || u.google || u.email) };
   }
 
   missionFor(mid, viewer) {
@@ -692,6 +693,25 @@ export class Roomie extends DurableObject {
       return json({ ok: true });
     }
     return no("Unknown action.");
+  }
+
+  /** Signed in with LinkedIn or Google (auth.js has already checked who they are): the same person every time,
+      on any device. A first sign-in on a device that already has someone becomes that someone. */
+  login(d, app) {
+    const provider = ["linkedin", "google"].includes(d.provider) ? d.provider : null;
+    const sub = str(d.sub).slice(0, 100);
+    if (!provider || !sub) throw new HttpError(400, "Who signed in?");
+    let u = Object.values(this.users).find(x => x[provider]?.sub === sub);
+    if (!u) {
+      const here = this.user(d.id);
+      u = here && !here[provider] ? here : this.newUser(app);
+    }
+    u[provider] = { sub, email: str(d.email).slice(0, 200), picture: str(d.picture).slice(0, 1000), at: now() };
+    if (u[provider].picture && (!u.photo || provider === "linkedin")) u.photo = u[provider].picture;   // LinkedIn's photo wins
+    const name = str(d.name).slice(0, 80);
+    if (name && (!u.name || !u.profile)) { u.name = name; if (u.profile) u.profile.name = name; }
+    this.save();
+    return { id: u.id, name: u.name };
   }
 
   /** Settings: your name and where people can follow you; and what Emma remembers, edited by hand. */
@@ -936,6 +956,7 @@ export class Roomie extends DurableObject {
           case "/again": return json(this.again(d));
           case "/test/match": return json(this.testMatch(d, app));
           case "/account": return await this.account(d, app);
+          case "/internal/login": return json(this.login(d, app));          // only from auth.js: index.js never forwards /internal
           case "/profile": return json(this.profile(d));
           case "/suggest": return json(await this.suggest(d));
           case "/speak": return await this.speakLine(d, req.headers.get("cf-connecting-ip") || "?");
