@@ -201,7 +201,7 @@ body[data-screen="live"],html:has(body[data-screen="live"]){background:var(--bg)
 .tr-bar{flex:1;height:6px;border-radius:3px;background:var(--fill2);overflow:hidden}
 .tr-bar i{display:block;height:100%;background:var(--fg);border-radius:3px}
 .tr-v{flex:none;width:36px;text-align:right;font-size:13px;color:var(--sec);font-variant-numeric:tabular-nums}
-.ai{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:64px;border-radius:999px;
+.ai{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:58px;border-radius:999px;
   font:600 19px/1 var(--sans);letter-spacing:-.01em;transition:transform .12s}
 .ai:active{transform:scale(.98)}
 .ai .ai-logo{width:28px;height:28px;flex:none}
@@ -355,13 +355,17 @@ body.known #wSub{display:none}
 .hands-canvas{width:100%;height:100%;display:block;animation:fade .6s var(--smooth)}
 /* on a phone's first pages Emma's hands are framed close and sit low, near the words under them */
 #gateHands,#welcomeHands,#lvHands{height:360px}
+/* someone new, on a phone: the page has to fit without scrolling (greeting, two lines, three AIs, the tab bar), so
+   the hands' stage is shorter (they keep their size and their place over the words) and the AIs keep a gap */
+body:not(.known) #welcomeHands{height:270px}
+body:not(.known) #wFoot{margin-top:24px}
 :is(#gateHands,#welcomeHands,#lvHands) .hands-canvas{transform:translateY(14%)}
 /* On a phone the picture bleeds well past its stage (700px tall, behind the words), so a moving hand is only
    ever covered by the text itself, never cut by a box; the arms fade out instead of stopping at a line.
    Same framing as before: the fit is width-limited either way, and the centre sits 14% below the stage's. */
 @media (max-width: 899px){
   :is(#gateHands,#welcomeHands,#lvHands){z-index:-1;overflow:visible;pointer-events:none}
-  :is(#gateHands,#welcomeHands,#lvHands) .hands-canvas{position:absolute;left:0;width:100%;height:700px;top:calc(64% - 350px);transform:none;
+  :is(#gateHands,#welcomeHands,#lvHands) .hands-canvas{position:absolute;left:0;width:100%;height:700px;top:calc(100% - 480px);transform:none;
     -webkit-mask-image:linear-gradient(#000 0,#000 80%,transparent 96%);mask-image:linear-gradient(#000 0,#000 80%,transparent 96%)}
 }
 .hands-canvas.hands-full{position:fixed;inset:0;width:100vw;height:100dvh;z-index:0;pointer-events:none}
