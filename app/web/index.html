@@ -82,10 +82,11 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 #gate{justify-content:center}
 /* the three AIs, each in its own colours, logo first */
 .ais{display:flex;flex-direction:column;gap:12px}
-/* home: as before networks (Emma's hands, the greeting, what you're looking for, people you've met), with the
-   event pill under the greeting (choose your Luma event, or open the one you're in). The networks grid isn't on
-   the home; the network you're live in shows as one bar. */
-#nets{display:none!important}
+/* home: Emma's hands and the greeting, then only Create and Join (and, while you're live in one, that network as
+   one bar). No guess at what you're looking for, no event pill, no Find button: finding happens inside a network. */
+#nets,#evPill,.memcard,#peopleBox,#forgetBtn,body.known #againBtn,#lvFind{display:none!important}   /* (in a network finding starts by itself) */
+.home-acts{display:flex;flex-direction:column;gap:12px;width:100%}
+@media (min-width:900px){body.known .home-acts{order:2}}
 /* finding someone: Emma's orb thinking, nothing acted out */
 .plain-wait{display:none}
 body.plain-match #matching #netBox,body.plain-match #matching #feed,body.plain-match #matching .sound{display:none!important}
@@ -783,6 +784,10 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
   <div id="home">
     <button class="netlive" id="netLive" hidden></button>
     <div id="nets"></div>
+    <div class="home-acts">
+      <button class="primary" id="hCreate">Create a network<small>Start one and share its QR code</small></button>
+      <button class="primary soft" id="hJoin">Join<small>Scan a QR code, or pick a Luma event that's on now</small></button>
+    </div>
     <!-- one thing big: what Emma looks for next; the rest small under it -->
     <button class="memcard" id="memCard">
       <span class="mc-l">You're looking for</span>
@@ -838,7 +843,7 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 </section>
 <!-- Choose your event: Luma's events near you, a search, or a pasted Luma link -->
 <section class="screen" id="events">
-  <div class="topbar"><button class="chev" id="evBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Choose your event</div></div>
+  <div class="topbar"><button class="chev" id="evBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">Join a Luma event</div></div>
   <div class="ev-search"><input class="field" id="evQ" type="search" placeholder="Search Luma" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false">
     <!-- an event Luma's search doesn't show: its link finds it -->
     <form class="ev-link" id="evLinkForm"><input class="field" id="evLink" type="url" placeholder="Paste link from Luma" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="pill" id="evPaste" type="button">Paste</button></form>
@@ -1087,8 +1092,8 @@ html:has(body[data-screen="events"]),html:has(body[data-screen="event"]){backgro
 <div class="scrim" id="netScrim">
   <div class="sheet">
     <div id="netChoose">
-      <button class="net-opt" id="netJoinBtn"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.3l1.5-2h7.4l1.5 2h2.3A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><div><b>Join</b><span>Scan a network's QR code</span></div></button>
-      <button class="net-opt" id="netCreateBtn"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><div><b>Create</b><span>Start a network and share it</span></div></button>
+      <button class="net-opt" id="netJoinBtn"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.3l1.5-2h7.4l1.5 2h2.3A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg><div><b>QR code</b><span>Scan a network's code</span></div></button>
+      <button class="net-opt" id="netLumaBtn"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><div><b>Luma</b><span>An event that's on right now</span></div></button>
     </div>
     <div id="netCreate" hidden>
       <h3 class="serif" style="font-size:30px;line-height:1.15">New network</h3>
@@ -2276,7 +2281,7 @@ const Ev = {
   async search(q) {
     q = String(q || "").trim(); this.q = q;
     const n = ++this.seq;
-    $("#evHead").textContent = q ? "Results" : "Near you";
+    $("#evHead").textContent = q ? "Results" : "Happening now";
     if (!this.list.length) { $("#evEmpty").hidden = false; $("#evEmpty").textContent = "Looking on Luma…"; $("#evList").style.display = "none"; }
     let r;
     if (APP?.luma) r = await this.viaPhone(q);                       // the app asks Luma from the phone (see viaPhone)
@@ -2319,15 +2324,24 @@ const Ev = {
     list.sort((a, b) => (b.here > 0) - (a.here > 0));
     return {events: list.slice(0, 40), mine: ours.mine, error: list.length ? null : luma.error};
   },
+  // only what's on right now (started, not ended; no end given: the 12 hours after it starts)
+  on(e) { const t = Date.now(), a = Date.parse(e?.start || ""), b = Date.parse(e?.end || "") || a + 12 * 3600 * 1000; return t >= a && t <= b; },
   render() {
-    const box = $("#evList"), mine = S.event?.id;
+    const box = $("#evList"); this.list = this.list.filter(e => this.on(e));
     box.innerHTML = this.list.map((e, i) => `<button class="row evrow" data-i="${i}"><div class="ev-img" style="${this.img(e)}"></div>
       <div class="who"><div class="semi">${esc(e.name)}</div><div class="foot sec">${esc(this.sub(e))}</div></div>` +
-      (e.id === mine ? `<span class="yes">Joined</span>` : e.here ? `<span class="yes">${e.here} here</span>` : "") + `<span class="s-chev">${CHEV}</span></button>`).join("");
+      (e.here ? `<span class="yes">${e.here} here</span>` : "") + `<span class="s-chev">${CHEV}</span></button>`).join("");
     box.style.display = this.list.length ? "" : "none";
     $("#evEmpty").hidden = !!this.list.length;
-    $("#evEmpty").textContent = this.error || (this.q ? `Nothing on Luma for “${this.q}”. Try another word, or paste the event's link.` : "No events near you on Luma right now. Search for yours.");
-    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => { buzz(8); this.view(this.list[b.dataset.i]); });
+    $("#evEmpty").textContent = this.error || (this.q ? `Nothing on right now for “${this.q}”. Try another word, or paste the event's link.` : "No events on Luma happening right now. Search for yours.");
+    box.querySelectorAll(".evrow").forEach(b => b.onclick = () => { buzz(8); this.pick(this.list[b.dataset.i]); });
+  },
+  // a Luma event that's on now is a network like any other: joining puts you live in it, and finding starts there
+  async pick(e) {
+    if (this.joining) return; this.joining = true;
+    try { const r = await api("/network/luma", {id: S.id || kept(ID_KEY), event: e}); buzz([40, 30, 40], "success"); Nets.keep(r.network); await Nets.live(r.network); }
+    catch (x) { oops(x.status === 409 ? `${e.name} isn't on right now.` : "Couldn't join that event. Try again."); }
+    finally { this.joining = false; }
   },
   // an event's page: who's there, and Join. The same page, once joined, is its room (Start finding, Leave).
   cur: null,
@@ -2819,11 +2833,12 @@ const Nets = {
         : `Discoverable here \u00b7 ends in ${endsIn(r.network.expires)}`;
       if (!r.ready) $("#lvSub").textContent = "Introduce yourself first, so your agent knows who to look for";
       if (r.ready && !fresh) $("#lvSub").textContent = ready ? "You've met everyone here. Waiting for someone new" : "Looking for people\u2026";
-      // nothing starts by itself: wait, watch who joins, then start when you want
+      // in a network it looks by itself: someone new is here and nothing is on, it starts (not twice in 15 s)
       const others = r.people.filter(p => p.id !== this.me()), online = others.filter(p => p.live).length;
       $("#lvFind").disabled = !this.ready;
       $("#lvFindSub").textContent = !r.ready ? "Introduce yourself first" : this.ready ? `${online} ${online === 1 ? "person" : "people"} here now`
         : others.length ? "Nobody new to meet yet" : "Waiting for people to join";
+      if (this.ready && !this.busy && !Meet.m && Date.now() - this.tried > 15000) { this.tried = Date.now(); this.match(); }
       if (!total && !box.querySelector(".lv-wait")) box.innerHTML = `<p class="lv-wait" style="opacity:.7">Waiting for people to join</p>`;
       if (total) box.querySelector(".lv-wait")?.remove();
     } catch (e) {
@@ -2833,7 +2848,7 @@ const Nets = {
   },
   tried: 0,                                     // when a search last started by itself (not twice in 30 s)
   async match() {
-    if (!this.ready || this.busy) return;
+    if (!this.ready || this.busy || Meet.m) return;              // (not while a card or a finding is on)
     this.busy = true; clearInterval(this.poll);
     const sub = $("#lvSub"); let done = false;
     try {
@@ -2888,7 +2903,9 @@ const Nets = {
   },
 };
 $("#netJoinBtn").onclick = () => Nets.scanOpen();
-$("#netCreateBtn").onclick = () => Nets.openCreate();
+$("#netLumaBtn").onclick = () => { Nets.close(); Ev.open("welcome"); };
+$("#hCreate").onclick = () => { buzz(8); Nets.openCreate(); };
+$("#hJoin").onclick = () => { buzz(8); Nets.sheet("netChoose"); };
 $("#netHours").querySelectorAll("button").forEach(b => b.onclick = () => { Nets.hours = +b.dataset.h; $("#netHours").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
 $("#netPhoto").onchange = e => Nets.pickPhoto(e.target.files[0]);
 $("#lvClose").onclick = () => { clearInterval(Nets.poll); show("welcome"); Tabs.sync(); Nets.load(); };

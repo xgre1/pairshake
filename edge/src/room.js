@@ -38,6 +38,8 @@ function randint(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
 const pick1 = a => a[Math.floor(Math.random() * a.length)];
 const hexId = n => crypto.randomUUID().replace(/-/g, "").slice(0, n);
 const now = () => Date.now() / 1000;
+// a Luma event that is on right now: started, not ended (no end given: the 12 hours after it starts)
+const happening = e => { const t = Date.now(), a = Date.parse(e?.start || ""), b = Date.parse(e?.end || "") || a + 12 * 3600 * 1000; return t >= a && t <= b; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const str = v => (v == null ? "" : String(v)).trim();
 const firstName = n => String(n || "").split(/\s+/)[0];
@@ -230,28 +232,20 @@ export class PairShake extends DurableObject {
     return u.pub;
   }
 
-  /** Who an attendee can meet: the people who joined the same event (one event at a time), with a card, not paused
-      and not test attendees. The iPhone app and the web page are separate rooms (so phones can find each other by
-      Ultra Wideband). Without an event there's nobody to meet. */
+  /** Who an attendee can meet: the people live in the same network right now (one you created, joined by its code,
+      or a Luma event, which is a network too), with a card, not paused and not test attendees. Outside a network
+      there's nobody to meet. */
   candidates(exclude, app = false, seeds = true) {
-    const me = this.users[exclude], ev = me?.event?.id;
-    if (!ev || me.test) return [];
-    const out = [];
-    for (const [uid, u] of Object.entries(this.users)) {
-      if (uid !== exclude && u.profile && !!u.app === app && !u.test && !u.paused && u.event?.id === ev) out.push(this.person(uid));   // (paused in Settings: nobody meets them)
-    }
-    return out;
+    const me = this.users[exclude], net = me?.live?.network, n = net && this.networks[net];
+    if (!n || n.expires <= now() || me.test) return [];
+    return n.members.filter(id => id !== exclude && this.users[id]?.live?.network === net && this.users[id].profile &&
+      !this.users[id].test && !this.users[id].paused).map(id => this.person(id));     // (paused in Settings: nobody meets them)
   }
 
-  /** Why Find is closed for them now, or null when it's open: it opens when their event starts and closes 6 hours
-      after it ends (joining works any time). */
+  /** Why Find is closed for them now, or null when it's open: they have to be live in a network. */
   findClosed(u) {
-    const e = u.event;
-    if (!e) return "Choose your event first.";
-    const t = Date.now(), start = Date.parse(e.start || ""), end = Date.parse(e.end || "");
-    if (t < start) return `Finding opens when ${e.name} starts.`;
-    if (t > end + 6 * 3600 * 1000) return `${e.name} has ended.`;
-    return null;
+    const n = u.live?.network && this.networks[u.live.network];
+    return n && n.expires > now() ? null : "Join or create a network first.";
   }
 
   // ---- events (Luma) ------------------------------------------------------------------------------------------
@@ -283,7 +277,8 @@ export class PairShake extends DurableObject {
       const seen = new Set(list.map(e => e.id));
       list = [...extra.filter(e => !seen.has(e.id) && seen.add(e.id)), ...list];
     }
-    list = list.map(e => ({ ...e, here: here[e.id] || 0 }));
+    for (const n of Object.values(this.networks)) if (n.luma) here[n.luma] = n.members.length;   // (who joined it here: its network)
+    list = list.filter(happening).map(e => ({ ...e, here: here[e.id] || 0 }));     // only what's on right now
     list.sort((a, b) => (b.here > 0) - (a.here > 0));
     return { events: list.slice(0, 40), mine: u?.event || null, error, here };
   }
@@ -471,7 +466,7 @@ export class PairShake extends DurableObject {
   networkCard(n, viewer) {
     const live = n.members.filter(id => this.users[id]?.live?.network === n.id).length;
     return { id: n.id, code: n.code, name: n.name, members: n.members.length, live, mine: n.owner === viewer,
-             created: n.created, expires: n.expires, photo: n.photo ? `/network/photo/${n.id}?v=${n.photo}` : "",
+             created: n.created, expires: n.expires, photo: n.photo ? `/network/photo/${n.id}?v=${n.photo}` : n.cover || "", luma: n.luma || "",
              you_live: this.users[viewer]?.live?.network === n.id };
   }
 
@@ -509,6 +504,31 @@ export class PairShake extends DurableObject {
     if (!n.members.includes(u.id)) n.members.push(u.id);
     u.networks = [...new Set([...(u.networks || []), n.id])];
     u.live = { network: n.id, since: now() };    // joining puts you live: discoverable there right away
+    this.save();
+    return { network: this.networkCard(n, u.id) };
+  }
+
+  /** Join a Luma event that's on right now: it's a network like any other (made the first time someone joins it,
+      named and pictured after the event, ending two hours after the event does), and you're live in it. */
+  async networkLuma(d) {
+    this.purgeNetworks();
+    const u = this.user(d.id) || notFound();
+    const ev = await Events.lookup(d.event);
+    if (!ev) throw new HttpError(400, "Couldn't find that event on Luma.");
+    if (!happening(ev)) throw new HttpError(409, `${ev.name} isn't on right now.`);
+    let n = Object.values(this.networks).find(x => x.luma === ev.id);
+    if (!n) {
+      const ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code;
+      do { code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => ABC[b % ABC.length]).join(""); }
+      while (Object.values(this.networks).some(x => x.code === code));
+      const t = now(), end = Date.parse(ev.end || "") / 1000 || t + 6 * 3600;
+      n = { id: hexId(8), code, name: ev.name.slice(0, 60), owner: u.id, created: t, expires: end + 2 * 3600, members: [], luma: ev.id, cover: ev.cover || "" };
+      this.networks[n.id] = n;
+    }
+    if (!n.members.includes(u.id)) n.members.push(u.id);
+    u.networks = [...new Set([...(u.networks || []), n.id])];
+    u.live = { network: n.id, since: now() };
     this.save();
     return { network: this.networkCard(n, u.id) };
   }
@@ -1424,6 +1444,7 @@ export class PairShake extends DurableObject {
           case "/network/create": return json(await this.networkCreate(d));
           case "/network/live": return json(this.networkLive(d));
           case "/network/join": return json(this.networkJoin(d));
+          case "/network/luma": return json(await this.networkLuma(d));
           case "/match": { const r = await this.match(d); return r instanceof Response ? r : mine(r); }
           case "/match/cancel": return json(this.cancel(d));
           case "/again": return json(this.again(d));
