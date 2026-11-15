@@ -42,7 +42,7 @@ input{font:inherit;color:inherit;letter-spacing:inherit}
 
 /* one phone-width column, like the app; centred on a computer */
 .screen{display:none;flex-direction:column;min-height:100dvh;max-width:440px;margin:0 auto;position:relative;padding-top:var(--safeT)}
-#room,#settings,#person{padding-top:0}     /* their top bar already pads for the notch */
+#room,#settings,#person,#about{padding-top:0}     /* their top bar already pads for the notch */
 .screen.on{display:flex;animation:fade .5s var(--smooth)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
@@ -123,13 +123,10 @@ body.known #wSub{display:none}
 .memcard{background:var(--bg2);border-radius:22px;padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
 .mc-top{display:flex;align-items:center;gap:7px}
 .mc-top .t{flex:1;font-size:13px;font-weight:600;color:var(--sec);letter-spacing:-.006em}
-.mc-edit{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;font-size:15px;font-weight:600;
-  background:color-mix(in srgb,var(--fg) 8%,transparent);transition:opacity .15s}
-.mc-edit:active{opacity:.5}
 .mc-l{font-size:13px;color:var(--sec);margin-bottom:3px;letter-spacing:-.006em}
-.mc-need{font-size:26px;line-height:1.2}
-.mc-rest{display:flex;flex-direction:column;gap:12px;padding-top:14px;border-top:.5px solid var(--sep)}
-.mc-rest p:last-child{font-size:15px;line-height:1.35;letter-spacing:-.015em}
+.memcard{width:100%;text-align:left;color:var(--fg)} .memcard:active{opacity:.6}
+.mc-need{font-size:26px;line-height:1.2;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.mc-more{display:flex;align-items:center;justify-content:space-between;padding-top:13px;border-top:.5px solid var(--sep);font-size:15px;font-weight:600;color:var(--sec)}
 .prow{width:100%;text-align:left}
 .prow:active{background:var(--fill2)}
 .prow .who{flex:1;min-width:0}
@@ -396,7 +393,8 @@ body.ring3d #intro .hero>*{visibility:hidden}
 }
 /* Settings: grouped lists like the iPhone's own */
 body[data-screen="settings"],#settings,#settings .topbar{background:var(--gbg)}
-#settings .chev{display:block}
+#settings .chev,#about .chev{display:block}
+.sbody textarea{display:block;width:100%;border:0;background:none;outline:none;resize:none;color:var(--fg);font:inherit;line-height:1.35;padding:12px 16px;overflow:hidden}
 .sbody{display:flex;flex-direction:column;padding:0 20px calc(40px + var(--safeB))}
 .s-h{font-size:13px;color:var(--sec);text-transform:uppercase;letter-spacing:.02em;padding:22px 16px 7px}
 .s-f{font-size:13px;color:var(--sec);padding:7px 16px 0}
@@ -449,12 +447,11 @@ body:not(.in-app) .app-only{display:none!important}
   <!-- only for someone Emma already knows -->
   <div id="home">
     <!-- one thing big: what Emma looks for next; the rest small under it -->
-    <div class="memcard">
-      <div class="mc-top"><span class="orb" style="--s:16px;box-shadow:none" data-mode="idle"></span><span class="t">Emma remembers</span>
-        <button class="mc-edit" id="retalkBtn"><svg width="10" height="14" viewBox="0 0 10 14"><rect x="2.6" y="1" width="4.8" height="7.6" rx="2.4" fill="currentColor"/><path d="M1 6.6a4 4 0 0 0 8 0M5 10.8v2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Update</button></div>
+    <button class="memcard" id="memCard">
+      <div class="mc-top"><span class="orb" style="--s:16px;box-shadow:none" data-mode="idle"></span><span class="t">Emma remembers</span></div>
       <div><p class="mc-l">Looking for</p><p class="serif mc-need" id="memNeed"></p></div>
-      <div class="mc-rest" id="memRest"></div>
-    </div>
+      <div class="mc-more"><span>Show more</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </button>
     <div class="sect" id="peopleBox">
       <p class="foot semi sec">People you've met</p>
       <div class="group" id="people"></div>
@@ -495,6 +492,18 @@ body:not(.in-app) .app-only{display:none!important}
       <button class="row s-danger" id="sForget">Forget me on this device</button>
       <button class="row s-danger" id="sDelete">Delete my account and everything Emma knows</button>
     </div>
+  </div>
+</section>
+
+<!-- Everything Emma remembers about you: read it all, fix it by hand, or tell her again -->
+<section class="screen" id="about">
+  <div class="topbar"><button class="chev" id="aBack" aria-label="Back"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="semi" style="flex:1;text-align:center;margin-right:16px">What Emma remembers</div></div>
+  <div class="sbody">
+    <div id="aFields"></div>
+    <p class="s-f" id="aSaved">Saved as you type.</p>
+    <p class="s-h">Start over</p>
+    <div class="group"><button class="row s-act" id="aRetell">Tell Emma again</button></div>
+    <p class="s-f">With ChatGPT or by voice. What you don't mention stays as it is.</p>
   </div>
 </section>
 
@@ -1644,8 +1653,6 @@ function renderHome() {
   document.body.classList.remove("updating"); document.body.classList.add("known");
   $("#wTitle").textContent = `Welcome back, ${first(me)}.`;
   $("#memNeed").textContent = me.needs || "Someone worth meeting.";
-  $("#memRest").innerHTML = [["Building", me.building], ["You can offer", me.offers]].filter(([, v]) => v)
-    .map(([k, v]) => `<div><p class="mc-l">${k}</p><p>${esc(v)}</p></div>`).join("");
   $("#peopleBox").style.display = S.contacts.length ? "" : "none";
   $("#people").innerHTML = S.contacts.map((c, i) => `<button class="row prow" data-i="${i}">${av(c.person, 40)}
     <div class="who"><div class="semi">${esc(c.person.name)}</div><div class="foot sec" style="margin-top:1px">${esc(preview(c))}</div></div>${CHEV}</button>`).join("");
@@ -1663,13 +1670,42 @@ $("#againBtn").onclick = async () => {
 };
 /* Update: back to the first page, to tell Emma again with ChatGPT or by voice. What she remembers stays
    until the new answer replaces it (what isn't mentioned stays as it was); the X goes back home. */
-$("#retalkBtn").onclick = () => {
+const retell = () => {
   document.body.classList.remove("known"); document.body.classList.add("updating");
   $("#wTitle").textContent = `Hi again, ${first(S.me)}.`;
   delete $("#welcomeHands").dataset.inline; delete $("#welcomeHands").dataset.fitWide;   // Emma big again
   show("welcome");
 };
 $("#updBack").onclick = () => goHome();
+/* The whole of what Emma remembers, on its own page: each part can be fixed by hand (saved as you type),
+   or told again from scratch. The first page only shows what she's looking for, in two lines. */
+const About = {
+  FIELDS: [["needs", "Looking for"], ["building", "Working on"], ["offers", "You can offer"], ["role", "What you do"],
+           ["line", "In one sentence"], ["spot", "Where to find you"]],
+  open() {
+    $("#aFields").innerHTML = this.FIELDS.map(([k, label]) =>
+      `<p class="s-h">${label}</p><div class="group"><textarea rows="1" data-k="${k}" maxlength="400" placeholder="Not said yet">${esc(S.me[k] || "")}</textarea></div>`).join("");
+    $("#aSaved").textContent = "Saved as you type.";
+    show("about");
+    $("#aFields").querySelectorAll("textarea").forEach(t => { this.fit(t); t.oninput = () => { this.fit(t); this.saveSoon(); }; });
+  },
+  fit(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; },
+  saveSoon() { clearTimeout(this.t); $("#aSaved").textContent = "Saving…"; this.t = setTimeout(() => this.save(), 700); },
+  async save() {
+    this.t = 0;
+    const about = {};
+    $("#aFields").querySelectorAll("textarea").forEach(t => about[t.dataset.k] = t.value.trim());
+    try {
+      const r = await api("/profile", {id: S.id, about});
+      if (r.me) S.me = r.me;
+      $("#aSaved").textContent = "Saved. Emma uses it for your next introduction.";
+    } catch { $("#aSaved").textContent = "Couldn't save. Check the connection."; }
+  },
+  async leave() { if (this.t) { clearTimeout(this.t); await this.save(); } },
+};
+$("#memCard").onclick = () => About.open();
+$("#aBack").onclick = async () => { await About.leave(); goHome(); };
+$("#aRetell").onclick = async () => { await About.leave(); retell(); };
 $("#forgetBtn").onclick = () => {
   keep(ID_KEY, null); SOCIALS.forEach(([k]) => keep("h." + k, null)); keep("following", null); keep("roomie.outcomes", null);
   location.reload();
@@ -2252,7 +2288,7 @@ if (APP) {
 if (!demo) loadMe().catch(() => {}).finally(() => {
   // back from ChatGPT and the page was reloaded meanwhile: the paste sheet is open again
   if (Date.now() - (+kept(GPT_KEY) || 0) < 20 * 60e3 && $("#welcome").classList.contains("on")) {
-    if (document.body.classList.contains("known")) $("#retalkBtn").click();     // they were updating
+    if (document.body.classList.contains("known")) retell();     // they were updating
     Gpt.open();
   }
 });

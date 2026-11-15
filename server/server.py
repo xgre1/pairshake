@@ -139,6 +139,7 @@ for s in SEED:
 
 PALETTE = ["#7CF2C4", "#8AA8FF", "#FFB86B", "#F78FB3", "#C3A6FF", "#FFD36B", "#6BDCFF", "#B5F27C"]
 
+
 # ---------------------------------------------------------------------------------------------
 # Room state: users (people who talked to Emma) and missions between two people.
 users = {}        # id -> {id, name, transcript[], profile{}, socials{}, code, color, match, inbox[]}
@@ -1128,7 +1129,7 @@ async def h_account(req):
 
 
 async def h_profile(req):
-    """Settings: your name and where people can follow you."""
+    """Settings: your name and where people can follow you; and what Emma remembers, edited by hand."""
     d = await req.json()
     u = users.get(str(d.get("id") or ""))
     if not u:
@@ -1136,6 +1137,11 @@ async def h_profile(req):
     if isinstance(d.get("socials"), dict):
         u["socials"] = {k: str(v).strip().lstrip("@")[:100] for k, v in d["socials"].items()
                         if k in ("x", "instagram", "linkedin", "github") and str(v).strip()}
+    if isinstance(d.get("about"), dict) and u.get("profile"):       # what Emma remembers, fixed by hand
+        for k in ("needs", "building", "offers", "role", "line", "spot"):
+            if k in d["about"]:
+                u["profile"][k] = str(d["about"][k] or "").strip()[:400]
+        u.pop("back", None)               # her welcome-back line was about the old one: written anew when needed
     name = str(d.get("name") or "").strip()[:80]
     if name:
         u["name"] = name

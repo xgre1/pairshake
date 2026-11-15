@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hands toon still</title>
+<!-- Renders a two-person gesture (e.g. handkit's "handshake": two right hands) with Emma's hand meshes, cel shaded
+     so the 3D hands read as flat 2D shapes (a few hard tones, an ink outline), each hand its own colour.
+     Driven by app/tools/icon_toon.py:
+       await render({gesture, colors: [a, b], tones: [dark, mid, light], outline: "#000" | null, width,
+                     cut, light: [ambient, key], key: [x, y, z], camera: {pos, look, fov, up}, size})
+         -> PNG data URL, transparent background. tones [255] + light [3.14, 0] = flat colour, no shading. -->
+<script type="importmap">{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }</script>
+<body style="margin:0;background:transparent">
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import init, { Clip, gesture, solve } from '../handkit_wasm.js';
+
+await init({ module_or_path: new URL('../handkit_wasm_bg.wasm', import.meta.url) });
+
+const canvas = document.createElement('canvas');
+const r = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x000000, 0);
+const scene = new THREE.Scene();
+const amb = new THREE.AmbientLight(0xffffff, 0.9); scene.add(amb);
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(-0.5, 1, 0.8); scene.add(key);
+
+// a few hard steps of light instead of a smooth falloff: that is what makes it read as drawn
+function steps(tones) {
+  const t = new THREE.DataTexture(new Uint8Array(tones), tones.length, 1, THREE.RedFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+}
+// cut the forearm off at the wrist, like the page's hands (vBind = bind-pose position)
+const cutAt = (sh, y) => {
+  sh.uniforms.cutY = { value: y };
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vBind;\nuniform float cutY;')
+    .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n  if (vBind.y < cutY) discard;');
+};
+
+const loader = new GLTFLoader(), hands = [];
+for (let k = 0; k < 2; k++) {                       // two right hands: two people
+  const g = await loader.loadAsync(new URL('../hand_r.glb', import.meta.url).href);
+  const h = { nodes: {}, root: g.scene };
+  g.scene.traverse((o) => { if (o.name) h.nodes[o.name] = o; if (o.isSkinnedMesh) h.mesh = o; });
+  h.mesh.frustumCulled = false;
+  h.fill = new THREE.MeshToonMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  h.fill.onBeforeCompile = (sh) => { cutAt(sh, h.cut ?? -1); h.fillShader = sh; };
+  h.mesh.material = h.fill;
+  // ink outline: the same skinned mesh again, pushed out along its normals, only its back faces drawn
+  h.ink = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+  h.ink.onBeforeCompile = (sh) => {
+    cutAt(sh, h.cut ?? -1); h.inkShader = sh;
+    sh.uniforms.inkW = { value: 0.0015 };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float inkW;')
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed += normalize(objectNormal) * inkW;');
+  };
+  h.outline = new THREE.SkinnedMesh(h.mesh.geometry, h.ink);
+  h.outline.morphTargetInfluences = h.mesh.morphTargetInfluences; h.outline.morphTargetDictionary = h.mesh.morphTargetDictionary;
+  h.outline.frustumCulled = false;
+  h.mesh.parent.add(h.outline); h.outline.bind(h.mesh.skeleton, h.mesh.bindMatrix);
+  hands.push(h); scene.add(g.scene);
+}
+
+window.render = async (spec) => {
+  const s = JSON.parse(solve(gesture(spec.gesture || 'handshake')));
+  const poses = Object.values(s.hands);
+  const tones = steps(spec.tones || [110, 190, 255]);
+  hands.forEach((h, k) => {
+    const clip = new Clip(JSON.stringify({ version: 1, fps: 30, idle: { amount: 0 }, duration: 0.1, keys: [{ t: 0, hands: { right: poses[k] } }] }));
+    const b = JSON.parse(clip.bones(0)); clip.free();
+    for (const [name, j] of Object.entries(b.joints)) {
+      const n = h.nodes[name]; if (!n) continue;
+      n.position.set(...j.t); n.quaternion.set(...j.r); n.scale.setScalar(j.s ?? 1);
+    }
+    const inf = h.mesh.morphTargetInfluences, w = b.morph?.skin_R;
+    if (inf && w) for (let i = 0; i < inf.length; i++) inf[i] = w[i] ?? 0;
+    h.fill.color.set(spec.colors[k]); h.fill.gradientMap = tones; h.fill.needsUpdate = true;
+    h.cut = spec.cut ?? 0.236;
+    if (h.fillShader) h.fillShader.uniforms.cutY.value = h.cut;
+    if (h.inkShader) { h.inkShader.uniforms.cutY.value = h.cut; h.inkShader.uniforms.inkW.value = spec.width ?? 0.0015; }
+    h.outline.visible = !!spec.outline; if (spec.outline) h.ink.color.set(spec.outline);
+  });
+  if (spec.key) key.position.set(...spec.key);
+  if (spec.light) { amb.intensity = spec.light[0]; key.intensity = spec.light[1]; }
+  const size = spec.size || 1024;
+  r.setSize(size, size, false);
+  const c = spec.camera || { pos: s.camera.position, look: s.camera.target, fov: s.camera.fov };
+  const cam = new THREE.PerspectiveCamera(c.fov || 30, 1, 0.01, 10);
+  if (c.up) cam.up.set(...c.up);                     // tilt the picture (roll) without moving the camera
+  cam.position.set(...c.pos); cam.lookAt(...c.look);
+  r.render(scene, cam); r.render(scene, cam);        // first frame compiles; uniforms set in onBeforeCompile apply on the second
+  return canvas.toDataURL('image/png');
+};
+window.ready = true;
+</script>

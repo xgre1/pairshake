@@ -10,7 +10,7 @@ neck reaching out to you behind.
 import math, os
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "Roomie", "AppIcon.icon", "Assets")
-R1, R2, GAP, ANGLE = 168, 116, 104, math.radians(-38)       # sizes, space between, direction (up and right)
+R1, R2, GAP, ANGLE = 168, 116, 104, math.radians(0)         # sizes, space between, direction (level, them on the right)
 V, HANDLE = 0.42, 2.4
 
 
