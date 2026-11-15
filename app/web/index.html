@@ -2384,8 +2384,8 @@ const Ev = {
     return t < start ? "soon" : t > end + 6 * 3600 * 1000 ? "over" : "";
   },
   async refresh() {
-    if (!this.cur) return;
-    try { this.room(await api("/event?" + new URLSearchParams({id: S.id || "", event: this.cur.id}))); } catch {}
+    const e = this.cur; if (!e) return;
+    try { const r = await api("/event?" + new URLSearchParams({id: S.id || "", event: e.id})); if (this.cur === e) this.room(r); } catch {}   // (another event opened meanwhile: not its people)
   },
   watch() {                                                           // others join while you look: every 8 seconds
     clearInterval(this.poll);

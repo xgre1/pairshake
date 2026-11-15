@@ -216,6 +216,20 @@ export class PairShake extends DurableObject {
     return self ? { ...card, hidden: u.hidden || [] } : hideFrom(card, u.hidden);
   }
 
+  /** Someone's id is the key to their account, so what anyone else is sent carries a stand-in for it instead (the same
+      one every time). `viewer` (whoever asked) sees their own. */
+  outward(data, viewer) {
+    const swap = v => typeof v === "string" ? (v !== viewer && Object.hasOwn(this.users, v) ? this.standIn(v) : v)
+      : Array.isArray(v) ? v.map(swap) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, swap(x)])) : v;
+    return swap(data);
+  }
+
+  standIn(id) {
+    const u = this.users[id];
+    if (!u.pub) { u.pub = "p" + hexId(11); this.save(); }
+    return u.pub;
+  }
+
   /** Who an attendee can meet: the people who joined the same event (one event at a time), with a card, not paused
       and not test attendees. The iPhone app and the web page are separate rooms (so phones can find each other by
       Ultra Wideband). Without an event there's nobody to meet. */
@@ -1375,16 +1389,17 @@ export class PairShake extends DurableObject {
     const app = /PairShakeApp|RoomieApp/.test(req.headers.get("user-agent") || "");     // the iPhone app (WKWebView)
     try {
       if (req.method === "GET") {
+        const you = q.get("id"), mine = data => json(this.outward(data, you));     // (other people's ids swapped for their stand-ins)
         switch (path) {
           case "/ws": return this.openSocket(q);
-          case "/scan": return json(this.scan(q));
-          case "/me": return json(this.me(q));
+          case "/scan": return mine(this.scan(q));
+          case "/me": return mine(this.me(q));
           case "/networks": return json(this.networksOf(q));
-          case "/network": return json(this.networkView(q));
+          case "/network": return mine(this.networkView(q));
           case "/events": return json(await this.events(q));
-          case "/event": return json(this.eventRoom(q));
-          case "/inbox": return json(this.inbox(q));
-          case "/talk": return json(await this.talk(q));
+          case "/event": return mine(this.eventRoom(q));
+          case "/inbox": return mine(this.inbox(q));
+          case "/talk": return mine(await this.talk(q));
           case "/room": return json({ stats: this.stats, people: Object.values(this.users).filter(u => u.profile && !u.test).length, intros: Object.keys(this.missions).length });
           case "/admin/export": return json(this.exportAll());
         }
@@ -1392,6 +1407,7 @@ export class PairShake extends DurableObject {
         let d = {};
         try { d = await req.json(); } catch {}
         if (!isObj(d)) d = {};
+        const mine = data => json(this.outward(data, d.id));
         switch (path) {
           case "/start": return json(await this.start(d, app));
           case "/turn": return json(await this.turn(d));
@@ -1400,14 +1416,14 @@ export class PairShake extends DurableObject {
           case "/network/create": return json(await this.networkCreate(d));
           case "/network/live": return json(this.networkLive(d));
           case "/network/join": return json(this.networkJoin(d));
-          case "/match": { const r = await this.match(d); return r instanceof Response ? r : json(r); }
+          case "/match": { const r = await this.match(d); return r instanceof Response ? r : mine(r); }
           case "/match/cancel": return json(this.cancel(d));
           case "/again": return json(this.again(d));
           case "/test/match": return json(this.testMatch(d, app));
           case "/account": return await this.account(d, app);
           case "/internal/login": return json(this.login(d, app));          // only from auth.js: index.js never forwards /internal
-          case "/profile": return json(this.profile(d));
-          case "/event": return json(await this.joinEvent(d));
+          case "/profile": return mine(this.profile(d));
+          case "/event": return mine(await this.joinEvent(d));
           case "/feedback": return json(this.feedback(d));
           case "/suggest": return json(await this.suggest(d));
           case "/speak": return await this.speakLine(d, req.headers.get("cf-connecting-ip") || "?");
